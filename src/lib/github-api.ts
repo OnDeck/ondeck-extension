@@ -63,3 +63,71 @@ export async function fetchViewer(token: string): Promise<Viewer> {
     html_url: data.html_url,
   };
 }
+
+export interface ReviewRequestItem {
+  id: number;
+  number: number;
+  title: string;
+  html_url: string;
+  repository_url: string;
+  updated_at: string;
+  user: { login: string; avatar_url: string } | null;
+  labels: { name: string }[];
+  draft?: boolean;
+  pull_request: { url: string };
+}
+
+interface IssueSearchResponse {
+  total_count: number;
+  items: ReviewRequestItem[];
+}
+
+export function repoSlugFromUrl(repositoryUrl: string): string {
+  const match = repositoryUrl.match(/repos\/([^/]+\/[^/]+)$/);
+  return match ? match[1] : repositoryUrl;
+}
+
+interface PullRequestDetail {
+  changed_files: number;
+}
+
+export async function fetchReviewRequests(
+  token: string,
+  login: string,
+): Promise<ReviewRequestItem[]> {
+  const query = `is:pr is:open review-requested:${login}`;
+  const res = await githubFetch(
+    `/search/issues?q=${encodeURIComponent(query)}&per_page=50&sort=updated&order=desc`,
+    token,
+  );
+  const data = (await res.json()) as IssueSearchResponse;
+  return data.items ?? [];
+}
+
+export async function fetchPullRequestChangedFiles(
+  token: string,
+  pullRequestUrl: string,
+): Promise<number | null> {
+  // pullRequestUrl looks like https://api.github.com/repos/foo/bar/pulls/12
+  const url = pullRequestUrl.replace(GITHUB_API_BASE, '');
+  try {
+    const res = await githubFetch(url, token);
+    const detail = (await res.json()) as PullRequestDetail;
+    return detail.changed_files ?? null;
+  } catch {
+    return null;
+  }
+}
+
+const BLOCKING_LABELS = new Set([
+  'blocking deploy',
+  'blocking-deploy',
+  'blocking',
+  'priority: high',
+  'priority/high',
+  'urgent',
+]);
+
+export function isBlockingPriority(item: ReviewRequestItem): boolean {
+  return item.labels.some((l) => BLOCKING_LABELS.has(l.name.toLowerCase()));
+}
