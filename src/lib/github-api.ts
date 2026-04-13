@@ -63,3 +63,37 @@ export async function fetchViewer(token: string): Promise<Viewer> {
     html_url: data.html_url,
   };
 }
+
+export interface MentionItem {
+  id: number;
+  number: number;
+  title: string;
+  html_url: string;
+  body: string | null;
+  repository_url: string;
+  updated_at: string;
+  pull_request?: { url: string };
+}
+
+interface IssueSearchResponse {
+  total_count: number;
+  items: MentionItem[];
+}
+
+export function repoSlugFromUrl(repositoryUrl: string): string {
+  const match = repositoryUrl.match(/repos\/([^/]+\/[^/]+)$/);
+  return match ? match[1] : repositoryUrl;
+}
+
+export async function fetchMentions(
+  token: string,
+  login: string,
+): Promise<MentionItem[]> {
+  const query = `is:open mentions:${login}`;
+  const res = await githubFetch(
+    `/search/issues?q=${encodeURIComponent(query)}&per_page=50&sort=updated&order=desc`,
+    token,
+  );
+  const data = (await res.json()) as IssueSearchResponse;
+  return data.items ?? [];
+}
