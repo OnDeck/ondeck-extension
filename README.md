@@ -36,6 +36,32 @@ npm run dev        # watch build → dist/
 npm run build      # one-shot production build
 ```
 
+### Authentication
+
+The popup supports two sign-in paths:
+
+1. **Personal Access Token (default).** Create a token at
+   [github.com/settings/tokens/new](https://github.com/settings/tokens/new) with
+   scopes `read:user`, `notifications`, and `repo`, then paste it into the
+   popup's sign-in screen. Tokens are encrypted with AES-GCM (key stored in
+   `chrome.storage.local`) before being written to `chrome.storage.sync`.
+
+2. **GitHub OAuth (optional).** Register an OAuth app and set the redirect URI
+   to the value returned by `chrome.identity.getRedirectURL('oauth2')`. GitHub's
+   OAuth flow requires a server-side token exchange (the client secret cannot
+   ship in an extension), so you also need a small endpoint that takes
+   `{ code, state, redirect_uri }` and returns `{ access_token }`. Provide both
+   values at build time:
+
+   ```bash
+   VITE_GITHUB_OAUTH_CLIENT_ID=Iv1.xxxxxxxxxxxxxxxx \
+   VITE_GITHUB_OAUTH_EXCHANGE_URL=https://your.exchange/api/github \
+   npm run build
+   ```
+
+   When either env var is missing the OAuth button is hidden and the popup
+   falls back to PAT-only sign-in.
+
 ### Load the unpacked extension in Chrome
 
 1. Run `npm run build` (or `npm run dev` for watch mode).
