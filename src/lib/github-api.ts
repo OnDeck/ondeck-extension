@@ -63,3 +63,43 @@ export async function fetchViewer(token: string): Promise<Viewer> {
     html_url: data.html_url,
   };
 }
+
+export type NotificationReason =
+  | 'assign'
+  | 'author'
+  | 'comment'
+  | 'invitation'
+  | 'manual'
+  | 'mention'
+  | 'review_requested'
+  | 'security_alert'
+  | 'state_change'
+  | 'subscribed'
+  | 'team_mention';
+
+export interface NotificationItem {
+  id: string;
+  unread: boolean;
+  reason: NotificationReason;
+  updated_at: string;
+  subject: {
+    title: string;
+    url: string | null;
+    latest_comment_url: string | null;
+    type: string;
+  };
+  repository: {
+    id: number;
+    full_name: string;
+    html_url: string;
+    owner: { login: string; avatar_url: string };
+  };
+}
+
+export async function fetchNotifications(
+  token: string,
+): Promise<NotificationItem[]> {
+  const res = await githubFetch('/notifications?all=false&per_page=100', token);
+  const data = (await res.json()) as NotificationItem[];
+  return Array.isArray(data) ? data : [];
+}
