@@ -63,3 +63,55 @@ export async function fetchViewer(token: string): Promise<Viewer> {
     html_url: data.html_url,
   };
 }
+
+interface SearchResult {
+  total_count: number;
+}
+
+async function fetchSearchCount(token: string, query: string): Promise<number> {
+  const res = await githubFetch(
+    `/search/issues?q=${encodeURIComponent(query)}&per_page=1`,
+    token,
+  );
+  const data = (await res.json()) as SearchResult;
+  return data.total_count ?? 0;
+}
+
+export interface DashboardCounts {
+  assignedPrs: number;
+  reviewRequests: number;
+  mentions: number;
+  notifications: number;
+}
+
+/**
+ * Fetch the four headline counts shown on the dashboard home tab. Errors
+ * from individual queries are treated as zero so that one slow/forbidden
+ * query does not blank out the whole UI — the caller can still surface a
+ * generic error if every count failed.
+ */
+export async function fetchDashboardCounts(
+  token: string,
+  login: string,
+): Promise<DashboardCounts> {
+  const safe = async (fn: () => Promise<number>): Promise<number> => {
+    try {
+      return await fn();
+    } catch {
+      return 0;
+    }
+  };
+
+  const [assignedPrs, reviewRequests, mentions, notifications] = await Promise.all([
+    safe(() => fetchSearchCount(token, `is:pr is:open assignee:${login}`)),
+    safe(() => fetchSearchCount(token, `is:pr is:open review-requested:${login}`)),
+    safe(() => fetchSearchCount(token, `is:open mentions:${login}`)),
+    safe(async () => {
+      const res = await githubFetch('/notifications?all=false&per_page=100', token);
+      const data = (await res.json()) as unknown[];
+      return Array.isArray(data) ? data.length : 0;
+    }),
+  ]);
+
+  return { assignedPrs, reviewRequests, mentions, notifications };
+}
