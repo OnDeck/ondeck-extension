@@ -19,14 +19,20 @@ export class GitHubApiError extends Error {
   }
 }
 
-async function githubFetch(path: string, token: string): Promise<Response> {
+async function githubFetch(
+  path: string,
+  token: string,
+  init: RequestInit = {},
+): Promise<Response> {
   let response: Response;
   try {
     response = await fetch(`${GITHUB_API_BASE}${path}`, {
+      ...init,
       headers: {
         Accept: 'application/vnd.github+json',
         Authorization: `Bearer ${token}`,
         'X-GitHub-Api-Version': '2022-11-28',
+        ...(init.headers ?? {}),
       },
     });
   } catch (err) {
