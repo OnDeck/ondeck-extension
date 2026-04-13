@@ -63,3 +63,50 @@ export async function fetchViewer(token: string): Promise<Viewer> {
     html_url: data.html_url,
   };
 }
+
+export interface IssueSearchItem {
+  id: number;
+  number: number;
+  title: string;
+  html_url: string;
+  state: 'open' | 'closed';
+  draft?: boolean;
+  repository_url: string;
+  updated_at: string;
+  user: { login: string; avatar_url: string } | null;
+  labels: { name: string }[];
+  pull_request?: { url: string };
+}
+
+interface IssueSearchResponse {
+  total_count: number;
+  items: IssueSearchItem[];
+}
+
+async function searchIssues(
+  token: string,
+  query: string,
+): Promise<IssueSearchItem[]> {
+  const res = await githubFetch(
+    `/search/issues?q=${encodeURIComponent(query)}&per_page=50&sort=updated&order=desc`,
+    token,
+  );
+  const data = (await res.json()) as IssueSearchResponse;
+  return data.items ?? [];
+}
+
+export async function fetchAssignedPrs(
+  token: string,
+  login: string,
+): Promise<IssueSearchItem[]> {
+  return searchIssues(token, `is:pr is:open assignee:${login}`);
+}
+
+/**
+ * Extract `org/repo` from a `repository_url` like
+ * `https://api.github.com/repos/foo/bar`.
+ */
+export function repoSlugFromUrl(repositoryUrl: string): string {
+  const match = repositoryUrl.match(/repos\/([^/]+\/[^/]+)$/);
+  return match ? match[1] : repositoryUrl;
+}
