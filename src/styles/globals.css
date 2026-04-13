@@ -2,8 +2,84 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/*
+ * GitHub Primer color tokens. The defaults below are the dark palette so
+ * pages without `data-theme` set on <html> (or the very first paint before
+ * the theme provider runs) match the popup's historical look. The light
+ * palette overrides via `:root[data-theme="light"]` and the system fallback
+ * follows the user's prefers-color-scheme when no explicit choice is made.
+ */
+:root,
+:root[data-theme='dark'] {
   color-scheme: dark;
+
+  --gh-canvas-default: #0d1117;
+  --gh-canvas-subtle: #161b22;
+  --gh-canvas-overlay: #1c2128;
+  --gh-border-default: #30363d;
+  --gh-border-muted: #21262d;
+  --gh-fg-default: #e6edf3;
+  --gh-fg-muted: #7d8590;
+  --gh-fg-on-emphasis: #ffffff;
+  --gh-accent-emphasis: #1f6feb;
+  --gh-accent-fg: #2f81f7;
+  --gh-success-emphasis: #2ea043;
+  --gh-success-fg: #3fb950;
+  --gh-danger-emphasis: #f85149;
+  --gh-danger-fg: #f85149;
+  --gh-attention-emphasis: #9e6a03;
+  --gh-attention-fg: #d29922;
+  --gh-done-emphasis: #8250df;
+  --gh-done-fg: #a371f7;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --gh-canvas-default: #ffffff;
+  --gh-canvas-subtle: #f6f8fa;
+  --gh-canvas-overlay: #ffffff;
+  --gh-border-default: #d0d7de;
+  --gh-border-muted: #d8dee4;
+  --gh-fg-default: #1f2328;
+  --gh-fg-muted: #59636e;
+  --gh-fg-on-emphasis: #ffffff;
+  --gh-accent-emphasis: #0969da;
+  --gh-accent-fg: #0969da;
+  --gh-success-emphasis: #1a7f37;
+  --gh-success-fg: #1a7f37;
+  --gh-danger-emphasis: #cf222e;
+  --gh-danger-fg: #cf222e;
+  --gh-attention-emphasis: #9a6700;
+  --gh-attention-fg: #9a6700;
+  --gh-done-emphasis: #8250df;
+  --gh-done-fg: #8250df;
+}
+
+/* Honour the OS preference when the user hasn't picked a theme explicitly. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+
+    --gh-canvas-default: #ffffff;
+    --gh-canvas-subtle: #f6f8fa;
+    --gh-canvas-overlay: #ffffff;
+    --gh-border-default: #d0d7de;
+    --gh-border-muted: #d8dee4;
+    --gh-fg-default: #1f2328;
+    --gh-fg-muted: #59636e;
+    --gh-fg-on-emphasis: #ffffff;
+    --gh-accent-emphasis: #0969da;
+    --gh-accent-fg: #0969da;
+    --gh-success-emphasis: #1a7f37;
+    --gh-success-fg: #1a7f37;
+    --gh-danger-emphasis: #cf222e;
+    --gh-danger-fg: #cf222e;
+    --gh-attention-emphasis: #9a6700;
+    --gh-attention-fg: #9a6700;
+    --gh-done-emphasis: #8250df;
+    --gh-done-fg: #8250df;
+  }
 }
 
 html,

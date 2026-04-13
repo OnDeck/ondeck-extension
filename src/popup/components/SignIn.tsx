@@ -22,7 +22,7 @@ export function SignIn({ auth }: Props) {
           type="button"
           disabled={auth.busy}
           onClick={() => void auth.signInWithOAuth()}
-          className="mt-4 rounded-md border border-gh-border-default bg-gh-accent-emphasis px-3 py-2 text-xs font-semibold text-white hover:brightness-110 disabled:opacity-60"
+          className="mt-4 rounded-md border border-gh-border-default bg-gh-accent-emphasis px-3 py-2 text-xs font-semibold text-gh-fg-on-emphasis hover:brightness-110 disabled:opacity-60"
         >
           {auth.busy ? 'Connecting…' : 'Sign in with GitHub'}
         </button>
