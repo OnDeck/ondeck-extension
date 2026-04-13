@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "GitHub Workflow Assistant",
+  "version": "0.1.0",
+  "description": "At-a-glance view of your GitHub workflow: assigned PRs, mentions, reviews, and notifications.",
+  "permissions": ["storage", "identity", "notifications", "alarms"],
+  "host_permissions": [
+    "https://github.com/*",
+    "https://api.github.com/*"
+  ],
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_title": "GitHub Workflow Assistant",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  }
+}
