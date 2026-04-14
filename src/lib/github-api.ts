@@ -151,6 +151,24 @@ export async function searchIssues(
   return (await res.json()) as IssueSearchResponse;
 }
 
+export interface PullRequestDetails {
+  number: number;
+  changed_files: number;
+  additions: number;
+  deletions: number;
+  user: { login: string; avatar_url: string } | null;
+}
+
+export async function fetchPullRequestDetails(
+  token: string,
+  owner: string,
+  repo: string,
+  number: number,
+): Promise<PullRequestDetails> {
+  const res = await githubFetch(`/repos/${owner}/${repo}/pulls/${number}`, token);
+  return (await res.json()) as PullRequestDetails;
+}
+
 export interface RepoCoordinates {
   owner: string;
   repo: string;

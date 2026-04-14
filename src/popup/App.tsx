@@ -4,15 +4,12 @@ import { SignIn } from './components/SignIn';
 import { AssignedPrs } from './components/AssignedPrs';
 import { Dashboard } from './components/Dashboard';
 import { Mentions } from './components/Mentions';
+import { Reviews } from './components/Reviews';
 import { TabPlaceholder } from './components/TabPlaceholder';
 import { useAuth } from './hooks/useAuth';
 import type { TabId } from './types';
 
-const PLACEHOLDERS: Record<Exclude<TabId, 'home' | 'assigned' | 'mentions'>, { title: string; description: string }> = {
-  reviews: {
-    title: 'Review requests',
-    description: 'Review requests list ships in a subsequent ticket.',
-  },
+const PLACEHOLDERS: Record<Exclude<TabId, 'home' | 'assigned' | 'mentions' | 'reviews'>, { title: string; description: string }> = {
   notifications: {
     title: 'Notifications',
     description: 'Notifications feed ships in a subsequent ticket.',
@@ -48,7 +45,10 @@ export default function App() {
         {tab === 'mentions' && (
           <Mentions login={auth.viewer.login} onBack={() => setTab('home')} />
         )}
-        {tab !== 'home' && tab !== 'assigned' && tab !== 'mentions' && (
+        {tab === 'reviews' && (
+          <Reviews login={auth.viewer.login} onBack={() => setTab('home')} />
+        )}
+        {tab !== 'home' && tab !== 'assigned' && tab !== 'mentions' && tab !== 'reviews' && (
           <TabPlaceholder
             title={PLACEHOLDERS[tab].title}
             description={PLACEHOLDERS[tab].description}
