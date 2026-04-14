@@ -6,6 +6,7 @@ import { useAuth } from './hooks/useAuth';
 import type { TabId } from './tabs';
 import { AssignedView } from './views/AssignedView';
 import { HomeView } from './views/HomeView';
+import { MentionsView } from './views/MentionsView';
 import { PlaceholderView } from './views/PlaceholderView';
 
 export default function App() {
@@ -38,10 +39,7 @@ export default function App() {
           />
         )}
         {tab === 'mentions' && (
-          <PlaceholderView
-            title="Mentions"
-            message="Coming up in the next ticket."
-          />
+          <MentionsView token={auth.token} viewerLogin={auth.viewer.login} />
         )}
         {tab === 'notifications' && (
           <PlaceholderView
