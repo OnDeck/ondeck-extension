@@ -12,6 +12,7 @@ export type AuthStatus = 'loading' | 'signed-out' | 'signed-in';
 export interface UseAuth {
   status: AuthStatus;
   viewer: Viewer | null;
+  token: string | null;
   error: string | null;
   busy: boolean;
   signInWithPat: (token: string) => Promise<void>;
@@ -22,6 +23,7 @@ export interface UseAuth {
 export function useAuth(): UseAuth {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [viewer, setViewer] = useState<Viewer | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -32,6 +34,7 @@ export function useAuth(): UseAuth {
       if (cancelled) return;
       if (token && viewer) {
         setViewer(viewer);
+        setToken(token);
         setStatus('signed-in');
       } else {
         setStatus('signed-out');
@@ -42,12 +45,13 @@ export function useAuth(): UseAuth {
     };
   }, []);
 
-  const signInWithPat = useCallback(async (token: string) => {
+  const signInWithPat = useCallback(async (rawToken: string) => {
     setBusy(true);
     setError(null);
     try {
-      const v = await signInWithToken(token);
+      const v = await signInWithToken(rawToken);
       setViewer(v);
+      setToken(rawToken.trim());
       setStatus('signed-in');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign-in failed');
@@ -62,6 +66,9 @@ export function useAuth(): UseAuth {
     try {
       const v = await oauthSignIn();
       setViewer(v);
+      // Re-read the stored token so we have the resolved access token.
+      const stored = await getStoredAuth();
+      setToken(stored.token);
       setStatus('signed-in');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'OAuth failed');
@@ -75,6 +82,7 @@ export function useAuth(): UseAuth {
     try {
       await doSignOut();
       setViewer(null);
+      setToken(null);
       setStatus('signed-out');
       setError(null);
     } finally {
@@ -82,5 +90,5 @@ export function useAuth(): UseAuth {
     }
   }, []);
 
-  return { status, viewer, error, busy, signInWithPat, signInWithOAuth, signOut };
+  return { status, viewer, token, error, busy, signInWithPat, signInWithOAuth, signOut };
 }
