@@ -6,6 +6,7 @@ import { AssignedPrsTab } from './pages/AssignedPrsTab';
 import { HomeTab } from './pages/HomeTab';
 import { MentionsTab } from './pages/MentionsTab';
 import { PlaceholderTab } from './pages/PlaceholderTab';
+import { ReviewsTab } from './pages/ReviewsTab';
 import type { TabId } from './tabs';
 import { useAuth } from './hooks/useAuth';
 
@@ -33,9 +34,7 @@ export default function App() {
         {tab === 'home' && <HomeTab viewer={auth.viewer} onNavigate={setTab} />}
         {tab === 'assigned' && <AssignedPrsTab viewer={auth.viewer} />}
         {tab === 'mentions' && <MentionsTab viewer={auth.viewer} />}
-        {tab === 'reviews' && (
-          <PlaceholderTab title="Reviews" description="Ships in ticket #6." />
-        )}
+        {tab === 'reviews' && <ReviewsTab viewer={auth.viewer} />}
         {tab === 'notifications' && (
           <PlaceholderTab
             title="Notifications"

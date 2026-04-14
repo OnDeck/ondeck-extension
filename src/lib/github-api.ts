@@ -123,6 +123,29 @@ async function notificationsCount(token: string): Promise<number> {
   return Array.isArray(data) ? data.length : 0;
 }
 
+export interface PullRequestDetail {
+  number: number;
+  changed_files: number;
+  additions: number;
+  deletions: number;
+}
+
+export async function fetchPullRequestDetail(
+  owner: string,
+  repo: string,
+  number: number,
+  token: string,
+): Promise<PullRequestDetail> {
+  const res = await githubFetch(`/repos/${owner}/${repo}/pulls/${number}`, token);
+  const data = (await res.json()) as PullRequestDetail;
+  return {
+    number: data.number,
+    changed_files: data.changed_files ?? 0,
+    additions: data.additions ?? 0,
+    deletions: data.deletions ?? 0,
+  };
+}
+
 export async function searchIssues(
   query: string,
   token: string,
