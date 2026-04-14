@@ -19,14 +19,20 @@ export class GitHubApiError extends Error {
   }
 }
 
-async function githubFetch(path: string, token: string): Promise<Response> {
+async function githubFetch(
+  path: string,
+  token: string,
+  init: RequestInit = {},
+): Promise<Response> {
   let response: Response;
   try {
     response = await fetch(`${GITHUB_API_BASE}${path}`, {
+      ...init,
       headers: {
         Accept: 'application/vnd.github+json',
         Authorization: `Bearer ${token}`,
         'X-GitHub-Api-Version': '2022-11-28',
+        ...(init.headers ?? {}),
       },
     });
   } catch (err) {
@@ -42,7 +48,7 @@ async function githubFetch(path: string, token: string): Promise<Response> {
   if (response.status === 403) {
     throw new GitHubApiError('Forbidden — check token scopes', 403, 'forbidden');
   }
-  if (!response.ok) {
+  if (!response.ok && response.status !== 205) {
     throw new GitHubApiError(
       `GitHub API error (${response.status})`,
       response.status,
@@ -128,12 +134,86 @@ export async function fetchMentionsCount(token: string): Promise<number> {
   return searchIssuesCount(token, 'is:open mentions:@me archived:false');
 }
 
+export type NotificationReason =
+  | 'assign'
+  | 'author'
+  | 'comment'
+  | 'ci_activity'
+  | 'invitation'
+  | 'manual'
+  | 'mention'
+  | 'review_requested'
+  | 'security_alert'
+  | 'state_change'
+  | 'subscribed'
+  | 'team_mention'
+  | string;
+
+export type NotificationSubjectType =
+  | 'PullRequest'
+  | 'Issue'
+  | 'Discussion'
+  | 'Release'
+  | 'Commit'
+  | string;
+
+export interface GitHubNotification {
+  id: string;
+  unread: boolean;
+  reason: NotificationReason;
+  updated_at: string;
+  subject: {
+    title: string;
+    url: string | null;
+    latest_comment_url: string | null;
+    type: NotificationSubjectType;
+  };
+  repository: {
+    id: number;
+    full_name: string;
+    html_url: string;
+    owner: { login: string; avatar_url: string };
+  };
+}
+
+export async function fetchNotifications(
+  token: string,
+  { unreadOnly = true, perPage = 50 }: { unreadOnly?: boolean; perPage?: number } = {},
+): Promise<GitHubNotification[]> {
+  const res = await githubFetch(
+    `/notifications?all=${!unreadOnly}&per_page=${perPage}`,
+    token,
+  );
+  const data = (await res.json()) as GitHubNotification[];
+  return Array.isArray(data) ? data : [];
+}
+
 export async function fetchUnreadNotificationsCount(token: string): Promise<number> {
-  // `/notifications?all=false` returns only unread items. Use per_page=50 which
-  // is plenty for a popup badge; the API caps at 50 anyway.
-  const res = await githubFetch('/notifications?all=false&per_page=50', token);
-  const data = (await res.json()) as unknown[];
-  return Array.isArray(data) ? data.length : 0;
+  const items = await fetchNotifications(token, { unreadOnly: true });
+  return items.length;
+}
+
+export async function markNotificationRead(
+  token: string,
+  threadId: string,
+): Promise<void> {
+  await githubFetch(`/notifications/threads/${threadId}`, token, { method: 'PATCH' });
+}
+
+/**
+ * Build an html_url for a notification subject. GitHub returns API URLs on
+ * the notification payload (e.g. /repos/foo/bar/pulls/1); we rewrite them to
+ * their human-facing equivalents so click-through opens the actual page.
+ */
+export function notificationHtmlUrl(n: GitHubNotification): string {
+  const { subject, repository } = n;
+  if (!subject.url) return repository.html_url;
+  const apiMatch = subject.url.match(/\/repos\/[^/]+\/[^/]+\/(pulls|issues)\/(\d+)/);
+  if (apiMatch) {
+    const kind = apiMatch[1] === 'pulls' ? 'pull' : 'issues';
+    return `${repository.html_url}/${kind}/${apiMatch[2]}`;
+  }
+  return repository.html_url;
 }
 
 export interface AggregatedCounts {

@@ -7,7 +7,7 @@ import type { TabId } from './tabs';
 import { AssignedView } from './views/AssignedView';
 import { HomeView } from './views/HomeView';
 import { MentionsView } from './views/MentionsView';
-import { PlaceholderView } from './views/PlaceholderView';
+import { NotificationsView } from './views/NotificationsView';
 import { ReviewsView } from './views/ReviewsView';
 
 export default function App() {
@@ -37,12 +37,7 @@ export default function App() {
         {tab === 'mentions' && (
           <MentionsView token={auth.token} viewerLogin={auth.viewer.login} />
         )}
-        {tab === 'notifications' && (
-          <PlaceholderView
-            title="Notifications"
-            message="Coming up in the next ticket."
-          />
-        )}
+        {tab === 'notifications' && <NotificationsView token={auth.token} />}
       </main>
     </div>
   );
