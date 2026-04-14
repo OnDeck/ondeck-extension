@@ -1,6 +1,14 @@
-import { clearCryptoKey, decryptString, encryptString, type Envelope } from './crypto';
 import { fetchViewer, GitHubApiError, type Viewer } from './github-api';
+import {
+  getActiveAccount,
+  listAccounts,
+  removeAccount,
+  switchAccount as switchActiveAccount,
+  upsertAccount,
+} from './accounts';
 
+// Retained for call-sites and tests that still reference the legacy keys.
+// The modern storage lives in gh_workflow_accounts_v1 (see accounts.ts).
 export const TOKEN_STORAGE_KEY = 'gh_workflow_token_v1';
 export const VIEWER_STORAGE_KEY = 'gh_workflow_viewer_v1';
 
@@ -13,43 +21,19 @@ export interface AuthState {
   viewer: Viewer | null;
 }
 
-interface StoredToken {
-  envelope: Envelope;
-}
-
 export async function getStoredAuth(): Promise<AuthState> {
-  const [syncBag, localBag] = await Promise.all([
-    chrome.storage.sync.get(TOKEN_STORAGE_KEY),
-    chrome.storage.local.get(VIEWER_STORAGE_KEY),
-  ]);
-  const stored = syncBag[TOKEN_STORAGE_KEY] as StoredToken | undefined;
-  const viewer = (localBag[VIEWER_STORAGE_KEY] as Viewer | undefined) ?? null;
-  if (!stored?.envelope) return { token: null, viewer: null };
-  try {
-    const token = await decryptString(stored.envelope);
-    return { token, viewer };
-  } catch {
-    // Key rotation or corruption — treat as logged out.
-    await clearStoredAuth();
-    return { token: null, viewer: null };
-  }
+  const active = await getActiveAccount();
+  if (!active) return { token: null, viewer: null };
+  return { token: active.token, viewer: active.viewer };
 }
 
 export async function saveToken(token: string, viewer: Viewer): Promise<void> {
-  const envelope = await encryptString(token);
-  const payload: StoredToken = { envelope };
-  await Promise.all([
-    chrome.storage.sync.set({ [TOKEN_STORAGE_KEY]: payload }),
-    chrome.storage.local.set({ [VIEWER_STORAGE_KEY]: viewer }),
-  ]);
+  await upsertAccount(token, viewer);
 }
 
 export async function clearStoredAuth(): Promise<void> {
-  await Promise.all([
-    chrome.storage.sync.remove(TOKEN_STORAGE_KEY),
-    chrome.storage.local.remove(VIEWER_STORAGE_KEY),
-    clearCryptoKey(),
-  ]);
+  const { accounts } = await listAccounts();
+  await Promise.all(accounts.map((a) => removeAccount(a.id)));
 }
 
 /**
@@ -67,7 +51,15 @@ export async function signInWithToken(token: string): Promise<Viewer> {
 }
 
 export async function signOut(): Promise<void> {
-  await clearStoredAuth();
+  // Sign-out in multi-account mode removes only the active account; if
+  // that was the last one we fall through to clearStoredAuth.
+  const active = await getActiveAccount();
+  if (!active) return;
+  await removeAccount(active.summary.id);
+}
+
+export async function switchAccount(id: number): Promise<void> {
+  await switchActiveAccount(id);
 }
 
 // ---------- OAuth ----------

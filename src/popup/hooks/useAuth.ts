@@ -18,6 +18,7 @@ export interface UseAuth {
   signInWithPat: (token: string) => Promise<void>;
   signInWithOAuth: () => Promise<void>;
   signOut: () => Promise<void>;
+  reload: () => Promise<void>;
 }
 
 export function useAuth(): UseAuth {
@@ -81,14 +82,46 @@ export function useAuth(): UseAuth {
     setBusy(true);
     try {
       await doSignOut();
-      setToken(null);
-      setViewer(null);
-      setStatus('signed-out');
+      // After signing out of the active account there may still be
+      // another account in the bag. Re-read storage so we land on it.
+      const stored = await getStoredAuth();
+      if (stored.token && stored.viewer) {
+        setToken(stored.token);
+        setViewer(stored.viewer);
+        setStatus('signed-in');
+      } else {
+        setToken(null);
+        setViewer(null);
+        setStatus('signed-out');
+      }
       setError(null);
     } finally {
       setBusy(false);
     }
   }, []);
 
-  return { status, viewer, token, error, busy, signInWithPat, signInWithOAuth, signOut };
+  const reload = useCallback(async () => {
+    const stored = await getStoredAuth();
+    if (stored.token && stored.viewer) {
+      setToken(stored.token);
+      setViewer(stored.viewer);
+      setStatus('signed-in');
+    } else {
+      setToken(null);
+      setViewer(null);
+      setStatus('signed-out');
+    }
+  }, []);
+
+  return {
+    status,
+    viewer,
+    token,
+    error,
+    busy,
+    signInWithPat,
+    signInWithOAuth,
+    signOut,
+    reload,
+  };
 }

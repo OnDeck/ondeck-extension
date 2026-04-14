@@ -11,6 +11,7 @@ import type { TabId } from './tabs/types';
 import { useAuth } from './hooks/useAuth';
 import { useCounts } from './hooks/useCounts';
 import { useTheme } from './hooks/useTheme';
+import { useAccounts } from './hooks/useAccounts';
 
 const TABS: TabDef[] = [
   { id: 'home', label: 'Home' },
@@ -23,7 +24,9 @@ const TABS: TabDef[] = [
 export default function App() {
   const auth = useAuth();
   const theme = useTheme();
+  const accounts = useAccounts();
   const [active, setActive] = useState<TabId>('home');
+  const [addingAccount, setAddingAccount] = useState(false);
   const counts = useCounts(auth.token, auth.viewer?.login ?? null);
 
   if (auth.status === 'loading') {
@@ -34,15 +37,39 @@ export default function App() {
     );
   }
 
-  if (auth.status === 'signed-out' || !auth.viewer) {
-    return <SignIn auth={auth} />;
+  if (auth.status === 'signed-out' || !auth.viewer || addingAccount) {
+    return (
+      <SignIn
+        auth={auth}
+        addingAccount={addingAccount}
+        onCancelAdd={() => setAddingAccount(false)}
+        onAdded={async () => {
+          await accounts.refresh();
+          setAddingAccount(false);
+        }}
+      />
+    );
   }
 
   return (
     <div className="flex h-full w-full flex-col">
       <Header
         viewer={auth.viewer}
-        onSignOut={() => void auth.signOut()}
+        accounts={accounts.accounts}
+        activeId={accounts.activeId}
+        onSignOut={async () => {
+          await auth.signOut();
+          await accounts.refresh();
+        }}
+        onSwitchAccount={async (id) => {
+          await accounts.switchTo(id);
+          await auth.reload();
+        }}
+        onSignOutAccount={async (id) => {
+          await accounts.signOutAccount(id);
+          await auth.reload();
+        }}
+        onAddAccount={() => setAddingAccount(true)}
         busy={auth.busy}
         themePreference={theme.preference}
         onThemeChange={theme.setPreference}
@@ -54,6 +81,7 @@ export default function App() {
             counts={counts.counts}
             status={counts.status}
             error={counts.error}
+            accountId={auth.viewer.id}
             onNavigate={setActive}
             onRefresh={() => void counts.refresh()}
           />
@@ -65,7 +93,11 @@ export default function App() {
           <MentionsTab token={auth.token} login={auth.viewer.login} />
         )}
         {active === 'reviews' && (
-          <ReviewsTab token={auth.token} login={auth.viewer.login} />
+          <ReviewsTab
+            token={auth.token}
+            login={auth.viewer.login}
+            accountId={auth.viewer.id}
+          />
         )}
         {active === 'notifications' && <NotificationsTab token={auth.token} />}
       </main>

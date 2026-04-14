@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import type { DashboardCounts } from '../../lib/github-api';
+import { getWeeklyReviewCount } from '../../lib/stats';
 import type { TabId } from '../tabs/types';
 
 interface Row {
@@ -18,11 +20,20 @@ interface Props {
   counts: DashboardCounts | null;
   status: 'loading' | 'ready' | 'error';
   error: string | null;
+  accountId: number;
   onNavigate: (tab: TabId) => void;
   onRefresh: () => void;
 }
 
-export function Dashboard({ counts, status, error, onNavigate, onRefresh }: Props) {
+export function Dashboard({
+  counts,
+  status,
+  error,
+  accountId,
+  onNavigate,
+  onRefresh,
+}: Props) {
+  const weeklyReviews = useWeeklyReviews(accountId);
   if (status === 'loading' && !counts) {
     return (
       <div className="flex h-full items-center justify-center text-xs text-gh-fg-muted">
@@ -92,8 +103,27 @@ export function Dashboard({ counts, status, error, onNavigate, onRefresh }: Prop
           Inbox zero. Nice work.
         </div>
       )}
+      <div className="border-t border-gh-border-muted bg-gh-canvas-subtle px-4 py-2 text-center text-[11px] text-gh-fg-muted">
+        {weeklyReviews === 0
+          ? 'No reviews logged this week yet.'
+          : `You've reviewed ${weeklyReviews} PR${weeklyReviews > 1 ? 's' : ''} this week.`}
+      </div>
     </div>
   );
+}
+
+function useWeeklyReviews(accountId: number): number {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    void getWeeklyReviewCount(accountId).then((value) => {
+      if (!cancelled) setCount(value);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [accountId]);
+  return count;
 }
 
 function countFor(id: TabId, c: DashboardCounts): number {

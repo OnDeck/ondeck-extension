@@ -8,15 +8,17 @@ import {
   repoSlugFromIssue,
   type IssueSearchItem,
 } from '../../../lib/github-api';
+import { incrementWeeklyReviewCount } from '../../../lib/stats';
 
 interface Props {
   token: string | null;
   login: string | null;
+  accountId: number;
 }
 
 const BLOCKING_LABEL = /block(ing|er)?|urgent|p0|p1/i;
 
-export function ReviewsTab({ token, login }: Props) {
+export function ReviewsTab({ token, login, accountId }: Props) {
   const query = login ? `is:pr is:open review-requested:${login}` : null;
   const list = useIssueList(token, query);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
@@ -33,6 +35,7 @@ export function ReviewsTab({ token, login }: Props) {
     setPending((prev) => new Set(prev).add(item.id));
     try {
       await markPullReviewed(owner, repo, item.number, token);
+      await incrementWeeklyReviewCount(accountId);
       setCompleted((prev) => new Set(prev).add(item.id));
     } catch (err) {
       console.warn('[gh-workflow] mark reviewed failed', err);

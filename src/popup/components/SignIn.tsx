@@ -4,24 +4,49 @@ import type { UseAuth } from '../hooks/useAuth';
 
 interface Props {
   auth: UseAuth;
+  addingAccount?: boolean;
+  onCancelAdd?: () => void;
+  onAdded?: () => Promise<void>;
 }
 
-export function SignIn({ auth }: Props) {
+export function SignIn({ auth, addingAccount = false, onCancelAdd, onAdded }: Props) {
   const [token, setToken] = useState('');
   const oauthAvailable = isOAuthConfigured();
 
+  async function handlePat() {
+    await auth.signInWithPat(token);
+    if (addingAccount) await onAdded?.();
+  }
+  async function handleOAuth() {
+    await auth.signInWithOAuth();
+    if (addingAccount) await onAdded?.();
+  }
+
   return (
     <div className="flex h-full flex-col px-4 py-4">
-      <h2 className="text-sm font-semibold">Sign in to GitHub</h2>
+      <h2 className="text-sm font-semibold">
+        {addingAccount ? 'Add another GitHub account' : 'Sign in to GitHub'}
+      </h2>
       <p className="mt-1 text-xs text-gh-fg-muted">
-        Connect your GitHub account to see assigned PRs, mentions, and reviews.
+        {addingAccount
+          ? 'Sign in with a second identity. You can switch between them from the header.'
+          : 'Connect your GitHub account to see assigned PRs, mentions, and reviews.'}
       </p>
+      {addingAccount && onCancelAdd && (
+        <button
+          type="button"
+          onClick={onCancelAdd}
+          className="mt-2 self-start rounded-md border border-gh-border-default px-2 py-1 text-[10px] text-gh-fg-muted hover:border-gh-accent-emphasis hover:text-gh-fg-default"
+        >
+          ← Back
+        </button>
+      )}
 
       {oauthAvailable && (
         <button
           type="button"
           disabled={auth.busy}
-          onClick={() => void auth.signInWithOAuth()}
+          onClick={() => void handleOAuth()}
           className="mt-4 rounded-md border border-gh-border-default bg-gh-accent-emphasis px-3 py-2 text-xs font-semibold text-white hover:brightness-110 disabled:opacity-60"
         >
           {auth.busy ? 'Connecting…' : 'Sign in with GitHub'}
@@ -59,7 +84,7 @@ export function SignIn({ auth }: Props) {
         <button
           type="button"
           disabled={auth.busy || !token.trim()}
-          onClick={() => void auth.signInWithPat(token)}
+          onClick={() => void handlePat()}
           className="mt-2 w-full rounded-md border border-gh-border-default bg-gh-canvas-subtle px-3 py-2 text-xs font-semibold text-gh-fg-default hover:border-gh-accent-emphasis disabled:opacity-60"
         >
           {auth.busy ? 'Verifying…' : 'Connect with token'}
