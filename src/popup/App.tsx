@@ -8,9 +8,11 @@ import { Header } from './components/Header';
 import { SignIn } from './components/SignIn';
 import { TabNav, type TabKey } from './components/TabNav';
 import { useAuth } from './hooks/useAuth';
+import { useTheme } from './hooks/useTheme';
 
 export default function App() {
   const auth = useAuth();
+  const theme = useTheme();
   const [tab, setTab] = useState<TabKey>('dashboard');
 
   if (auth.status === 'loading') {
@@ -27,7 +29,13 @@ export default function App() {
 
   return (
     <div className="flex h-full w-full flex-col">
-      <Header viewer={auth.viewer} onSignOut={() => void auth.signOut()} busy={auth.busy} />
+      <Header
+        viewer={auth.viewer}
+        onSignOut={() => void auth.signOut()}
+        busy={auth.busy}
+        theme={theme.resolved}
+        onToggleTheme={theme.toggle}
+      />
       <TabNav active={tab} onChange={setTab} />
       <main className="flex-1 overflow-y-auto px-4 py-3">
         {tab === 'dashboard' && <Dashboard active onNavigate={setTab} />}

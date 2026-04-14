@@ -1,23 +1,38 @@
 import type { Viewer } from '../../lib/github-api';
+import type { ResolvedTheme } from '../hooks/useTheme';
 
 interface Props {
   viewer: Viewer;
   onSignOut: () => void;
   busy: boolean;
+  theme: ResolvedTheme;
+  onToggleTheme: () => void;
 }
 
-export function Header({ viewer, onSignOut, busy }: Props) {
+export function Header({ viewer, onSignOut, busy, theme, onToggleTheme }: Props) {
+  const nextLabel = theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme';
   return (
-    <header className="flex items-center gap-3 border-b border-gh-border-default px-4 py-3">
+    <header className="flex items-center gap-3 border-b border-gh-border-default bg-gh-canvas-default px-4 py-3">
       <img
         src={viewer.avatar_url}
         alt={viewer.login}
         className="h-8 w-8 rounded-full border border-gh-border-default"
       />
-      <div className="flex-1 min-w-0">
-        <div className="truncate text-sm font-semibold">{viewer.name ?? viewer.login}</div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-semibold text-gh-fg-default">
+          {viewer.name ?? viewer.login}
+        </div>
         <div className="truncate text-xs text-gh-fg-muted">@{viewer.login}</div>
       </div>
+      <button
+        type="button"
+        onClick={onToggleTheme}
+        title={nextLabel}
+        aria-label={nextLabel}
+        className="rounded-md border border-gh-border-default px-2 py-1 text-[11px] text-gh-fg-muted hover:text-gh-fg-default"
+      >
+        {theme === 'dark' ? '☾' : '☀'}
+      </button>
       <button
         type="button"
         onClick={onSignOut}
