@@ -146,6 +146,76 @@ export async function fetchPullRequestDetail(
   };
 }
 
+export interface NotificationThread {
+  id: string;
+  unread: boolean;
+  reason: string;
+  updated_at: string;
+  subject: {
+    title: string;
+    url: string | null;
+    latest_comment_url: string | null;
+    type: 'PullRequest' | 'Issue' | 'Commit' | 'Release' | 'Discussion' | 'CheckSuite' | string;
+  };
+  repository: {
+    id: number;
+    name: string;
+    full_name: string;
+    html_url: string;
+  };
+}
+
+export async function fetchNotifications(token: string): Promise<NotificationThread[]> {
+  const res = await githubFetch('/notifications?all=false&per_page=50', token);
+  const data = (await res.json()) as NotificationThread[];
+  return Array.isArray(data) ? data : [];
+}
+
+export async function markNotificationRead(id: string, token: string): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(`${GITHUB_API_BASE}/notifications/threads/${id}`, {
+      method: 'PATCH',
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
+  } catch (err) {
+    throw new GitHubApiError(
+      err instanceof Error ? err.message : 'Network error',
+      0,
+      'network',
+    );
+  }
+  if (!response.ok && response.status !== 205) {
+    throw new GitHubApiError(
+      `Failed to mark notification read (${response.status})`,
+      response.status,
+      response.status === 401 ? 'unauthorized' : 'other',
+    );
+  }
+}
+
+/**
+ * Derive the github.com URL for a notification subject. The API returns an
+ * `api.github.com/repos/...` URL; the popup wants the human-facing URL.
+ */
+export function notificationHtmlUrl(thread: NotificationThread): string {
+  const subject = thread.subject.url ?? '';
+  if (!subject) return thread.repository.html_url;
+  // /repos/owner/repo/pulls/123  →  https://github.com/owner/repo/pull/123
+  // /repos/owner/repo/issues/123 →  https://github.com/owner/repo/issues/123
+  const m = subject.match(/\/repos\/([^/]+)\/([^/]+)\/(pulls|issues)\/(\d+)/);
+  if (m) {
+    const [, owner, repo, kind, num] = m;
+    const path = kind === 'pulls' ? 'pull' : 'issues';
+    return `https://github.com/${owner}/${repo}/${path}/${num}`;
+  }
+  return thread.repository.html_url;
+}
+
 export async function searchIssues(
   query: string,
   token: string,

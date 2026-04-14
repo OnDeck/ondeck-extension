@@ -5,7 +5,7 @@ import { TabBar } from './components/TabBar';
 import { AssignedPrsTab } from './pages/AssignedPrsTab';
 import { HomeTab } from './pages/HomeTab';
 import { MentionsTab } from './pages/MentionsTab';
-import { PlaceholderTab } from './pages/PlaceholderTab';
+import { NotificationsTab } from './pages/NotificationsTab';
 import { ReviewsTab } from './pages/ReviewsTab';
 import type { TabId } from './tabs';
 import { useAuth } from './hooks/useAuth';
@@ -35,12 +35,7 @@ export default function App() {
         {tab === 'assigned' && <AssignedPrsTab viewer={auth.viewer} />}
         {tab === 'mentions' && <MentionsTab viewer={auth.viewer} />}
         {tab === 'reviews' && <ReviewsTab viewer={auth.viewer} />}
-        {tab === 'notifications' && (
-          <PlaceholderTab
-            title="Notifications"
-            description="Ships in ticket #7."
-          />
-        )}
+        {tab === 'notifications' && <NotificationsTab />}
       </main>
     </div>
   );
