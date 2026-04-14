@@ -63,3 +63,68 @@ export async function fetchViewer(token: string): Promise<Viewer> {
     html_url: data.html_url,
   };
 }
+
+export interface ReviewPrItem {
+  id: number;
+  number: number;
+  title: string;
+  html_url: string;
+  repository_url: string;
+  updated_at: string;
+  labels: { name: string }[];
+  user: { login: string; avatar_url: string } | null;
+  pull_request?: { html_url: string };
+}
+
+interface SearchResp {
+  items: ReviewPrItem[];
+}
+
+export function repoSlugFromRepositoryUrl(repositoryUrl: string): string {
+  const match = /\/repos\/([^/]+\/[^/]+)$/.exec(repositoryUrl);
+  return match ? match[1] : repositoryUrl;
+}
+
+export async function fetchReviewRequests(
+  login: string,
+  token: string,
+): Promise<ReviewPrItem[]> {
+  const res = await githubFetch(
+    `/search/issues?q=${encodeURIComponent(
+      `is:pr is:open review-requested:${login}`,
+    )}&per_page=30&sort=updated&order=desc`,
+    token,
+  );
+  const data = (await res.json()) as SearchResp;
+  return data.items ?? [];
+}
+
+interface PullRequestDetails {
+  changed_files: number;
+}
+
+/**
+ * Fetch the file-count for a given PR. Path is /repos/{owner}/{repo}/pulls/{number}.
+ */
+export async function fetchPrChangedFiles(
+  owner: string,
+  repo: string,
+  number: number,
+  token: string,
+): Promise<number> {
+  const res = await githubFetch(`/repos/${owner}/${repo}/pulls/${number}`, token);
+  const data = (await res.json()) as PullRequestDetails;
+  return data.changed_files ?? 0;
+}
+
+export function isBlockingPriority(labels: { name: string }[]): boolean {
+  return labels.some((l) => {
+    const name = l.name.toLowerCase();
+    return (
+      name.includes('blocking') ||
+      name.includes('urgent') ||
+      name.includes('p0') ||
+      name.includes('priority: high')
+    );
+  });
+}
