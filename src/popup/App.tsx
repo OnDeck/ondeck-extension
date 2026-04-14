@@ -9,10 +9,12 @@ import { ReviewsTab } from './components/ReviewsTab';
 import { NotificationsTab } from './components/NotificationsTab';
 import { useAuth } from './hooks/useAuth';
 import { useDashboard } from './hooks/useDashboard';
+import { useTheme } from './hooks/useTheme';
 import type { TabId } from './tabs';
 
 export default function App() {
   const auth = useAuth();
+  const theme = useTheme();
   const [tab, setTab] = useState<TabId>('dashboard');
   const dashboard = useDashboard(auth.viewer?.login, auth.token);
 
@@ -30,7 +32,13 @@ export default function App() {
 
   return (
     <div className="flex h-full w-full flex-col">
-      <Header viewer={auth.viewer} onSignOut={() => void auth.signOut()} busy={auth.busy} />
+      <Header
+        viewer={auth.viewer}
+        onSignOut={() => void auth.signOut()}
+        busy={auth.busy}
+        themePreference={theme.preference}
+        onCycleTheme={theme.cycle}
+      />
       <TabBar active={tab} onSelect={setTab} />
       <main className="flex-1 overflow-y-auto px-4 py-3">
         {tab === 'dashboard' && (

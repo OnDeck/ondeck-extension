@@ -1,12 +1,43 @@
 import type { Viewer } from '../../lib/github-api';
+import type { ThemePreference } from '../hooks/useTheme';
 
 interface Props {
   viewer: Viewer;
   onSignOut: () => void;
   busy: boolean;
+  themePreference: ThemePreference;
+  onCycleTheme: () => void;
 }
 
-export function Header({ viewer, onSignOut, busy }: Props) {
+function themeLabel(pref: ThemePreference): string {
+  switch (pref) {
+    case 'system':
+      return 'Auto';
+    case 'light':
+      return 'Light';
+    case 'dark':
+      return 'Dark';
+  }
+}
+
+function themeIcon(pref: ThemePreference): string {
+  switch (pref) {
+    case 'system':
+      return '◐';
+    case 'light':
+      return '☀';
+    case 'dark':
+      return '☾';
+  }
+}
+
+export function Header({
+  viewer,
+  onSignOut,
+  busy,
+  themePreference,
+  onCycleTheme,
+}: Props) {
   return (
     <header className="flex items-center gap-3 border-b border-gh-border-default px-4 py-3">
       <img
@@ -15,9 +46,23 @@ export function Header({ viewer, onSignOut, busy }: Props) {
         className="h-8 w-8 rounded-full border border-gh-border-default"
       />
       <div className="flex-1 min-w-0">
-        <div className="truncate text-sm font-semibold">{viewer.name ?? viewer.login}</div>
+        <div className="truncate text-sm font-semibold text-gh-fg-default">
+          {viewer.name ?? viewer.login}
+        </div>
         <div className="truncate text-xs text-gh-fg-muted">@{viewer.login}</div>
       </div>
+      <button
+        type="button"
+        onClick={onCycleTheme}
+        title={`Theme: ${themeLabel(themePreference)}`}
+        aria-label={`Theme: ${themeLabel(themePreference)}`}
+        className="rounded-md border border-gh-border-default px-2 py-1 text-[11px] text-gh-fg-muted hover:border-gh-accent-emphasis hover:text-gh-accent-emphasis"
+      >
+        <span aria-hidden className="mr-1">
+          {themeIcon(themePreference)}
+        </span>
+        {themeLabel(themePreference)}
+      </button>
       <button
         type="button"
         onClick={onSignOut}

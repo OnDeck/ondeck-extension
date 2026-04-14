@@ -2,8 +2,43 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * GitHub Primer colour tokens as CSS variables.
+ * The light palette is the default on :root; the dark palette is applied
+ * whenever the <html> element carries the `dark` class.
+ */
 :root {
+  color-scheme: light;
+
+  /* Primer light palette */
+  --gh-canvas-default: #ffffff;
+  --gh-canvas-subtle: #f6f8fa;
+  --gh-border-default: #d0d7de;
+  --gh-border-muted: #d8dee4;
+  --gh-fg-default: #1f2328;
+  --gh-fg-muted: #656d76;
+  --gh-accent-emphasis: #0969da;
+  --gh-success-emphasis: #1a7f37;
+  --gh-danger-emphasis: #cf222e;
+  --gh-attention-emphasis: #9a6700;
+  --gh-done-emphasis: #8250df;
+}
+
+html.dark {
   color-scheme: dark;
+
+  /* Primer dark palette */
+  --gh-canvas-default: #0d1117;
+  --gh-canvas-subtle: #161b22;
+  --gh-border-default: #30363d;
+  --gh-border-muted: #21262d;
+  --gh-fg-default: #e6edf3;
+  --gh-fg-muted: #7d8590;
+  --gh-accent-emphasis: #1f6feb;
+  --gh-success-emphasis: #2ea043;
+  --gh-danger-emphasis: #f85149;
+  --gh-attention-emphasis: #9e6a03;
+  --gh-done-emphasis: #8250df;
 }
 
 html,
