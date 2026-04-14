@@ -118,6 +118,53 @@ export interface NotificationItem {
   };
 }
 
+/**
+ * Submit a COMMENT review on a PR with no body. Used by the Reviews
+ * tab as a "mark reviewed" quick action — the review shows up in the
+ * PR timeline but does not approve or request changes.
+ */
+export async function markPullReviewed(
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  token: string,
+): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(
+      `${GITHUB_API_BASE}/repos/${owner}/${repo}/pulls/${pullNumber}/reviews`,
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'application/vnd.github+json',
+          Authorization: `Bearer ${token}`,
+          'X-GitHub-Api-Version': '2022-11-28',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ event: 'COMMENT', body: 'Reviewed from workflow assistant.' }),
+      },
+    );
+  } catch (err) {
+    throw new GitHubApiError(
+      err instanceof Error ? err.message : 'Network error',
+      0,
+      'network',
+    );
+  }
+  if (response.ok) return;
+  if (response.status === 401) {
+    throw new GitHubApiError('Token is invalid or expired', 401, 'unauthorized');
+  }
+  if (response.status === 403) {
+    throw new GitHubApiError('Forbidden — check token scopes', 403, 'forbidden');
+  }
+  throw new GitHubApiError(
+    `Failed to submit review (${response.status})`,
+    response.status,
+    'other',
+  );
+}
+
 export async function fetchNotifications(
   token: string,
   opts: { all?: boolean } = {},
