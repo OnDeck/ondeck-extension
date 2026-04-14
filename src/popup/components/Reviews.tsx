@@ -6,6 +6,7 @@ import {
   type Viewer,
 } from '../../lib/github-api';
 import { markPullRequestReviewed } from '../../lib/quick-actions';
+import { recordReview } from '../../lib/analytics';
 import { useIssueSearch } from '../hooks/useIssueSearch';
 import { relativeTime, repoSlug } from '../lib/relative-time';
 import { applyFilters, EMPTY_FILTERS, type Filters } from '../lib/filters';
@@ -15,6 +16,7 @@ import { FilterBar } from './FilterBar';
 interface Props {
   viewer: Viewer;
   token: string | null;
+  onReviewSubmitted?: () => void;
 }
 
 const BLOCKING_LABELS = ['blocking', 'blocker', 'critical', 'p0', 'priority/p0', 'urgent', 'deploy'];
@@ -56,7 +58,7 @@ function usePrDetails(
   return map;
 }
 
-export function Reviews({ viewer, token }: Props) {
+export function Reviews({ viewer, token, onReviewSubmitted }: Props) {
   const query = `is:pr is:open review-requested:${viewer.login}`;
   const { items, loading, error, refresh } = useIssueSearch(token, query);
   const details = usePrDetails(token, items);
@@ -71,6 +73,8 @@ export function Reviews({ viewer, token }: Props) {
     setActionError(null);
     try {
       await markPullRequestReviewed(token, repoSlug(item.repository_url), item.number);
+      await recordReview(viewer.id);
+      onReviewSubmitted?.();
       refresh();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Failed to submit review');

@@ -17,6 +17,7 @@ export interface UseAuth {
   signInWithPat: (token: string) => Promise<void>;
   signInWithOAuth: () => Promise<void>;
   signOut: () => Promise<void>;
+  reload: () => Promise<void>;
 }
 
 export function useAuth(): UseAuth {
@@ -24,6 +25,17 @@ export function useAuth(): UseAuth {
   const [viewer, setViewer] = useState<Viewer | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const reload = useCallback(async () => {
+    const { token, viewer } = await getStoredAuth();
+    if (token && viewer) {
+      setViewer(viewer);
+      setStatus('signed-in');
+    } else {
+      setViewer(null);
+      setStatus('signed-out');
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,5 +94,5 @@ export function useAuth(): UseAuth {
     }
   }, []);
 
-  return { status, viewer, error, busy, signInWithPat, signInWithOAuth, signOut };
+  return { status, viewer, error, busy, signInWithPat, signInWithOAuth, signOut, reload };
 }

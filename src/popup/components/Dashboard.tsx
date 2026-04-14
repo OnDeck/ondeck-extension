@@ -1,11 +1,13 @@
 import { useDashboardCounts } from '../hooks/useDashboardCounts';
 import type { Viewer } from '../../lib/github-api';
 import type { TabKey } from './TabBar';
+import { WeeklyStats } from './WeeklyStats';
 
 interface Props {
   viewer: Viewer;
   token: string | null;
   onNavigate: (tab: TabKey) => void;
+  statsTick: number;
 }
 
 interface Row {
@@ -14,7 +16,7 @@ interface Row {
   count: number | null;
 }
 
-export function Dashboard({ viewer, token, onNavigate }: Props) {
+export function Dashboard({ viewer, token, onNavigate, statsTick }: Props) {
   const { counts, loading, error, refresh } = useDashboardCounts(token, viewer.login);
 
   const rows: Row[] = [
@@ -78,6 +80,8 @@ export function Dashboard({ viewer, token, onNavigate }: Props) {
           You're all caught up.
         </div>
       )}
+
+      <WeeklyStats accountId={viewer.id} tick={statsTick} />
     </div>
   );
 }

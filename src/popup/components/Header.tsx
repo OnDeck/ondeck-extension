@@ -1,6 +1,7 @@
 import type { Viewer } from '../../lib/github-api';
 import type { ThemePreference } from '../../lib/theme';
 import { ThemeToggle } from './ThemeToggle';
+import { AccountSwitcher } from './AccountSwitcher';
 
 interface Props {
   viewer: Viewer;
@@ -8,9 +9,19 @@ interface Props {
   busy: boolean;
   theme: ThemePreference;
   onThemeChange: (next: ThemePreference) => void;
+  onAccountSwitch: () => void;
+  onAddAccount: () => void;
 }
 
-export function Header({ viewer, onSignOut, busy, theme, onThemeChange }: Props) {
+export function Header({
+  viewer,
+  onSignOut,
+  busy,
+  theme,
+  onThemeChange,
+  onAccountSwitch,
+  onAddAccount,
+}: Props) {
   return (
     <header className="flex items-center gap-3 border-b border-gh-border-default px-4 py-3">
       <img
@@ -25,6 +36,7 @@ export function Header({ viewer, onSignOut, busy, theme, onThemeChange }: Props)
         <div className="truncate text-xs text-gh-fg-muted">@{viewer.login}</div>
       </div>
       <ThemeToggle preference={theme} onChange={onThemeChange} />
+      <AccountSwitcher onSwitch={onAccountSwitch} onAdd={onAddAccount} />
       <button
         type="button"
         onClick={onSignOut}

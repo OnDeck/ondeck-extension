@@ -1,5 +1,11 @@
+import {
+  addAccount,
+  clearAllAccounts,
+  getActiveAccount,
+  removeAccount as removeAccountFromStore,
+} from './accounts';
 import { clearCryptoKey, decryptString, encryptString, type Envelope } from './crypto';
-import { fetchViewer, GitHubApiError, type Viewer } from './github-api';
+import { GitHubApiError, type Viewer } from './github-api';
 
 export const TOKEN_STORAGE_KEY = 'gh_workflow_token_v1';
 export const VIEWER_STORAGE_KEY = 'gh_workflow_viewer_v1';
@@ -18,6 +24,11 @@ interface StoredToken {
 }
 
 export async function getStoredAuth(): Promise<AuthState> {
+  // Prefer the multi-account store if it has an active account.
+  const active = await getActiveAccount();
+  if (active) return { token: active.token, viewer: active.viewer };
+
+  // Legacy single-account fallback.
   const [syncBag, localBag] = await Promise.all([
     chrome.storage.sync.get(TOKEN_STORAGE_KEY),
     chrome.storage.local.get(VIEWER_STORAGE_KEY),
@@ -48,6 +59,7 @@ export async function clearStoredAuth(): Promise<void> {
   await Promise.all([
     chrome.storage.sync.remove(TOKEN_STORAGE_KEY),
     chrome.storage.local.remove(VIEWER_STORAGE_KEY),
+    clearAllAccounts(),
     clearCryptoKey(),
   ]);
 }
@@ -61,12 +73,26 @@ export async function signInWithToken(token: string): Promise<Viewer> {
   if (!trimmed) {
     throw new GitHubApiError('Token is required', 0, 'other');
   }
-  const viewer = await fetchViewer(trimmed);
+  const viewer = await addAccount(trimmed);
+  // Also save to legacy slot so non-multi-account code paths keep working.
   await saveToken(trimmed, viewer);
   return viewer;
 }
 
 export async function signOut(): Promise<void> {
+  // Remove the active account only; leave other accounts intact.
+  const active = await getActiveAccount();
+  if (active) {
+    await removeAccountFromStore(active.viewer.id);
+  }
+  // Always clear the legacy slot.
+  await Promise.all([
+    chrome.storage.sync.remove(TOKEN_STORAGE_KEY),
+    chrome.storage.local.remove(VIEWER_STORAGE_KEY),
+  ]);
+}
+
+export async function signOutAll(): Promise<void> {
   await clearStoredAuth();
 }
 
