@@ -1,22 +1,28 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./src/**/*.{html,ts,tsx}'],
-  darkMode: 'media',
+  darkMode: ['class', '[data-theme="dark"]'],
   theme: {
     extend: {
       colors: {
-        // GitHub Primer tokens used across the extension UI.
-        'gh-canvas-default': '#0d1117',
-        'gh-canvas-subtle': '#161b22',
-        'gh-border-default': '#30363d',
-        'gh-border-muted': '#21262d',
-        'gh-fg-default': '#e6edf3',
-        'gh-fg-muted': '#7d8590',
-        'gh-accent-emphasis': '#1f6feb',
-        'gh-success-emphasis': '#2ea043',
-        'gh-danger-emphasis': '#f85149',
-        'gh-attention-emphasis': '#9e6a03',
-        'gh-done-emphasis': '#8250df',
+        // GitHub Primer tokens. All values resolved via CSS variables so the
+        // popup can toggle light/dark at runtime without re-rendering.
+        'gh-canvas-default': 'var(--gh-canvas-default)',
+        'gh-canvas-subtle': 'var(--gh-canvas-subtle)',
+        'gh-canvas-inset': 'var(--gh-canvas-inset)',
+        'gh-border-default': 'var(--gh-border-default)',
+        'gh-border-muted': 'var(--gh-border-muted)',
+        'gh-fg-default': 'var(--gh-fg-default)',
+        'gh-fg-muted': 'var(--gh-fg-muted)',
+        'gh-fg-subtle': 'var(--gh-fg-subtle)',
+        'gh-accent-emphasis': 'var(--gh-accent-emphasis)',
+        'gh-accent-fg': 'var(--gh-accent-fg)',
+        'gh-success-emphasis': 'var(--gh-success-emphasis)',
+        'gh-success-fg': 'var(--gh-success-fg)',
+        'gh-danger-emphasis': 'var(--gh-danger-emphasis)',
+        'gh-danger-fg': 'var(--gh-danger-fg)',
+        'gh-attention-emphasis': 'var(--gh-attention-emphasis)',
+        'gh-done-emphasis': 'var(--gh-done-emphasis)',
       },
       fontFamily: {
         sans: [
