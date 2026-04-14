@@ -9,9 +9,11 @@ import { NotificationsTab } from './pages/NotificationsTab';
 import { ReviewsTab } from './pages/ReviewsTab';
 import type { TabId } from './tabs';
 import { useAuth } from './hooks/useAuth';
+import { useTheme } from './hooks/useTheme';
 
 export default function App() {
   const auth = useAuth();
+  const { theme, setTheme } = useTheme();
   const [tab, setTab] = useState<TabId>('home');
 
   if (auth.status === 'loading') {
@@ -28,7 +30,13 @@ export default function App() {
 
   return (
     <div className="flex h-full w-full flex-col">
-      <Header viewer={auth.viewer} onSignOut={() => void auth.signOut()} busy={auth.busy} />
+      <Header
+        viewer={auth.viewer}
+        onSignOut={() => void auth.signOut()}
+        busy={auth.busy}
+        theme={theme}
+        onThemeChange={setTheme}
+      />
       <TabBar active={tab} onChange={setTab} />
       <main className="flex-1 overflow-y-auto">
         {tab === 'home' && <HomeTab viewer={auth.viewer} onNavigate={setTab} />}
