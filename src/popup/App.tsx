@@ -6,6 +6,7 @@ import { TabNav } from './components/TabNav';
 import { TabPlaceholder } from './components/TabPlaceholder';
 import { useAuth } from './hooks/useAuth';
 import type { TabKey } from './tabs';
+import { AssignedPrsView } from './views/AssignedPrsView';
 
 const TAB_TITLES: Record<TabKey, string> = {
   home: 'Home',
@@ -39,7 +40,14 @@ export default function App() {
         {tab === 'home' && (
           <Dashboard token={auth.token} viewer={auth.viewer} onNavigate={setTab} />
         )}
-        {tab !== 'home' && (
+        {tab === 'assigned' && (
+          <AssignedPrsView
+            token={auth.token}
+            login={auth.viewer.login}
+            onBack={() => setTab('home')}
+          />
+        )}
+        {tab !== 'home' && tab !== 'assigned' && (
           <TabPlaceholder title={TAB_TITLES[tab]} onBack={() => setTab('home')} />
         )}
       </main>
