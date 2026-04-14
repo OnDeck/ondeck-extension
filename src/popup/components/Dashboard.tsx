@@ -3,6 +3,7 @@ import { useDashboardCounts } from '../hooks/useDashboardCounts';
 
 interface Props {
   login: string;
+  reviewsThisWeek: number;
   onNavigate: (tab: TabId) => void;
 }
 
@@ -19,11 +20,17 @@ const ROWS: Row[] = [
   { tab: 'notifications', label: 'Unread notifications', getCount: (c) => c.notifications },
 ];
 
-export function Dashboard({ login, onNavigate }: Props) {
+export function Dashboard({ login, reviewsThisWeek, onNavigate }: Props) {
   const { status, counts, error, refresh } = useDashboardCounts(login);
 
   return (
     <div className="flex h-full flex-col">
+      <div className="mx-4 mt-3 rounded-md border border-gh-border-default bg-gh-canvas-subtle px-3 py-2 text-xs text-gh-fg-muted">
+        You've reviewed{' '}
+        <span className="font-semibold text-gh-fg-default">{reviewsThisWeek}</span>{' '}
+        PR{reviewsThisWeek === 1 ? '' : 's'} this week.
+      </div>
+
       <div className="flex items-center justify-between px-4 pt-3">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-gh-fg-muted">
           Overview

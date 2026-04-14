@@ -8,11 +8,13 @@ import { Notifications } from './components/Notifications';
 import { Reviews } from './components/Reviews';
 import { useAuth } from './hooks/useAuth';
 import { useTheme } from './hooks/useTheme';
+import { useWeeklyStats } from './hooks/useWeeklyStats';
 import type { TabId } from './types';
 
 export default function App() {
   const auth = useAuth();
   const theme = useTheme();
+  const stats = useWeeklyStats(auth.accountId);
   const [tab, setTab] = useState<TabId>('home');
 
   if (auth.status === 'loading') {
@@ -35,10 +37,19 @@ export default function App() {
         busy={auth.busy}
         themePreference={theme.preference}
         onCycleTheme={theme.cycle}
+        accounts={auth.accounts}
+        activeAccountId={auth.accountId}
+        onSwitchAccount={(id) => void auth.switchAccount(id)}
+        onAddAccount={auth.addAccount}
+        onRemoveAccount={(id) => void auth.removeAccount(id)}
       />
       <main className="flex-1 overflow-y-auto">
         {tab === 'home' && (
-          <Dashboard login={auth.viewer.login} onNavigate={setTab} />
+          <Dashboard
+            login={auth.viewer.login}
+            reviewsThisWeek={stats.reviewsThisWeek}
+            onNavigate={setTab}
+          />
         )}
         {tab === 'assigned' && (
           <AssignedPrs login={auth.viewer.login} onBack={() => setTab('home')} />
@@ -47,7 +58,11 @@ export default function App() {
           <Mentions login={auth.viewer.login} onBack={() => setTab('home')} />
         )}
         {tab === 'reviews' && (
-          <Reviews login={auth.viewer.login} onBack={() => setTab('home')} />
+          <Reviews
+            login={auth.viewer.login}
+            onBack={() => setTab('home')}
+            onMarkReviewed={() => void stats.incrementReview()}
+          />
         )}
         {tab === 'notifications' && (
           <Notifications onBack={() => setTab('home')} />

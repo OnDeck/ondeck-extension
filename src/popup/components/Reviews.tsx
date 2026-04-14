@@ -17,6 +17,7 @@ import { TabListView } from './TabListView';
 interface Props {
   login: string;
   onBack: () => void;
+  onMarkReviewed?: () => void;
 }
 
 const PRIORITY_PATTERNS = [/blocking[-_ ]?deploy/i, /p0/i, /urgent/i, /critical/i];
@@ -112,7 +113,7 @@ function ReviewRow({
   );
 }
 
-export function Reviews({ login, onBack }: Props) {
+export function Reviews({ login, onBack, onMarkReviewed }: Props) {
   const { status, items, error, refresh } = useIssueSearch(
     `is:pr is:open review-requested:${login}`,
   );
@@ -134,6 +135,7 @@ export function Reviews({ login, onBack }: Props) {
       next.add(item.id);
       return next;
     });
+    onMarkReviewed?.();
   };
 
   return (

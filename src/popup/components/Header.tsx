@@ -1,5 +1,7 @@
+import type { AccountSummary } from '../../lib/auth';
 import type { Viewer } from '../../lib/github-api';
 import type { ThemePreference } from '../hooks/useTheme';
+import { AccountSwitcher } from './AccountSwitcher';
 import { ThemeToggle } from './ThemeToggle';
 
 interface Props {
@@ -8,6 +10,11 @@ interface Props {
   busy: boolean;
   themePreference: ThemePreference;
   onCycleTheme: () => void;
+  accounts: AccountSummary[];
+  activeAccountId: string | null;
+  onSwitchAccount: (id: string) => void;
+  onAddAccount: () => void;
+  onRemoveAccount: (id: string) => void;
 }
 
 export function Header({
@@ -16,9 +23,14 @@ export function Header({
   busy,
   themePreference,
   onCycleTheme,
+  accounts,
+  activeAccountId,
+  onSwitchAccount,
+  onAddAccount,
+  onRemoveAccount,
 }: Props) {
   return (
-    <header className="flex items-center gap-3 border-b border-gh-border-default px-4 py-3">
+    <header className="flex items-center gap-2 border-b border-gh-border-default px-4 py-3">
       <img
         src={viewer.avatar_url}
         alt={viewer.login}
@@ -30,6 +42,13 @@ export function Header({
         </div>
         <div className="truncate text-xs text-gh-fg-muted">@{viewer.login}</div>
       </div>
+      <AccountSwitcher
+        accounts={accounts}
+        activeId={activeAccountId}
+        onSwitch={onSwitchAccount}
+        onAdd={onAddAccount}
+        onRemove={onRemoveAccount}
+      />
       <ThemeToggle preference={themePreference} onCycle={onCycleTheme} />
       <button
         type="button"
