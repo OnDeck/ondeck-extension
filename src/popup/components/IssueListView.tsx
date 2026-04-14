@@ -23,6 +23,7 @@ interface Props {
    * "mark as reviewed" style quick actions.
    */
   dismissLabel?: string;
+  onDismiss?: (item: SearchIssueItem) => void;
 }
 
 export function IssueListView({
@@ -33,6 +34,7 @@ export function IssueListView({
   showPriority = false,
   subtitleFor,
   dismissLabel,
+  onDismiss,
 }: Props) {
   const resolvedQuery = (SEARCH_QUERIES as Record<string, string>)[query] ?? query;
   const { status, items, totalCount, error, refresh } = useIssueSearch(resolvedQuery, active);
@@ -45,12 +47,13 @@ export function IssueListView({
     return filtered.filter((item) => !dismissed.has(item.id));
   }, [items, filters, dismissed]);
 
-  const dismiss = (id: number) => {
+  const dismiss = (item: SearchIssueItem) => {
     setDismissed((prev) => {
       const next = new Set(prev);
-      next.add(id);
+      next.add(item.id);
       return next;
     });
+    onDismiss?.(item);
   };
 
   return (
@@ -110,7 +113,7 @@ export function IssueListView({
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        dismiss(item.id);
+                        dismiss(item);
                       }}
                       title={dismissLabel}
                       aria-label={`${dismissLabel}: ${item.title}`}

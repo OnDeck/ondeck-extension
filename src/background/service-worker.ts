@@ -64,7 +64,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true; // keep the channel open for the async response
   }
   if (msg && msg.type === 'workflow:signed-out') {
-    void resetBadge();
+    // Another account may still be active after a partial sign-out, so
+    // trigger a refresh instead of unconditionally clearing the badge.
+    void refreshWorkflow().catch(() => resetBadge());
     return false;
   }
   return false;

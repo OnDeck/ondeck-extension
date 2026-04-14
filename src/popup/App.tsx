@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { AssignedPrsView } from './components/AssignedPrsView';
 import { Dashboard } from './components/Dashboard';
+import { Header } from './components/Header';
 import { MentionsView } from './components/MentionsView';
 import { NotificationsView } from './components/NotificationsView';
 import { ReviewsView } from './components/ReviewsView';
-import { Header } from './components/Header';
 import { SignIn } from './components/SignIn';
 import { TabNav, type TabKey } from './components/TabNav';
 import { useAuth } from './hooks/useAuth';
@@ -23,7 +23,7 @@ export default function App() {
     );
   }
 
-  if (auth.status === 'signed-out' || !auth.viewer) {
+  if (auth.status === 'signed-out' || !auth.viewer || auth.addingAccount) {
     return <SignIn auth={auth} />;
   }
 
@@ -31,17 +31,26 @@ export default function App() {
     <div className="flex h-full w-full flex-col">
       <Header
         viewer={auth.viewer}
+        accounts={auth.accounts}
+        activeLogin={auth.activeLogin}
         onSignOut={() => void auth.signOut()}
+        onSwitchAccount={(login) => void auth.switchAccount(login)}
+        onAddAccount={auth.addAccount}
+        onRemoveAccount={(login) => void auth.removeAccount(login)}
         busy={auth.busy}
         theme={theme.resolved}
         onToggleTheme={theme.toggle}
       />
       <TabNav active={tab} onChange={setTab} />
       <main className="flex-1 overflow-y-auto px-4 py-3">
-        {tab === 'dashboard' && <Dashboard active onNavigate={setTab} />}
+        {tab === 'dashboard' && (
+          <Dashboard active onNavigate={setTab} activeLogin={auth.activeLogin} />
+        )}
         {tab === 'assigned' && <AssignedPrsView active={tab === 'assigned'} />}
         {tab === 'mentions' && <MentionsView active={tab === 'mentions'} />}
-        {tab === 'reviews' && <ReviewsView active={tab === 'reviews'} />}
+        {tab === 'reviews' && (
+          <ReviewsView active={tab === 'reviews'} activeLogin={auth.activeLogin} />
+        )}
         {tab === 'notifications' && (
           <NotificationsView active={tab === 'notifications'} />
         )}

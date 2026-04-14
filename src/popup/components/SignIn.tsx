@@ -10,11 +10,28 @@ export function SignIn({ auth }: Props) {
   const [token, setToken] = useState('');
   const oauthAvailable = isOAuthConfigured();
 
+  const isAdding = auth.addingAccount && auth.accounts.length > 0;
+
   return (
     <div className="flex h-full flex-col px-4 py-4">
-      <h2 className="text-sm font-semibold">Sign in to GitHub</h2>
+      <div className="flex items-start justify-between">
+        <h2 className="text-sm font-semibold">
+          {isAdding ? 'Add another account' : 'Sign in to GitHub'}
+        </h2>
+        {isAdding && (
+          <button
+            type="button"
+            onClick={auth.cancelAddAccount}
+            className="rounded-md border border-gh-border-default px-2 py-0.5 text-[11px] text-gh-fg-muted hover:text-gh-fg-default"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
       <p className="mt-1 text-xs text-gh-fg-muted">
-        Connect your GitHub account to see assigned PRs, mentions, and reviews.
+        {isAdding
+          ? 'Paste another token to stack a second GitHub account.'
+          : 'Connect your GitHub account to see assigned PRs, mentions, and reviews.'}
       </p>
 
       {oauthAvailable && (

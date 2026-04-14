@@ -1,6 +1,14 @@
-import { clearCryptoKey, decryptString, encryptString, type Envelope } from './crypto';
+import {
+  listAccounts,
+  readActiveAccount,
+  removeAccount as removeStoredAccount,
+  upsertAccount,
+} from './accounts';
+import { clearCryptoKey } from './crypto';
 import { fetchViewer, GitHubApiError, type Viewer } from './github-api';
 
+// Legacy keys kept for reference; the multi-account store migrates them
+// automatically on first load. See ./accounts.ts.
 export const TOKEN_STORAGE_KEY = 'gh_workflow_token_v1';
 export const VIEWER_STORAGE_KEY = 'gh_workflow_viewer_v1';
 
@@ -13,43 +21,21 @@ export interface AuthState {
   viewer: Viewer | null;
 }
 
-interface StoredToken {
-  envelope: Envelope;
-}
-
 export async function getStoredAuth(): Promise<AuthState> {
-  const [syncBag, localBag] = await Promise.all([
-    chrome.storage.sync.get(TOKEN_STORAGE_KEY),
-    chrome.storage.local.get(VIEWER_STORAGE_KEY),
-  ]);
-  const stored = syncBag[TOKEN_STORAGE_KEY] as StoredToken | undefined;
-  const viewer = (localBag[VIEWER_STORAGE_KEY] as Viewer | undefined) ?? null;
-  if (!stored?.envelope) return { token: null, viewer: null };
-  try {
-    const token = await decryptString(stored.envelope);
-    return { token, viewer };
-  } catch {
-    // Key rotation or corruption — treat as logged out.
-    await clearStoredAuth();
-    return { token: null, viewer: null };
-  }
+  return readActiveAccount();
 }
 
 export async function saveToken(token: string, viewer: Viewer): Promise<void> {
-  const envelope = await encryptString(token);
-  const payload: StoredToken = { envelope };
-  await Promise.all([
-    chrome.storage.sync.set({ [TOKEN_STORAGE_KEY]: payload }),
-    chrome.storage.local.set({ [VIEWER_STORAGE_KEY]: viewer }),
-  ]);
+  await upsertAccount(token, viewer);
 }
 
 export async function clearStoredAuth(): Promise<void> {
-  await Promise.all([
-    chrome.storage.sync.remove(TOKEN_STORAGE_KEY),
-    chrome.storage.local.remove(VIEWER_STORAGE_KEY),
-    clearCryptoKey(),
-  ]);
+  // Remove every account and drop the AES key. Used on full sign-out.
+  const { accounts } = await listAccounts();
+  for (const a of accounts) {
+    await removeStoredAccount(a.login);
+  }
+  await clearCryptoKey();
 }
 
 /**
@@ -67,6 +53,14 @@ export async function signInWithToken(token: string): Promise<Viewer> {
 }
 
 export async function signOut(): Promise<void> {
+  // Sign out the active account only. Other stored accounts remain so
+  // the user can switch back without re-pasting their token. Full
+  // wipeout is available via `clearStoredAuth`.
+  const { active } = await listAccounts();
+  if (active) await removeStoredAccount(active);
+}
+
+export async function signOutAll(): Promise<void> {
   await clearStoredAuth();
 }
 

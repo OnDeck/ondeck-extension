@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { getWeeklyStats } from '../../lib/stats';
 import { useDashboardCounts } from '../hooks/useDashboardCounts';
 import type { TabKey } from './TabNav';
 import { StatusMessage } from './StatusMessage';
@@ -5,6 +7,7 @@ import { StatusMessage } from './StatusMessage';
 interface Props {
   active: boolean;
   onNavigate: (key: TabKey) => void;
+  activeLogin: string | null;
 }
 
 interface Row {
@@ -41,8 +44,20 @@ const ROWS: Row[] = [
   },
 ];
 
-export function Dashboard({ active, onNavigate }: Props) {
+export function Dashboard({ active, onNavigate, activeLogin }: Props) {
   const { status, counts, error, refresh } = useDashboardCounts(active);
+  const [reviewedThisWeek, setReviewedThisWeek] = useState<number>(0);
+
+  useEffect(() => {
+    if (!active || !activeLogin) return;
+    let cancelled = false;
+    void getWeeklyStats(activeLogin).then((s) => {
+      if (!cancelled) setReviewedThisWeek(s.reviewed);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [active, activeLogin, counts]);
 
   return (
     <section className="flex flex-col gap-3">
@@ -101,6 +116,15 @@ export function Dashboard({ active, onNavigate }: Props) {
             );
           })}
         </ul>
+      )}
+
+      {activeLogin && (
+        <div className="rounded-md border border-gh-border-default bg-gh-canvas-subtle px-3 py-2 text-[11px] text-gh-fg-muted">
+          <span className="text-gh-fg-default font-semibold">
+            {reviewedThisWeek}
+          </span>{' '}
+          {reviewedThisWeek === 1 ? 'PR reviewed' : 'PRs reviewed'} this week
+        </div>
       )}
 
       {status === 'error' && counts && (

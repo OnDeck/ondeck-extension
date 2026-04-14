@@ -1,8 +1,10 @@
 import type { SearchIssueItem } from '../../lib/github-api';
+import { recordReview } from '../../lib/stats';
 import { IssueListView } from './IssueListView';
 
 interface Props {
   active: boolean;
+  activeLogin: string | null;
 }
 
 function subtitleFor(item: SearchIssueItem): string {
@@ -11,7 +13,7 @@ function subtitleFor(item: SearchIssueItem): string {
   return [requester, comments].filter(Boolean).join(' · ');
 }
 
-export function ReviewsView({ active }: Props) {
+export function ReviewsView({ active, activeLogin }: Props) {
   return (
     <IssueListView
       active={active}
@@ -21,6 +23,13 @@ export function ReviewsView({ active }: Props) {
       showPriority
       subtitleFor={subtitleFor}
       dismissLabel="Mark as reviewed"
+      onDismiss={
+        activeLogin
+          ? () => {
+              void recordReview(activeLogin);
+            }
+          : undefined
+      }
     />
   );
 }
