@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getStoredToken } from '../../lib/auth';
 import {
   GitHubApiError,
@@ -8,6 +8,14 @@ import {
   type Viewer,
 } from '../../lib/github-api';
 import { EmptyState, ErrorState, LoadingState, formatRelativeAge, openInNewTab } from './common';
+import {
+  FilterBar,
+  INITIAL_FILTERS,
+  applyFilters,
+  deriveLabelOptions,
+  deriveRepoOptions,
+  type Filters,
+} from './FilterBar';
 
 interface Props {
   viewer: Viewer;
@@ -45,6 +53,7 @@ function badgeClass(kind: BadgeKind): string {
 
 export function AssignedPRsTab({ viewer }: Props) {
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
+  const [filters, setFilters] = useState<Filters>(INITIAL_FILTERS);
 
   const load = useCallback(async () => {
     setState({ kind: 'loading' });
@@ -68,22 +77,23 @@ export function AssignedPRsTab({ viewer }: Props) {
     void load();
   }, [load]);
 
+  const visible = useMemo(() => {
+    if (state.kind !== 'ready') return [] as SearchPullRequest[];
+    return applyFilters(state.items, filters);
+  }, [state, filters]);
+
   if (state.kind === 'loading') return <LoadingState label="Loading assigned PRs…" />;
   if (state.kind === 'error') return <ErrorState message={state.message} onRetry={load} />;
-  if (state.items.length === 0) {
-    return (
-      <EmptyState
-        title="No assigned PRs"
-        description="You have no open pull requests assigned to you."
-      />
-    );
-  }
+
+  const repos = deriveRepoOptions(state.items);
+  const labels = deriveLabelOptions(state.items);
 
   return (
     <div className="flex h-full flex-col">
+      <FilterBar filters={filters} onChange={setFilters} repos={repos} labels={labels} />
       <div className="flex items-center justify-between border-b border-gh-border-muted px-4 py-2">
         <span className="text-[11px] text-gh-fg-muted">
-          {state.items.length} assigned PR{state.items.length === 1 ? '' : 's'}
+          {visible.length} assigned PR{visible.length === 1 ? '' : 's'}
         </span>
         <button
           type="button"
@@ -93,41 +103,48 @@ export function AssignedPRsTab({ viewer }: Props) {
           Refresh
         </button>
       </div>
-      <ul className="divide-y divide-gh-border-muted">
-        {state.items.map((pr) => {
-          const badge = badgeFor(pr);
-          const repo = parseRepoNwo(pr.repository_url);
-          return (
-            <li key={pr.id}>
-              <button
-                type="button"
-                onClick={() => openInNewTab(pr.html_url)}
-                className="flex w-full flex-col items-start gap-1 px-4 py-3 text-left transition-colors hover:bg-gh-canvas-subtle"
-              >
-                <div className="flex w-full items-center gap-2">
-                  <span className="truncate text-sm text-gh-fg-default">{pr.title}</span>
-                </div>
-                <div className="flex w-full items-center justify-between text-[11px] text-gh-fg-muted">
-                  <span className="truncate">
-                    {repo} #{pr.number}
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <span
-                      className={
-                        'rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase ' +
-                        badgeClass(badge.kind)
-                      }
-                    >
-                      {badge.label}
+      {visible.length === 0 ? (
+        <EmptyState
+          title="No assigned PRs"
+          description="You have no open pull requests assigned to you."
+        />
+      ) : (
+        <ul className="divide-y divide-gh-border-muted">
+          {visible.map((pr) => {
+            const badge = badgeFor(pr);
+            const repo = parseRepoNwo(pr.repository_url);
+            return (
+              <li key={pr.id}>
+                <button
+                  type="button"
+                  onClick={() => openInNewTab(pr.html_url)}
+                  className="flex w-full flex-col items-start gap-1 px-4 py-3 text-left transition-colors hover:bg-gh-canvas-subtle"
+                >
+                  <div className="flex w-full items-center gap-2">
+                    <span className="truncate text-sm text-gh-fg-default">{pr.title}</span>
+                  </div>
+                  <div className="flex w-full items-center justify-between text-[11px] text-gh-fg-muted">
+                    <span className="truncate">
+                      {repo} #{pr.number}
                     </span>
-                    <span>{formatRelativeAge(pr.updated_at)}</span>
-                  </span>
-                </div>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+                    <span className="flex items-center gap-2">
+                      <span
+                        className={
+                          'rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase ' +
+                          badgeClass(badge.kind)
+                        }
+                      >
+                        {badge.label}
+                      </span>
+                      <span>{formatRelativeAge(pr.updated_at)}</span>
+                    </span>
+                  </div>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

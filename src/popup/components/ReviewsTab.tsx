@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getStoredToken } from '../../lib/auth';
 import {
   GitHubApiError,
@@ -9,7 +9,16 @@ import {
   type SearchPullRequest,
   type Viewer,
 } from '../../lib/github-api';
+import { useDismissed } from '../hooks/useDismissed';
 import { EmptyState, ErrorState, LoadingState, formatRelativeAge, openInNewTab } from './common';
+import {
+  FilterBar,
+  INITIAL_FILTERS,
+  applyFilters,
+  deriveLabelOptions,
+  deriveRepoOptions,
+  type Filters,
+} from './FilterBar';
 
 interface Props {
   viewer: Viewer;
@@ -38,6 +47,8 @@ function isBlocking(pr: SearchPullRequest): boolean {
 export function ReviewsTab({ viewer }: Props) {
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
   const [details, setDetails] = useState<Record<number, PullRequestDetail>>({});
+  const [filters, setFilters] = useState<Filters>(INITIAL_FILTERS);
+  const dismissed = useDismissed('reviews');
 
   const load = useCallback(async () => {
     setState({ kind: 'loading' });
@@ -51,9 +62,6 @@ export function ReviewsTab({ viewer }: Props) {
       const query = `is:pr is:open review-requested:${viewer.login}`;
       const res = await searchIssues(query, token);
       setState({ kind: 'ready', items: res.items });
-
-      // Fetch PR details lazily in parallel so the files-changed count
-      // populates after the initial list render.
       for (const item of res.items) {
         const pullUrl = item.pull_request?.url;
         if (!pullUrl) continue;
@@ -61,9 +69,7 @@ export function ReviewsTab({ viewer }: Props) {
           .then((detail) => {
             setDetails((prev) => ({ ...prev, [item.id]: detail }));
           })
-          .catch(() => {
-            // Swallow per-item failures — files-changed is non-critical.
-          });
+          .catch(() => undefined);
       }
     } catch (err) {
       const message =
@@ -76,22 +82,24 @@ export function ReviewsTab({ viewer }: Props) {
     void load();
   }, [load]);
 
+  const visible = useMemo(() => {
+    if (state.kind !== 'ready') return [] as SearchPullRequest[];
+    const notDismissed = state.items.filter((pr) => !dismissed.isDismissed(pr.id));
+    return applyFilters(notDismissed, filters);
+  }, [state, filters, dismissed]);
+
   if (state.kind === 'loading') return <LoadingState label="Loading reviews…" />;
   if (state.kind === 'error') return <ErrorState message={state.message} onRetry={load} />;
-  if (state.items.length === 0) {
-    return (
-      <EmptyState
-        title="No pending reviews"
-        description="Nothing is waiting on your review right now."
-      />
-    );
-  }
+
+  const repos = deriveRepoOptions(state.items);
+  const labels = deriveLabelOptions(state.items);
 
   return (
     <div className="flex h-full flex-col">
+      <FilterBar filters={filters} onChange={setFilters} repos={repos} labels={labels} />
       <div className="flex items-center justify-between border-b border-gh-border-muted px-4 py-2">
         <span className="text-[11px] text-gh-fg-muted">
-          {state.items.length} pending review{state.items.length === 1 ? '' : 's'}
+          {visible.length} pending review{visible.length === 1 ? '' : 's'}
         </span>
         <button
           type="button"
@@ -101,18 +109,22 @@ export function ReviewsTab({ viewer }: Props) {
           Refresh
         </button>
       </div>
-      <ul className="divide-y divide-gh-border-muted">
-        {state.items.map((pr) => {
-          const repo = parseRepoNwo(pr.repository_url);
-          const detail = details[pr.id];
-          const author = pr.user ?? detail?.user ?? null;
-          const blocking = isBlocking(pr);
-          return (
-            <li key={pr.id}>
-              <button
-                type="button"
-                onClick={() => openInNewTab(pr.html_url)}
-                className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-gh-canvas-subtle"
+      {visible.length === 0 ? (
+        <EmptyState
+          title="No pending reviews"
+          description="Nothing is waiting on your review right now."
+        />
+      ) : (
+        <ul className="divide-y divide-gh-border-muted">
+          {visible.map((pr) => {
+            const repo = parseRepoNwo(pr.repository_url);
+            const detail = details[pr.id];
+            const author = pr.user ?? detail?.user ?? null;
+            const blocking = isBlocking(pr);
+            return (
+              <li
+                key={pr.id}
+                className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-gh-canvas-subtle"
               >
                 {author && (
                   <img
@@ -121,7 +133,11 @@ export function ReviewsTab({ viewer }: Props) {
                     className="mt-0.5 h-6 w-6 flex-none rounded-full border border-gh-border-default"
                   />
                 )}
-                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <button
+                  type="button"
+                  onClick={() => openInNewTab(pr.html_url)}
+                  className="flex min-w-0 flex-1 flex-col gap-1 text-left"
+                >
                   <div className="flex items-center gap-2">
                     <span className="truncate text-sm text-gh-fg-default">{pr.title}</span>
                     {blocking && (
@@ -135,18 +151,24 @@ export function ReviewsTab({ viewer }: Props) {
                       {repo} #{pr.number}
                     </span>
                     <span className="flex items-center gap-2">
-                      <span>
-                        {detail ? `${detail.changed_files} files` : '— files'}
-                      </span>
+                      <span>{detail ? `${detail.changed_files} files` : '— files'}</span>
                       <span>{formatRelativeAge(pr.updated_at)}</span>
                     </span>
                   </div>
-                </div>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+                </button>
+                <button
+                  type="button"
+                  title="Mark as reviewed (hides from list)"
+                  onClick={() => void dismissed.dismiss(pr.id)}
+                  className="flex-none rounded-md border border-gh-border-default px-1.5 py-0.5 text-[10px] text-gh-fg-muted hover:border-gh-success-emphasis hover:text-gh-success-emphasis"
+                >
+                  Reviewed
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
