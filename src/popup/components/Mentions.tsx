@@ -5,6 +5,7 @@ import {
   openInNewTab,
   parseOwnerRepoFromRepositoryUrl,
 } from '../lib/format';
+import { QuickActions } from './QuickActions';
 import { TabListView } from './TabListView';
 
 interface Props {
@@ -68,6 +69,7 @@ export function Mentions({ login, onBack }: Props) {
       emptyMessage="You have no open mentions."
       showStatusBadge={false}
       renderItem={(item) => <MentionRow item={item} login={login} />}
+      renderActions={(item) => <QuickActions item={item} />}
     />
   );
 }

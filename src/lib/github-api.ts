@@ -185,6 +185,43 @@ export async function markNotificationRead(
   });
 }
 
+export type ReactionContent =
+  | '+1'
+  | '-1'
+  | 'laugh'
+  | 'confused'
+  | 'heart'
+  | 'hooray'
+  | 'rocket'
+  | 'eyes';
+
+export async function addIssueReaction(
+  token: string,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  content: ReactionContent,
+): Promise<void> {
+  await githubFetch(`/repos/${owner}/${repo}/issues/${issueNumber}/reactions`, token, {
+    method: 'POST',
+    accept: 'application/vnd.github+json',
+    body: { content },
+  });
+}
+
+export async function createIssueComment(
+  token: string,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  body: string,
+): Promise<void> {
+  await githubFetch(`/repos/${owner}/${repo}/issues/${issueNumber}/comments`, token, {
+    method: 'POST',
+    body: { body },
+  });
+}
+
 /**
  * Convert a GitHub API url (e.g. /repos/x/y/issues/123) into a web URL.
  */

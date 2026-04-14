@@ -1,4 +1,5 @@
 import { useIssueSearch } from '../hooks/useIssueSearch';
+import { QuickActions } from './QuickActions';
 import { TabListView } from './TabListView';
 
 interface Props {
@@ -20,6 +21,7 @@ export function AssignedPrs({ login, onBack }: Props) {
       error={error}
       onRefresh={() => void refresh()}
       emptyMessage="No open PRs are assigned to you."
+      renderActions={(item) => <QuickActions item={item} />}
     />
   );
 }

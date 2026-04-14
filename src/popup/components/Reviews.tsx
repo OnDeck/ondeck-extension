@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getStoredAuth } from '../../lib/auth';
 import {
   fetchPullRequestDetails,
@@ -11,6 +11,7 @@ import {
   openInNewTab,
   parseOwnerRepoFromRepositoryUrl,
 } from '../lib/format';
+import { QuickActions } from './QuickActions';
 import { TabListView } from './TabListView';
 
 interface Props {
@@ -115,20 +116,41 @@ export function Reviews({ login, onBack }: Props) {
   const { status, items, error, refresh } = useIssueSearch(
     `is:pr is:open review-requested:${login}`,
   );
-  const changedFilesMap = useChangedFilesMap(items);
+  const [dismissed, setDismissed] = useState<Set<number>>(new Set());
+  const visibleItems = useMemo(
+    () => items.filter((item) => !dismissed.has(item.id)),
+    [items, dismissed],
+  );
+  const changedFilesMap = useChangedFilesMap(visibleItems);
+
+  const handleRefresh = () => {
+    setDismissed(new Set());
+    void refresh();
+  };
+
+  const markReviewed = (item: IssueSearchItem) => {
+    setDismissed((prev) => {
+      const next = new Set(prev);
+      next.add(item.id);
+      return next;
+    });
+  };
 
   return (
     <TabListView
       title="Review requests"
       onBack={onBack}
       status={status}
-      items={items}
+      items={visibleItems}
       error={error}
-      onRefresh={() => void refresh()}
+      onRefresh={handleRefresh}
       emptyMessage="No PRs are waiting on your review."
       showStatusBadge={false}
       renderItem={(item) => (
         <ReviewRow item={item} changedFiles={changedFilesMap[item.id]} />
+      )}
+      renderActions={(item) => (
+        <QuickActions item={item} onMarkReviewed={markReviewed} />
       )}
     />
   );
