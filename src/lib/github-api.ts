@@ -63,3 +63,52 @@ export async function fetchViewer(token: string): Promise<Viewer> {
     html_url: data.html_url,
   };
 }
+
+// ---------- Search / issues ----------
+
+export interface IssueSearchItem {
+  id: number;
+  number: number;
+  title: string;
+  body: string | null;
+  html_url: string;
+  state: string;
+  updated_at: string;
+  created_at: string;
+  repository_url: string;
+  user: { login: string; avatar_url: string } | null;
+  pull_request?: { html_url: string };
+}
+
+interface IssueSearchResponse {
+  total_count: number;
+  items: IssueSearchItem[];
+}
+
+async function searchIssues(
+  query: string,
+  token: string,
+  perPage = 30,
+): Promise<IssueSearchItem[]> {
+  const res = await githubFetch(
+    `/search/issues?q=${encodeURIComponent(query)}&per_page=${perPage}&sort=updated&order=desc`,
+    token,
+  );
+  const data = (await res.json()) as IssueSearchResponse;
+  return data.items ?? [];
+}
+
+/** Derives "org/repo" from the repository_url the search API returns. */
+export function parseRepoSlug(repositoryUrl: string): string {
+  const marker = '/repos/';
+  const idx = repositoryUrl.indexOf(marker);
+  if (idx === -1) return repositoryUrl;
+  return repositoryUrl.slice(idx + marker.length);
+}
+
+export async function fetchMentions(
+  login: string,
+  token: string,
+): Promise<IssueSearchItem[]> {
+  return searchIssues(`is:open mentions:${login}`, token);
+}
