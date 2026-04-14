@@ -144,6 +144,26 @@ export async function searchIssues(
   return data.items ?? [];
 }
 
+export interface PullRequestDetail {
+  changed_files: number;
+  additions: number;
+  deletions: number;
+}
+
+export async function fetchPullRequestDetail(
+  repoFullName: string,
+  number: number,
+  token: string,
+): Promise<PullRequestDetail> {
+  const res = await githubFetch(`/repos/${repoFullName}/pulls/${number}`, token);
+  const data = (await res.json()) as PullRequestDetail;
+  return {
+    changed_files: data.changed_files ?? 0,
+    additions: data.additions ?? 0,
+    deletions: data.deletions ?? 0,
+  };
+}
+
 export function repoFromIssue(item: SearchIssueItem): string {
   // repository_url is like https://api.github.com/repos/owner/repo
   return item.repository_url.replace('https://api.github.com/repos/', '');
