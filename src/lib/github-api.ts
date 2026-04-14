@@ -153,6 +153,13 @@ export async function fetchMentionCount(login: string, token: string): Promise<n
   return searchIssuesCount(`is:open mentions:${login}`, token);
 }
 
+export async function fetchMentions(
+  login: string,
+  token: string,
+): Promise<SearchIssueItem[]> {
+  return searchIssues(`is:open mentions:${login}`, token);
+}
+
 export async function fetchUnreadNotificationCount(token: string): Promise<number> {
   const res = await githubFetch('/notifications?all=false&per_page=50', token);
   const data = (await res.json()) as unknown[];
