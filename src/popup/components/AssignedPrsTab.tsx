@@ -1,8 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getStoredAuth } from '../../lib/auth';
 import { searchIssues, type GitHubSearchItem } from '../../lib/github-api';
+import {
+  applyFilter,
+  DEFAULT_FILTER,
+  uniqueLabels,
+  uniqueRepos,
+  type FilterState,
+} from '../../lib/filters';
 import { ownerRepoFromUrl, openInNewTab, relativeTime } from '../../lib/format';
 import type { Viewer } from '../../lib/github-api';
+import { FilterBar } from './FilterBar';
+import { QuickActions } from './QuickActions';
 
 interface Props {
   viewer: Viewer;
@@ -35,9 +44,20 @@ function StatusBadge({ status }: { status: PrStatus }) {
   );
 }
 
+function splitOwnerRepo(htmlUrl: string): { owner: string; repo: string } | null {
+  try {
+    const [, owner, repo] = new URL(htmlUrl).pathname.split('/');
+    if (owner && repo) return { owner, repo };
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 export function AssignedPrsTab({ viewer }: Props) {
   const [status, setStatus] = useState<Status>('loading');
   const [items, setItems] = useState<GitHubSearchItem[]>([]);
+  const [filter, setFilter] = useState<FilterState>(DEFAULT_FILTER);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -61,6 +81,10 @@ export function AssignedPrsTab({ viewer }: Props) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const repos = useMemo(() => uniqueRepos(items), [items]);
+  const labels = useMemo(() => uniqueLabels(items), [items]);
+  const visible = useMemo(() => applyFilter(items, filter), [items, filter]);
 
   if (status === 'loading' && items.length === 0) {
     return (
@@ -90,7 +114,9 @@ export function AssignedPrsTab({ viewer }: Props) {
   return (
     <div className="flex flex-col gap-2 text-xs">
       <div className="flex items-center justify-between">
-        <div className="text-gh-fg-muted">{items.length} assigned</div>
+        <div className="text-gh-fg-muted">
+          {visible.length} of {items.length} assigned
+        </div>
         <button
           type="button"
           className="rounded-md border border-gh-border-default px-2 py-1 text-[11px] text-gh-fg-muted hover:border-gh-accent-emphasis disabled:opacity-60"
@@ -101,32 +127,45 @@ export function AssignedPrsTab({ viewer }: Props) {
         </button>
       </div>
 
-      {items.length === 0 ? (
+      <FilterBar filter={filter} onChange={setFilter} repos={repos} labels={labels} />
+
+      {visible.length === 0 ? (
         <div className="rounded-md border border-gh-border-default bg-gh-canvas-subtle px-3 py-4 text-center text-gh-fg-muted">
-          Nothing assigned to you.
+          {items.length === 0 ? 'Nothing assigned to you.' : 'No matches for these filters.'}
         </div>
       ) : (
         <ul className="divide-y divide-gh-border-muted rounded-md border border-gh-border-default bg-gh-canvas-subtle">
-          {items.map((item) => (
-            <li key={item.id}>
-              <button
-                type="button"
-                onClick={() => openInNewTab(item.html_url)}
-                className="flex w-full flex-col gap-1 px-3 py-2 text-left hover:bg-black/20"
-              >
-                <div className="flex items-center gap-2">
-                  <StatusBadge status={prStatus(item)} />
-                  <span className="truncate text-gh-fg-default">{item.title}</span>
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-gh-fg-muted">
-                  <span className="truncate">
-                    {ownerRepoFromUrl(item.html_url)}#{item.number}
-                  </span>
-                  <span>{relativeTime(item.updated_at)}</span>
-                </div>
-              </button>
-            </li>
-          ))}
+          {visible.map((item) => {
+            const parsed = splitOwnerRepo(item.html_url);
+            return (
+              <li key={item.id} className="px-3 py-2">
+                <button
+                  type="button"
+                  onClick={() => openInNewTab(item.html_url)}
+                  className="flex w-full flex-col gap-1 text-left hover:bg-black/20"
+                >
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={prStatus(item)} />
+                    <span className="truncate text-gh-fg-default">{item.title}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-gh-fg-muted">
+                    <span className="truncate">
+                      {ownerRepoFromUrl(item.html_url)}#{item.number}
+                    </span>
+                    <span>{relativeTime(item.updated_at)}</span>
+                  </div>
+                </button>
+                {parsed && (
+                  <QuickActions
+                    owner={parsed.owner}
+                    repo={parsed.repo}
+                    number={item.number}
+                    isPr
+                  />
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

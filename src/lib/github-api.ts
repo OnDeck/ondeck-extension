@@ -225,6 +225,95 @@ export function notificationHtmlUrl(notif: GitHubNotification): string {
   return `https://github.com/${owner}/${repo}/${segment}/${id}`;
 }
 
+async function githubMutate(
+  method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+  path: string,
+  token: string,
+  body?: unknown,
+): Promise<Response> {
+  let res: Response;
+  try {
+    res = await fetch(`${GITHUB_API_BASE}${path}`, {
+      method,
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch (err) {
+    throw new GitHubApiError(
+      err instanceof Error ? err.message : 'Network error',
+      0,
+      'network',
+    );
+  }
+  if (res.status === 401) {
+    throw new GitHubApiError('Token is invalid or expired', 401, 'unauthorized');
+  }
+  if (res.status === 403) {
+    throw new GitHubApiError('Forbidden — check token scopes', 403, 'forbidden');
+  }
+  if (!res.ok) {
+    throw new GitHubApiError(`GitHub API error (${res.status})`, res.status, 'other');
+  }
+  return res;
+}
+
+/**
+ * Submit a PR review with `event: COMMENT` so the PR drops out of the
+ * review-requested queue without forcing an approve/changes-requested vote.
+ */
+export async function markPullRequestReviewed(
+  owner: string,
+  repo: string,
+  number: number,
+  token: string,
+): Promise<void> {
+  await githubMutate('POST', `/repos/${owner}/${repo}/pulls/${number}/reviews`, token, {
+    event: 'COMMENT',
+    body: 'Reviewed via GitHub Workflow Assistant.',
+  });
+}
+
+/**
+ * Add a 👍 reaction to an issue or PR.
+ */
+export async function addIssueReaction(
+  owner: string,
+  repo: string,
+  number: number,
+  content: '+1' | 'heart' | 'hooray' | 'rocket' | 'eyes',
+  token: string,
+): Promise<void> {
+  await githubMutate(
+    'POST',
+    `/repos/${owner}/${repo}/issues/${number}/reactions`,
+    token,
+    { content },
+  );
+}
+
+/**
+ * Post a comment on an issue or PR.
+ */
+export async function postIssueComment(
+  owner: string,
+  repo: string,
+  number: number,
+  body: string,
+  token: string,
+): Promise<void> {
+  await githubMutate(
+    'POST',
+    `/repos/${owner}/${repo}/issues/${number}/comments`,
+    token,
+    { body },
+  );
+}
+
 export interface PullRequestDetail {
   number: number;
   changed_files: number;
