@@ -4,17 +4,10 @@ import { SignIn } from './components/SignIn';
 import { AssignedPrs } from './components/AssignedPrs';
 import { Dashboard } from './components/Dashboard';
 import { Mentions } from './components/Mentions';
+import { Notifications } from './components/Notifications';
 import { Reviews } from './components/Reviews';
-import { TabPlaceholder } from './components/TabPlaceholder';
 import { useAuth } from './hooks/useAuth';
 import type { TabId } from './types';
-
-const PLACEHOLDERS: Record<Exclude<TabId, 'home' | 'assigned' | 'mentions' | 'reviews'>, { title: string; description: string }> = {
-  notifications: {
-    title: 'Notifications',
-    description: 'Notifications feed ships in a subsequent ticket.',
-  },
-};
 
 export default function App() {
   const auth = useAuth();
@@ -48,12 +41,8 @@ export default function App() {
         {tab === 'reviews' && (
           <Reviews login={auth.viewer.login} onBack={() => setTab('home')} />
         )}
-        {tab !== 'home' && tab !== 'assigned' && tab !== 'mentions' && tab !== 'reviews' && (
-          <TabPlaceholder
-            title={PLACEHOLDERS[tab].title}
-            description={PLACEHOLDERS[tab].description}
-            onBack={() => setTab('home')}
-          />
+        {tab === 'notifications' && (
+          <Notifications onBack={() => setTab('home')} />
         )}
       </main>
     </div>

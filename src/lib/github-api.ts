@@ -115,6 +115,86 @@ export async function fetchNotificationCount(token: string): Promise<number> {
   return Array.isArray(data) ? data.length : 0;
 }
 
+export type NotificationSubjectType =
+  | 'PullRequest'
+  | 'Issue'
+  | 'Discussion'
+  | 'Release'
+  | 'Commit'
+  | string;
+
+export type NotificationReason =
+  | 'assign'
+  | 'author'
+  | 'comment'
+  | 'ci_activity'
+  | 'invitation'
+  | 'manual'
+  | 'member_feature_requested'
+  | 'mention'
+  | 'review_requested'
+  | 'security_alert'
+  | 'state_change'
+  | 'subscribed'
+  | 'team_mention'
+  | string;
+
+export interface NotificationSubject {
+  title: string;
+  url: string | null;
+  latest_comment_url: string | null;
+  type: NotificationSubjectType;
+}
+
+export interface NotificationRepository {
+  id: number;
+  full_name: string;
+  name: string;
+  owner: { login: string; avatar_url: string };
+  html_url: string;
+}
+
+export interface GithubNotification {
+  id: string;
+  unread: boolean;
+  reason: NotificationReason;
+  updated_at: string;
+  last_read_at: string | null;
+  subject: NotificationSubject;
+  repository: NotificationRepository;
+}
+
+export async function fetchNotifications(
+  token: string,
+  options: { all?: boolean; perPage?: number } = {},
+): Promise<GithubNotification[]> {
+  const params = new URLSearchParams();
+  params.set('all', String(options.all ?? false));
+  params.set('per_page', String(options.perPage ?? 50));
+  const res = await githubFetch(`/notifications?${params.toString()}`, token);
+  const data = (await res.json()) as GithubNotification[];
+  return Array.isArray(data) ? data : [];
+}
+
+export async function markNotificationRead(
+  token: string,
+  threadId: string,
+): Promise<void> {
+  await githubFetch(`/notifications/threads/${threadId}`, token, {
+    method: 'PATCH',
+  });
+}
+
+/**
+ * Convert a GitHub API url (e.g. /repos/x/y/issues/123) into a web URL.
+ */
+export function apiUrlToHtmlUrl(apiUrl: string | null | undefined): string | null {
+  if (!apiUrl) return null;
+  return apiUrl
+    .replace('https://api.github.com/repos', 'https://github.com')
+    .replace('/pulls/', '/pull/');
+}
+
 export interface IssueSearchItem {
   id: number;
   number: number;
