@@ -115,6 +115,54 @@ export async function fetchNotificationCount(token: string): Promise<number> {
   return Array.isArray(data) ? data.length : 0;
 }
 
+export interface IssueSearchItem {
+  id: number;
+  number: number;
+  title: string;
+  html_url: string;
+  repository_url: string;
+  user: { login: string; avatar_url: string } | null;
+  state: 'open' | 'closed';
+  draft?: boolean;
+  updated_at: string;
+  created_at: string;
+  labels: { name: string }[];
+  pull_request?: { url: string };
+  body?: string | null;
+}
+
+export interface IssueSearchResponse {
+  total_count: number;
+  incomplete_results: boolean;
+  items: IssueSearchItem[];
+}
+
+export async function searchIssues(
+  token: string,
+  query: string,
+  options: { perPage?: number; sort?: 'updated' | 'created'; order?: 'asc' | 'desc' } = {},
+): Promise<IssueSearchResponse> {
+  const params = new URLSearchParams();
+  params.set('q', query);
+  params.set('per_page', String(options.perPage ?? 30));
+  params.set('sort', options.sort ?? 'updated');
+  params.set('order', options.order ?? 'desc');
+  const res = await githubFetch(`/search/issues?${params.toString()}`, token);
+  return (await res.json()) as IssueSearchResponse;
+}
+
+export interface RepoCoordinates {
+  owner: string;
+  repo: string;
+}
+
+export function parseRepoFromUrl(repositoryUrl: string): RepoCoordinates | null {
+  // https://api.github.com/repos/{owner}/{repo}
+  const match = /\/repos\/([^/]+)\/([^/]+)$/.exec(repositoryUrl);
+  if (!match) return null;
+  return { owner: match[1], repo: match[2] };
+}
+
 export async function fetchDashboardCounts(
   token: string,
   login: string,
