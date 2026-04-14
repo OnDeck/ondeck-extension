@@ -1,9 +1,11 @@
 import type { Viewer } from '../../lib/github-api';
 import { useDashboardCounts } from '../hooks/useDashboardCounts';
+import { useWeeklyReviewCount } from '../hooks/useWeeklyReviewCount';
 import type { TabId } from '../navigation';
 
 interface Props {
   viewer: Viewer;
+  accountId: string | null;
   onNavigate: (tab: TabId) => void;
 }
 
@@ -14,8 +16,9 @@ interface Row {
   value: number | null;
 }
 
-export function Dashboard({ viewer, onNavigate }: Props) {
+export function Dashboard({ viewer, accountId, onNavigate }: Props) {
   const { status, counts, error, refresh } = useDashboardCounts(viewer.login);
+  const weeklyReviews = useWeeklyReviewCount(accountId);
 
   const rows: Row[] = [
     {
@@ -68,6 +71,14 @@ export function Dashboard({ viewer, onNavigate }: Props) {
           {error ?? 'Failed to load counts'}
         </div>
       )}
+
+      <div className="rounded-md border border-gh-border-default bg-gh-canvas-subtle px-3 py-2 text-xs text-gh-fg-muted">
+        You&apos;ve marked{' '}
+        <span className="font-semibold text-gh-fg-default">
+          {weeklyReviews}
+        </span>{' '}
+        PR{weeklyReviews === 1 ? '' : 's'} as reviewed this week.
+      </div>
 
       <ul className="flex flex-col divide-y divide-gh-border-muted overflow-hidden rounded-md border border-gh-border-default bg-gh-canvas-subtle">
         {rows.map((row) => (

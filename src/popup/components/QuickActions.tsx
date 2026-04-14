@@ -7,6 +7,7 @@ import {
   repoSlugFromUrl,
   type SearchIssueItem,
 } from '../../lib/github-api';
+import { incrementReviewCount } from '../../lib/stats';
 
 type Result = { kind: 'ok' | 'error'; message: string } | null;
 
@@ -37,10 +38,10 @@ export function QuickActions({ item }: Props) {
     }
   }
 
-  async function requireToken(): Promise<string> {
-    const { token } = await getStoredAuth();
+  async function requireAuth(): Promise<{ token: string; accountId: string | null }> {
+    const { token, accountId } = await getStoredAuth();
     if (!token) throw new Error('Not signed in');
-    return token;
+    return { token, accountId };
   }
 
   return (
@@ -69,7 +70,11 @@ export function QuickActions({ item }: Props) {
               onClick={() =>
                 withBusy(
                   'review',
-                  async () => markPrReviewed(await requireToken(), repoSlug, item.number),
+                  async () => {
+                    const auth = await requireAuth();
+                    await markPrReviewed(auth.token, repoSlug, item.number);
+                    if (auth.accountId) await incrementReviewCount(auth.accountId);
+                  },
                   'Marked as reviewed',
                 )
               }
@@ -81,7 +86,10 @@ export function QuickActions({ item }: Props) {
             onClick={() =>
               withBusy(
                 'react',
-                async () => addThumbsUpReaction(await requireToken(), repoSlug, item.number),
+                async () => {
+                  const auth = await requireAuth();
+                  await addThumbsUpReaction(auth.token, repoSlug, item.number);
+                },
                 'Reaction added',
               )
             }
@@ -95,7 +103,8 @@ export function QuickActions({ item }: Props) {
                 async () => {
                   const body = window.prompt('Draft reply — posts as a comment:');
                   if (!body || !body.trim()) throw new Error('Reply cancelled');
-                  await createIssueComment(await requireToken(), repoSlug, item.number, body.trim());
+                  const auth = await requireAuth();
+                  await createIssueComment(auth.token, repoSlug, item.number, body.trim());
                 },
                 'Reply posted',
               )

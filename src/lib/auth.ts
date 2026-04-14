@@ -1,8 +1,18 @@
-import { clearCryptoKey, decryptString, encryptString, type Envelope } from './crypto';
+import {
+  ACCOUNTS_STORAGE_KEY,
+  ACTIVE_ACCOUNT_KEY,
+  addAccount,
+  getActiveAuth,
+  removeAccount,
+  VIEWERS_STORAGE_KEY,
+} from './accounts';
 import { fetchViewer, GitHubApiError, type Viewer } from './github-api';
 
-export const TOKEN_STORAGE_KEY = 'gh_workflow_token_v1';
-export const VIEWER_STORAGE_KEY = 'gh_workflow_viewer_v1';
+// Preserved for backwards-compatible imports in the service worker and the
+// popup; the canonical storage now lives in accounts.ts.
+export const TOKEN_STORAGE_KEY = ACCOUNTS_STORAGE_KEY;
+export const VIEWER_STORAGE_KEY = VIEWERS_STORAGE_KEY;
+export const ACTIVE_STORAGE_KEY = ACTIVE_ACCOUNT_KEY;
 
 // OAuth client id must be provided at build time. Leaving it unset falls
 // back to PAT-only mode. See README for how to register a GitHub OAuth app.
@@ -11,45 +21,22 @@ const OAUTH_CLIENT_ID = (import.meta.env?.VITE_GITHUB_OAUTH_CLIENT_ID ?? '') as 
 export interface AuthState {
   token: string | null;
   viewer: Viewer | null;
-}
-
-interface StoredToken {
-  envelope: Envelope;
+  accountId: string | null;
 }
 
 export async function getStoredAuth(): Promise<AuthState> {
-  const [syncBag, localBag] = await Promise.all([
-    chrome.storage.sync.get(TOKEN_STORAGE_KEY),
-    chrome.storage.local.get(VIEWER_STORAGE_KEY),
-  ]);
-  const stored = syncBag[TOKEN_STORAGE_KEY] as StoredToken | undefined;
-  const viewer = (localBag[VIEWER_STORAGE_KEY] as Viewer | undefined) ?? null;
-  if (!stored?.envelope) return { token: null, viewer: null };
-  try {
-    const token = await decryptString(stored.envelope);
-    return { token, viewer };
-  } catch {
-    // Key rotation or corruption — treat as logged out.
-    await clearStoredAuth();
-    return { token: null, viewer: null };
-  }
+  return getActiveAuth();
 }
 
-export async function saveToken(token: string, viewer: Viewer): Promise<void> {
-  const envelope = await encryptString(token);
-  const payload: StoredToken = { envelope };
-  await Promise.all([
-    chrome.storage.sync.set({ [TOKEN_STORAGE_KEY]: payload }),
-    chrome.storage.local.set({ [VIEWER_STORAGE_KEY]: viewer }),
-  ]);
+export async function saveToken(token: string, viewer: Viewer): Promise<string> {
+  return addAccount(token, viewer);
 }
 
-export async function clearStoredAuth(): Promise<void> {
-  await Promise.all([
-    chrome.storage.sync.remove(TOKEN_STORAGE_KEY),
-    chrome.storage.local.remove(VIEWER_STORAGE_KEY),
-    clearCryptoKey(),
-  ]);
+export async function clearStoredAuth(accountId?: string): Promise<string | null> {
+  if (accountId) return removeAccount(accountId);
+  const current = await getActiveAuth();
+  if (current.accountId) return removeAccount(current.accountId);
+  return null;
 }
 
 /**
@@ -66,8 +53,8 @@ export async function signInWithToken(token: string): Promise<Viewer> {
   return viewer;
 }
 
-export async function signOut(): Promise<void> {
-  await clearStoredAuth();
+export async function signOut(accountId?: string): Promise<string | null> {
+  return clearStoredAuth(accountId);
 }
 
 // ---------- OAuth ----------
