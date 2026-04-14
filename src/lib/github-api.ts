@@ -63,3 +63,49 @@ export async function fetchViewer(token: string): Promise<Viewer> {
     html_url: data.html_url,
   };
 }
+
+export interface SearchIssueItem {
+  id: number;
+  number: number;
+  title: string;
+  html_url: string;
+  repository_url: string;
+  state: 'open' | 'closed';
+  draft?: boolean;
+  created_at: string;
+  updated_at: string;
+  labels: { name: string }[];
+  user: { login: string; avatar_url: string } | null;
+  pull_request?: { html_url: string };
+}
+
+interface SearchIssuesResponse {
+  total_count: number;
+  items: SearchIssueItem[];
+}
+
+export async function searchIssues(
+  query: string,
+  token: string,
+  perPage = 30,
+): Promise<SearchIssueItem[]> {
+  const res = await githubFetch(
+    `/search/issues?q=${encodeURIComponent(query)}&per_page=${perPage}&sort=updated&order=desc`,
+    token,
+  );
+  const data = (await res.json()) as SearchIssuesResponse;
+  return data.items ?? [];
+}
+
+export function repoSlugFromRepositoryUrl(repositoryUrl: string): string {
+  // https://api.github.com/repos/org/name → org/name
+  const match = /\/repos\/([^/]+\/[^/]+)$/.exec(repositoryUrl);
+  return match ? match[1] : repositoryUrl;
+}
+
+export async function fetchAssignedPrs(
+  login: string,
+  token: string,
+): Promise<SearchIssueItem[]> {
+  return searchIssues(`is:pr is:open assignee:${login}`, token);
+}
