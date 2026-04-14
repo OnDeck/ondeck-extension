@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { SignIn } from './components/SignIn';
 import { Dashboard } from './components/Dashboard';
 import { AssignedTab } from './components/tabs/AssignedTab';
+import { MentionsTab } from './components/tabs/MentionsTab';
 import { TabBar, type TabDef } from './tabs/TabBar';
 import type { TabId } from './tabs/types';
 import { useAuth } from './hooks/useAuth';
@@ -50,7 +51,12 @@ export default function App() {
         {active === 'assigned' && (
           <AssignedTab token={auth.token} login={auth.viewer.login} />
         )}
-        {active !== 'home' && active !== 'assigned' && <TabPlaceholder tab={active} />}
+        {active === 'mentions' && (
+          <MentionsTab token={auth.token} login={auth.viewer.login} />
+        )}
+        {active !== 'home' && active !== 'assigned' && active !== 'mentions' && (
+          <TabPlaceholder tab={active} />
+        )}
       </main>
     </div>
   );
