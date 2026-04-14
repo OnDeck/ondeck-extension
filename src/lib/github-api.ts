@@ -63,3 +63,80 @@ export async function fetchViewer(token: string): Promise<Viewer> {
     html_url: data.html_url,
   };
 }
+
+// ---------- Review requests ----------
+
+export interface PullRequestSummary {
+  id: number;
+  number: number;
+  title: string;
+  html_url: string;
+  updated_at: string;
+  created_at: string;
+  repository_url: string;
+  user: { login: string; avatar_url: string } | null;
+  labels: Array<{ name: string; color: string }>;
+  draft?: boolean;
+}
+
+interface IssueSearchResponse {
+  total_count: number;
+  items: PullRequestSummary[];
+}
+
+export interface ReviewRequestItem extends PullRequestSummary {
+  /** Files changed count, fetched lazily from the PR endpoint. null until loaded. */
+  changed_files: number | null;
+  /** True when a label suggests the PR is blocking a deploy. */
+  isBlocking: boolean;
+}
+
+/** Derives "org/repo" from the repository_url the search API returns. */
+export function parseRepoSlug(repositoryUrl: string): string {
+  const marker = '/repos/';
+  const idx = repositoryUrl.indexOf(marker);
+  if (idx === -1) return repositoryUrl;
+  return repositoryUrl.slice(idx + marker.length);
+}
+
+function detectBlocking(labels: Array<{ name: string }>): boolean {
+  return labels.some((l) => {
+    const name = l.name.toLowerCase();
+    return (
+      name.includes('blocking') ||
+      name.includes('blocker') ||
+      name === 'priority: critical' ||
+      name === 'p0'
+    );
+  });
+}
+
+export async function fetchReviewRequests(
+  login: string,
+  token: string,
+): Promise<ReviewRequestItem[]> {
+  const res = await githubFetch(
+    `/search/issues?q=${encodeURIComponent(
+      `is:pr is:open review-requested:${login}`,
+    )}&per_page=30&sort=updated&order=desc`,
+    token,
+  );
+  const data = (await res.json()) as IssueSearchResponse;
+  const items = data.items ?? [];
+  return items.map((item) => ({
+    ...item,
+    changed_files: null,
+    isBlocking: detectBlocking(item.labels ?? []),
+  }));
+}
+
+/** Fetches the files-changed count for a single PR. */
+export async function fetchPullRequestChangedFiles(
+  repo: string,
+  pullNumber: number,
+  token: string,
+): Promise<number> {
+  const res = await githubFetch(`/repos/${repo}/pulls/${pullNumber}`, token);
+  const data = (await res.json()) as { changed_files?: number };
+  return data.changed_files ?? 0;
+}
