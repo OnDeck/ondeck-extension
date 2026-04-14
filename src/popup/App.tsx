@@ -5,6 +5,7 @@ import { TabBar } from './components/TabBar';
 import { DashboardTab } from './components/DashboardTab';
 import { AssignedPrsTab } from './components/AssignedPrsTab';
 import { MentionsTab } from './components/MentionsTab';
+import { ReviewsTab } from './components/ReviewsTab';
 import { useAuth } from './hooks/useAuth';
 import { useDashboard } from './hooks/useDashboard';
 import type { TabId } from './tabs';
@@ -40,7 +41,10 @@ export default function App() {
         {tab === 'mentions' && auth.token && (
           <MentionsTab login={auth.viewer.login} token={auth.token} />
         )}
-        {tab !== 'dashboard' && tab !== 'assigned' && tab !== 'mentions' && (
+        {tab === 'reviews' && auth.token && (
+          <ReviewsTab login={auth.viewer.login} token={auth.token} />
+        )}
+        {tab === 'notifications' && (
           <div className="rounded-md border border-gh-border-default bg-gh-canvas-subtle p-3 text-xs text-gh-fg-muted">
             This tab ships in a later ticket.
           </div>

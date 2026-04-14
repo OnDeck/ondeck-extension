@@ -149,6 +149,34 @@ export async function fetchReviewRequestCount(login: string, token: string): Pro
   return searchIssuesCount(`is:pr is:open review-requested:${login}`, token);
 }
 
+export async function fetchReviewRequests(
+  login: string,
+  token: string,
+): Promise<SearchIssueItem[]> {
+  return searchIssues(`is:pr is:open review-requested:${login}`, token);
+}
+
+interface PullRequestDetail {
+  changed_files: number;
+  additions: number;
+  deletions: number;
+}
+
+export async function fetchPullRequestDetail(
+  owner: string,
+  repo: string,
+  number: number,
+  token: string,
+): Promise<PullRequestDetail> {
+  const res = await githubFetch(`/repos/${owner}/${repo}/pulls/${number}`, token);
+  const data = (await res.json()) as PullRequestDetail;
+  return {
+    changed_files: data.changed_files,
+    additions: data.additions,
+    deletions: data.deletions,
+  };
+}
+
 export async function fetchMentionCount(login: string, token: string): Promise<number> {
   return searchIssuesCount(`is:open mentions:${login}`, token);
 }
