@@ -63,3 +63,33 @@ export async function fetchViewer(token: string): Promise<Viewer> {
     html_url: data.html_url,
   };
 }
+
+// ---------- Notifications ----------
+
+export interface NotificationThread {
+  id: string;
+  unread: boolean;
+  reason: string;
+  updated_at: string;
+  subject: {
+    title: string;
+    url: string | null;
+    latest_comment_url: string | null;
+    type: string;
+  };
+  repository: {
+    id: number;
+    name: string;
+    full_name: string;
+    html_url: string;
+    owner: { login: string; avatar_url: string };
+  };
+}
+
+export async function fetchUnreadNotifications(
+  token: string,
+): Promise<NotificationThread[]> {
+  const res = await githubFetch('/notifications?all=false&per_page=50', token);
+  const data = (await res.json()) as NotificationThread[];
+  return Array.isArray(data) ? data : [];
+}
