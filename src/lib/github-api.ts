@@ -300,6 +300,116 @@ export async function fetchUnreadNotificationsCount(token: string): Promise<numb
   return total;
 }
 
+// ---------- Quick action helpers (reviews / reactions / comments) ----------
+
+export type PrReviewEvent = 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT';
+
+/**
+ * Submit a pull request review. Used by the "Mark as reviewed"
+ * quick-action which posts an event=COMMENT review with no body so
+ * the PR disappears from the viewer's review-requested queue without
+ * appearing opinionated.
+ */
+export async function submitPrReview(
+  token: string,
+  org: string,
+  repo: string,
+  prNumber: number,
+  event: PrReviewEvent,
+  body?: string,
+): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `${GITHUB_API_BASE}/repos/${org}/${repo}/pulls/${prNumber}/reviews`,
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'application/vnd.github+json',
+          Authorization: `Bearer ${token}`,
+          'X-GitHub-Api-Version': '2022-11-28',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body ? { event, body } : { event }),
+      },
+    );
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export type ReactionContent =
+  | '+1'
+  | '-1'
+  | 'laugh'
+  | 'confused'
+  | 'heart'
+  | 'hooray'
+  | 'rocket'
+  | 'eyes';
+
+/**
+ * Add a reaction to an issue or PR (they share the same endpoint).
+ */
+export async function addIssueReaction(
+  token: string,
+  org: string,
+  repo: string,
+  issueNumber: number,
+  content: ReactionContent,
+): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `${GITHUB_API_BASE}/repos/${org}/${repo}/issues/${issueNumber}/reactions`,
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'application/vnd.github+json',
+          Authorization: `Bearer ${token}`,
+          'X-GitHub-Api-Version': '2022-11-28',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+      },
+    );
+    return res.ok || res.status === 201;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Post a comment to an issue or PR. Used by the draft-reply quick
+ * action so the user can dash off a short response without leaving
+ * the popup.
+ */
+export async function postIssueComment(
+  token: string,
+  org: string,
+  repo: string,
+  issueNumber: number,
+  body: string,
+): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `${GITHUB_API_BASE}/repos/${org}/${repo}/issues/${issueNumber}/comments`,
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'application/vnd.github+json',
+          Authorization: `Bearer ${token}`,
+          'X-GitHub-Api-Version': '2022-11-28',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ body }),
+      },
+    );
+    return res.ok || res.status === 201;
+  } catch {
+    return false;
+  }
+}
+
 export type NotificationSubjectType =
   | 'PullRequest'
   | 'Issue'
