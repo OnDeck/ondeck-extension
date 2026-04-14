@@ -63,3 +63,54 @@ export async function fetchViewer(token: string): Promise<Viewer> {
     html_url: data.html_url,
   };
 }
+
+// ---------- Search / counts ----------
+
+interface SearchCountResponse {
+  total_count: number;
+}
+
+async function fetchSearchCount(query: string, token: string): Promise<number> {
+  const path = `/search/issues?q=${encodeURIComponent(query)}&per_page=1`;
+  const res = await githubFetch(path, token);
+  const data = (await res.json()) as SearchCountResponse;
+  return data.total_count ?? 0;
+}
+
+export interface DashboardCounts {
+  assignedPrs: number;
+  reviewRequests: number;
+  mentions: number;
+  unreadNotifications: number;
+}
+
+export async function fetchAssignedPrCount(login: string, token: string): Promise<number> {
+  return fetchSearchCount(`is:pr is:open assignee:${login}`, token);
+}
+
+export async function fetchReviewRequestCount(login: string, token: string): Promise<number> {
+  return fetchSearchCount(`is:pr is:open review-requested:${login}`, token);
+}
+
+export async function fetchMentionCount(login: string, token: string): Promise<number> {
+  return fetchSearchCount(`is:open mentions:${login}`, token);
+}
+
+export async function fetchUnreadNotificationCount(token: string): Promise<number> {
+  const res = await githubFetch('/notifications?all=false&per_page=50', token);
+  const data = (await res.json()) as unknown[];
+  return Array.isArray(data) ? data.length : 0;
+}
+
+export async function fetchDashboardCounts(
+  login: string,
+  token: string,
+): Promise<DashboardCounts> {
+  const [assignedPrs, reviewRequests, mentions, unreadNotifications] = await Promise.all([
+    fetchAssignedPrCount(login, token),
+    fetchReviewRequestCount(login, token),
+    fetchMentionCount(login, token),
+    fetchUnreadNotificationCount(token),
+  ]);
+  return { assignedPrs, reviewRequests, mentions, unreadNotifications };
+}

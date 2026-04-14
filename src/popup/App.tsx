@@ -1,9 +1,21 @@
+import { useState } from 'react';
+import { DashboardTab } from './components/DashboardTab';
 import { Header } from './components/Header';
 import { SignIn } from './components/SignIn';
+import { TabBar, type TabId } from './components/TabBar';
 import { useAuth } from './hooks/useAuth';
+
+function PlaceholderTab({ label }: { label: string }) {
+  return (
+    <div className="flex h-full items-center justify-center px-4 text-center text-xs text-gh-fg-muted">
+      {label} ships in a subsequent ticket.
+    </div>
+  );
+}
 
 export default function App() {
   const auth = useAuth();
+  const [activeTab, setActiveTab] = useState<TabId>('home');
 
   if (auth.status === 'loading') {
     return (
@@ -20,11 +32,15 @@ export default function App() {
   return (
     <div className="flex h-full w-full flex-col">
       <Header viewer={auth.viewer} onSignOut={() => void auth.signOut()} busy={auth.busy} />
-      <main className="flex-1 overflow-y-auto px-4 py-3">
-        <div className="rounded-md border border-gh-border-default bg-gh-canvas-subtle p-3 text-xs text-gh-fg-muted">
-          Signed in. Dashboard, assigned PRs, mentions, reviews, and notifications
-          ship in subsequent tickets.
-        </div>
+      <TabBar active={activeTab} onChange={setActiveTab} />
+      <main className="flex-1 overflow-y-auto">
+        {activeTab === 'home' && (
+          <DashboardTab viewer={auth.viewer} onNavigate={setActiveTab} />
+        )}
+        {activeTab === 'assigned' && <PlaceholderTab label="Assigned PRs" />}
+        {activeTab === 'reviews' && <PlaceholderTab label="Reviews" />}
+        {activeTab === 'mentions' && <PlaceholderTab label="Mentions" />}
+        {activeTab === 'notifications' && <PlaceholderTab label="Notifications" />}
       </main>
     </div>
   );

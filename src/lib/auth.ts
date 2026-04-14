@@ -35,6 +35,12 @@ export async function getStoredAuth(): Promise<AuthState> {
   }
 }
 
+/** Returns the decrypted token, or null if signed out. */
+export async function getStoredToken(): Promise<string | null> {
+  const { token } = await getStoredAuth();
+  return token;
+}
+
 export async function saveToken(token: string, viewer: Viewer): Promise<void> {
   const envelope = await encryptString(token);
   const payload: StoredToken = { envelope };
