@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AssignedPrsTab } from './components/AssignedPrsTab';
 import { Header } from './components/Header';
 import { HomeTab } from './components/HomeTab';
+import { MentionsTab } from './components/MentionsTab';
 import { SignIn } from './components/SignIn';
 import { TabBar } from './components/TabBar';
 import { useAuth } from './hooks/useAuth';
@@ -30,7 +31,8 @@ export default function App() {
       <main className="flex-1 overflow-y-auto px-4 py-3">
         {tab === 'home' && <HomeTab viewer={auth.viewer} onNavigate={setTab} />}
         {tab === 'assigned' && <AssignedPrsTab viewer={auth.viewer} />}
-        {tab !== 'home' && tab !== 'assigned' && (
+        {tab === 'mentions' && <MentionsTab viewer={auth.viewer} />}
+        {tab !== 'home' && tab !== 'assigned' && tab !== 'mentions' && (
           <div className="rounded-md border border-gh-border-default bg-gh-canvas-subtle p-3 text-xs text-gh-fg-muted">
             This tab ships in a subsequent ticket.
           </div>
