@@ -2,8 +2,60 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/*
+ * GitHub Primer colour tokens exposed as CSS variables. We keep the raw
+ * `R G B` triplets so Tailwind's `rgb(var(--token) / <alpha-value>)` bindings
+ * can apply opacity modifiers. The class-based dark/light switch is toggled
+ * on <html> by the popup (see src/popup/hooks/useTheme.ts).
+ */
+:root,
+.theme-light {
+  color-scheme: light;
+  --gh-canvas-default: 255 255 255;
+  --gh-canvas-subtle: 246 248 250;
+  --gh-border-default: 208 215 222;
+  --gh-border-muted: 216 222 228;
+  --gh-fg-default: 31 35 40;
+  --gh-fg-muted: 101 109 118;
+  --gh-accent-emphasis: 9 105 218;
+  --gh-success-emphasis: 31 136 61;
+  --gh-danger-emphasis: 207 34 46;
+  --gh-attention-emphasis: 154 103 0;
+  --gh-done-emphasis: 130 80 223;
+}
+
+.theme-dark {
   color-scheme: dark;
+  --gh-canvas-default: 13 17 23;
+  --gh-canvas-subtle: 22 27 34;
+  --gh-border-default: 48 54 61;
+  --gh-border-muted: 33 38 45;
+  --gh-fg-default: 230 237 243;
+  --gh-fg-muted: 125 133 144;
+  --gh-accent-emphasis: 31 111 235;
+  --gh-success-emphasis: 46 160 67;
+  --gh-danger-emphasis: 248 81 73;
+  --gh-attention-emphasis: 158 106 3;
+  --gh-done-emphasis: 130 80 223;
+}
+
+/* System preference: default to dark tokens when the user has no explicit
+ * choice. When a `.theme-*` class is present it always wins. */
+@media (prefers-color-scheme: dark) {
+  :root:not(.theme-light) {
+    color-scheme: dark;
+    --gh-canvas-default: 13 17 23;
+    --gh-canvas-subtle: 22 27 34;
+    --gh-border-default: 48 54 61;
+    --gh-border-muted: 33 38 45;
+    --gh-fg-default: 230 237 243;
+    --gh-fg-muted: 125 133 144;
+    --gh-accent-emphasis: 31 111 235;
+    --gh-success-emphasis: 46 160 67;
+    --gh-danger-emphasis: 248 81 73;
+    --gh-attention-emphasis: 158 106 3;
+    --gh-done-emphasis: 130 80 223;
+  }
 }
 
 html,
