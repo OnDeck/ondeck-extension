@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import type { Viewer } from '../../lib/github-api';
 import { useIssueSearch } from '../hooks/useIssueSearch';
 import { relativeTime, repoSlug } from '../lib/relative-time';
+import { applyFilters, EMPTY_FILTERS, type Filters } from '../lib/filters';
 import { EmptyState, ErrorState, LoadingState, ViewHeader } from './ListStates';
+import { FilterBar } from './FilterBar';
 
 interface Props {
   viewer: Viewer;
@@ -26,17 +29,22 @@ function mentionSnippet(body: string | null | undefined, login: string): string 
 export function Mentions({ viewer, token }: Props) {
   const query = `is:open mentions:${viewer.login}`;
   const { items, loading, error, refresh } = useIssueSearch(token, query);
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const visible = applyFilters(items, filters);
 
   return (
     <div className="flex flex-col">
       <ViewHeader title="Mentions" loading={loading} onRefresh={refresh} />
+      <FilterBar filters={filters} onChange={setFilters} />
       {error && <ErrorState message={error} />}
       {loading && items.length === 0 && <LoadingState />}
-      {!loading && !error && items.length === 0 && (
-        <EmptyState message="No open mentions." />
+      {!loading && !error && visible.length === 0 && (
+        <EmptyState
+          message={items.length === 0 ? 'No open mentions.' : 'No mentions match your filters.'}
+        />
       )}
       <ul className="flex flex-col">
-        {items.map((item) => {
+        {visible.map((item) => {
           const isPr = Boolean(item.pull_request);
           return (
             <li key={item.id} className="border-t border-gh-border-muted first:border-t-0">

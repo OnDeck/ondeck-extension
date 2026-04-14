@@ -5,9 +5,12 @@ import {
   type SearchIssueItem,
   type Viewer,
 } from '../../lib/github-api';
+import { markPullRequestReviewed } from '../../lib/quick-actions';
 import { useIssueSearch } from '../hooks/useIssueSearch';
 import { relativeTime, repoSlug } from '../lib/relative-time';
+import { applyFilters, EMPTY_FILTERS, type Filters } from '../lib/filters';
 import { EmptyState, ErrorState, LoadingState, ViewHeader } from './ListStates';
+import { FilterBar } from './FilterBar';
 
 interface Props {
   viewer: Viewer;
@@ -57,19 +60,43 @@ export function Reviews({ viewer, token }: Props) {
   const query = `is:pr is:open review-requested:${viewer.login}`;
   const { items, loading, error, refresh } = useIssueSearch(token, query);
   const details = usePrDetails(token, items);
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [reviewing, setReviewing] = useState<number | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const visible = applyFilters(items, filters);
+
+  const markReviewed = async (item: SearchIssueItem) => {
+    if (!token) return;
+    setReviewing(item.id);
+    setActionError(null);
+    try {
+      await markPullRequestReviewed(token, repoSlug(item.repository_url), item.number);
+      refresh();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to submit review');
+    } finally {
+      setReviewing(null);
+    }
+  };
 
   return (
     <div className="flex flex-col">
       <ViewHeader title="Review requests" loading={loading} onRefresh={refresh} />
-      {error && <ErrorState message={error} />}
+      <FilterBar filters={filters} onChange={setFilters} />
+      {(error || actionError) && <ErrorState message={actionError ?? error ?? ''} />}
       {loading && items.length === 0 && <LoadingState />}
-      {!loading && !error && items.length === 0 && (
-        <EmptyState message="No PRs awaiting your review." />
+      {!loading && !error && visible.length === 0 && (
+        <EmptyState
+          message={
+            items.length === 0 ? 'No PRs awaiting your review.' : 'No reviews match your filters.'
+          }
+        />
       )}
       <ul className="flex flex-col">
-        {items.map((item) => {
+        {visible.map((item) => {
           const pr = details[item.id];
           const requester = pr?.user ?? item.user ?? undefined;
+          const isMarking = reviewing === item.id;
           return (
             <li key={item.id} className="border-t border-gh-border-muted first:border-t-0">
               <a
@@ -109,6 +136,16 @@ export function Reviews({ viewer, token }: Props) {
                   </span>
                 )}
               </a>
+              <div className="flex gap-2 px-4 pb-2">
+                <button
+                  type="button"
+                  disabled={isMarking || !token}
+                  onClick={() => void markReviewed(item)}
+                  className="rounded-md border border-gh-border-default px-2 py-0.5 text-[10px] text-gh-fg-muted hover:border-gh-accent-emphasis hover:text-gh-fg-default disabled:opacity-60"
+                >
+                  {isMarking ? 'Submitting…' : 'Mark reviewed'}
+                </button>
+              </div>
             </li>
           );
         })}

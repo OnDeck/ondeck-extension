@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import type { Viewer, SearchIssueItem } from '../../lib/github-api';
 import { useIssueSearch } from '../hooks/useIssueSearch';
 import { relativeTime, repoSlug } from '../lib/relative-time';
+import { applyFilters, EMPTY_FILTERS, type Filters } from '../lib/filters';
 import { EmptyState, ErrorState, LoadingState, ViewHeader } from './ListStates';
+import { FilterBar } from './FilterBar';
 
 interface Props {
   viewer: Viewer;
@@ -45,17 +48,22 @@ function StatusBadge({ status }: { status: PrStatus }) {
 export function AssignedPRs({ viewer, token }: Props) {
   const query = `is:pr is:open assignee:${viewer.login}`;
   const { items, loading, error, refresh } = useIssueSearch(token, query);
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const visible = applyFilters(items, filters);
 
   return (
     <div className="flex flex-col">
       <ViewHeader title="Assigned PRs" loading={loading} onRefresh={refresh} />
+      <FilterBar filters={filters} onChange={setFilters} />
       {error && <ErrorState message={error} />}
       {loading && items.length === 0 && <LoadingState />}
-      {!loading && !error && items.length === 0 && (
-        <EmptyState message="No open PRs assigned to you." />
+      {!loading && !error && visible.length === 0 && (
+        <EmptyState
+          message={items.length === 0 ? 'No open PRs assigned to you.' : 'No PRs match your filters.'}
+        />
       )}
       <ul className="flex flex-col">
-        {items.map((item) => (
+        {visible.map((item) => (
           <li key={item.id} className="border-t border-gh-border-muted first:border-t-0">
             <a
               href={item.html_url}
