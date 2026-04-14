@@ -7,10 +7,12 @@ import { Mentions } from './components/Mentions';
 import { Notifications } from './components/Notifications';
 import { Reviews } from './components/Reviews';
 import { useAuth } from './hooks/useAuth';
+import { useTheme } from './hooks/useTheme';
 import type { TabId } from './types';
 
 export default function App() {
   const auth = useAuth();
+  const theme = useTheme();
   const [tab, setTab] = useState<TabId>('home');
 
   if (auth.status === 'loading') {
@@ -27,7 +29,13 @@ export default function App() {
 
   return (
     <div className="flex h-full w-full flex-col">
-      <Header viewer={auth.viewer} onSignOut={() => void auth.signOut()} busy={auth.busy} />
+      <Header
+        viewer={auth.viewer}
+        onSignOut={() => void auth.signOut()}
+        busy={auth.busy}
+        themePreference={theme.preference}
+        onCycleTheme={theme.cycle}
+      />
       <main className="flex-1 overflow-y-auto">
         {tab === 'home' && (
           <Dashboard login={auth.viewer.login} onNavigate={setTab} />
