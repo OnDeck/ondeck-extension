@@ -63,3 +63,60 @@ export async function fetchViewer(token: string): Promise<Viewer> {
     html_url: data.html_url,
   };
 }
+
+// ---------- Search / counts ----------
+
+interface SearchTotalCount {
+  total_count: number;
+}
+
+async function fetchSearchTotal(query: string, token: string): Promise<number> {
+  // per_page=1 keeps payloads tiny — we only care about total_count.
+  const res = await githubFetch(
+    `/search/issues?q=${encodeURIComponent(query)}&per_page=1`,
+    token,
+  );
+  const data = (await res.json()) as SearchTotalCount;
+  return data.total_count ?? 0;
+}
+
+export async function fetchAssignedPrCount(login: string, token: string): Promise<number> {
+  return fetchSearchTotal(`is:pr is:open assignee:${login}`, token);
+}
+
+export async function fetchReviewRequestCount(login: string, token: string): Promise<number> {
+  return fetchSearchTotal(`is:pr is:open review-requested:${login}`, token);
+}
+
+export async function fetchMentionCount(login: string, token: string): Promise<number> {
+  return fetchSearchTotal(`is:open mentions:${login}`, token);
+}
+
+export async function fetchUnreadNotificationCount(token: string): Promise<number> {
+  // /notifications doesn't return total_count, so we fetch the first page and
+  // trust the link header count. For the popup we just need a rough figure,
+  // so page size 50 is enough for the common case.
+  const res = await githubFetch('/notifications?all=false&per_page=50', token);
+  const data = (await res.json()) as unknown[];
+  return Array.isArray(data) ? data.length : 0;
+}
+
+export interface DashboardCounts {
+  assignedPrs: number;
+  reviewRequests: number;
+  mentions: number;
+  unreadNotifications: number;
+}
+
+export async function fetchDashboardCounts(
+  login: string,
+  token: string,
+): Promise<DashboardCounts> {
+  const [assignedPrs, reviewRequests, mentions, unreadNotifications] = await Promise.all([
+    fetchAssignedPrCount(login, token),
+    fetchReviewRequestCount(login, token),
+    fetchMentionCount(login, token),
+    fetchUnreadNotificationCount(token),
+  ]);
+  return { assignedPrs, reviewRequests, mentions, unreadNotifications };
+}
