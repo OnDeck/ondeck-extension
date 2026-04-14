@@ -8,6 +8,13 @@ export interface Viewer {
   html_url: string;
 }
 
+export interface DashboardCounts {
+  assigned: number;
+  reviewRequested: number;
+  mentions: number;
+  notifications: number;
+}
+
 export class GitHubApiError extends Error {
   constructor(
     message: string,
@@ -19,7 +26,7 @@ export class GitHubApiError extends Error {
   }
 }
 
-async function githubFetch(path: string, token: string): Promise<Response> {
+export async function githubFetch(path: string, token: string): Promise<Response> {
   let response: Response;
   try {
     response = await fetch(`${GITHUB_API_BASE}${path}`, {
@@ -62,4 +69,39 @@ export async function fetchViewer(token: string): Promise<Viewer> {
     avatar_url: data.avatar_url,
     html_url: data.html_url,
   };
+}
+
+interface SearchCountResponse {
+  total_count: number;
+}
+
+async function searchCount(query: string, token: string): Promise<number> {
+  // per_page=1 keeps the payload small; we only need total_count.
+  const res = await githubFetch(
+    `/search/issues?per_page=1&q=${encodeURIComponent(query)}`,
+    token,
+  );
+  const data = (await res.json()) as SearchCountResponse;
+  return data.total_count ?? 0;
+}
+
+async function notificationsCount(token: string): Promise<number> {
+  // /notifications doesn't return a total_count; fetch up to 50 unread items
+  // (the popup's dashboard only ever renders the count, so this is enough).
+  const res = await githubFetch('/notifications?all=false&per_page=50', token);
+  const data = (await res.json()) as unknown[];
+  return Array.isArray(data) ? data.length : 0;
+}
+
+export async function fetchDashboardCounts(
+  token: string,
+  login: string,
+): Promise<DashboardCounts> {
+  const [assigned, reviewRequested, mentions, notifications] = await Promise.all([
+    searchCount(`is:pr is:open assignee:${login}`, token),
+    searchCount(`is:pr is:open review-requested:${login}`, token),
+    searchCount(`is:open mentions:${login}`, token),
+    notificationsCount(token),
+  ]);
+  return { assigned, reviewRequested, mentions, notifications };
 }

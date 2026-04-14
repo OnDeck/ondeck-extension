@@ -1,9 +1,15 @@
+import { useState } from 'react';
 import { Header } from './components/Header';
 import { SignIn } from './components/SignIn';
+import { TabBar } from './components/TabBar';
+import { HomeTab } from './pages/HomeTab';
+import { PlaceholderTab } from './pages/PlaceholderTab';
+import type { TabId } from './tabs';
 import { useAuth } from './hooks/useAuth';
 
 export default function App() {
   const auth = useAuth();
+  const [tab, setTab] = useState<TabId>('home');
 
   if (auth.status === 'loading') {
     return (
@@ -20,11 +26,27 @@ export default function App() {
   return (
     <div className="flex h-full w-full flex-col">
       <Header viewer={auth.viewer} onSignOut={() => void auth.signOut()} busy={auth.busy} />
-      <main className="flex-1 overflow-y-auto px-4 py-3">
-        <div className="rounded-md border border-gh-border-default bg-gh-canvas-subtle p-3 text-xs text-gh-fg-muted">
-          Signed in. Dashboard, assigned PRs, mentions, reviews, and notifications
-          ship in subsequent tickets.
-        </div>
+      <TabBar active={tab} onChange={setTab} />
+      <main className="flex-1 overflow-y-auto">
+        {tab === 'home' && <HomeTab viewer={auth.viewer} onNavigate={setTab} />}
+        {tab === 'assigned' && (
+          <PlaceholderTab
+            title="Assigned PRs"
+            description="Ships in ticket #4."
+          />
+        )}
+        {tab === 'mentions' && (
+          <PlaceholderTab title="Mentions" description="Ships in ticket #5." />
+        )}
+        {tab === 'reviews' && (
+          <PlaceholderTab title="Reviews" description="Ships in ticket #6." />
+        )}
+        {tab === 'notifications' && (
+          <PlaceholderTab
+            title="Notifications"
+            description="Ships in ticket #7."
+          />
+        )}
       </main>
     </div>
   );
