@@ -182,6 +182,87 @@ export async function fetchUnreadNotificationCount(token: string): Promise<numbe
   return Array.isArray(data) ? data.length : 0;
 }
 
+// ---------- Notifications ----------
+
+export type NotificationReason =
+  | 'assign'
+  | 'author'
+  | 'comment'
+  | 'invitation'
+  | 'manual'
+  | 'mention'
+  | 'review_requested'
+  | 'security_alert'
+  | 'state_change'
+  | 'subscribed'
+  | 'team_mention'
+  | 'ci_activity'
+  | string;
+
+export type NotificationSubjectType = 'PullRequest' | 'Issue' | 'Commit' | 'Release' | 'Discussion' | string;
+
+export interface NotificationItem {
+  id: string;
+  unread: boolean;
+  reason: NotificationReason;
+  updated_at: string;
+  subject: {
+    title: string;
+    url: string | null;
+    latest_comment_url: string | null;
+    type: NotificationSubjectType;
+  };
+  repository: {
+    id: number;
+    name: string;
+    full_name: string;
+    html_url: string;
+    owner: { login: string; avatar_url: string };
+  };
+}
+
+export async function fetchNotifications(
+  token: string,
+  { all = false }: { all?: boolean } = {},
+): Promise<NotificationItem[]> {
+  const path = `/notifications?all=${all ? 'true' : 'false'}&per_page=50`;
+  const res = await githubFetch(path, token);
+  const data = (await res.json()) as NotificationItem[];
+  return Array.isArray(data) ? data : [];
+}
+
+export async function markNotificationRead(id: string, token: string): Promise<void> {
+  // Custom method — DELETE is not available on this sub-resource.
+  const res = await fetch(`${GITHUB_API_BASE}/notifications/threads/${id}`, {
+    method: 'PATCH',
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${token}`,
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+  });
+  if (!res.ok && res.status !== 205) {
+    throw new GitHubApiError(
+      `Failed to mark notification read (${res.status})`,
+      res.status,
+      res.status === 401 ? 'unauthorized' : 'other',
+    );
+  }
+}
+
+/**
+ * Translate a `subject.url` (api.github.com/repos/...) into a browser-friendly
+ * html_url. GitHub's notifications API does not include html_urls directly.
+ */
+export function notificationHtmlUrl(item: NotificationItem): string {
+  const url = item.subject.url;
+  if (!url) return item.repository.html_url;
+  // https://api.github.com/repos/foo/bar/issues/1 -> https://github.com/foo/bar/issues/1
+  return url
+    .replace('https://api.github.com/repos/', 'https://github.com/')
+    .replace('/pulls/', '/pull/');
+}
+
 export async function fetchDashboardCounts(
   login: string,
   token: string,

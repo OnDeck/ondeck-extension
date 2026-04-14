@@ -2,19 +2,12 @@ import { useState } from 'react';
 import { AssignedPRsTab } from './components/AssignedPRsTab';
 import { DashboardTab } from './components/DashboardTab';
 import { MentionsTab } from './components/MentionsTab';
+import { NotificationsTab } from './components/NotificationsTab';
 import { ReviewsTab } from './components/ReviewsTab';
 import { Header } from './components/Header';
 import { SignIn } from './components/SignIn';
 import { TabBar, type TabId } from './components/TabBar';
 import { useAuth } from './hooks/useAuth';
-
-function PlaceholderTab({ label }: { label: string }) {
-  return (
-    <div className="flex h-full items-center justify-center px-4 text-center text-xs text-gh-fg-muted">
-      {label} ships in a subsequent ticket.
-    </div>
-  );
-}
 
 export default function App() {
   const auth = useAuth();
@@ -43,7 +36,7 @@ export default function App() {
         {activeTab === 'assigned' && <AssignedPRsTab viewer={auth.viewer} />}
         {activeTab === 'reviews' && <ReviewsTab viewer={auth.viewer} />}
         {activeTab === 'mentions' && <MentionsTab viewer={auth.viewer} />}
-        {activeTab === 'notifications' && <PlaceholderTab label="Notifications" />}
+        {activeTab === 'notifications' && <NotificationsTab />}
       </main>
     </div>
   );
