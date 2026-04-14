@@ -64,6 +64,27 @@ export async function fetchViewer(token: string): Promise<Viewer> {
   };
 }
 
+export interface GitHubSearchItem {
+  id: number;
+  number: number;
+  title: string;
+  html_url: string;
+  state: string;
+  draft?: boolean;
+  body?: string | null;
+  user: { login: string; avatar_url: string } | null;
+  labels: { name: string; color?: string }[];
+  updated_at: string;
+  created_at: string;
+  repository_url: string;
+  pull_request?: { html_url: string; draft?: boolean } | null;
+}
+
+interface SearchResponse {
+  total_count: number;
+  items: GitHubSearchItem[];
+}
+
 interface SearchCountResponse {
   total_count: number;
 }
@@ -77,6 +98,23 @@ export async function githubSearchCount(query: string, token: string): Promise<n
   const res = await githubFetch(path, token);
   const data = (await res.json()) as SearchCountResponse;
   return data.total_count ?? 0;
+}
+
+/**
+ * Run a GitHub issues/PR search and return the raw items. `perPage` is
+ * capped at 50 since the popup is space-constrained.
+ */
+export async function searchIssues(
+  query: string,
+  token: string,
+  perPage = 30,
+): Promise<GitHubSearchItem[]> {
+  const path =
+    `/search/issues?q=${encodeURIComponent(query)}` +
+    `&per_page=${Math.min(perPage, 50)}&sort=updated&order=desc`;
+  const res = await githubFetch(path, token);
+  const data = (await res.json()) as SearchResponse;
+  return data.items ?? [];
 }
 
 /**
