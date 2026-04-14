@@ -1,86 +1,155 @@
+import {
+  addAccount,
+  clearAllAccounts,
+  getActiveAccount,
+  getActiveToken,
+  getActiveViewer,
+  removeAccount,
+  switchAccount,
+} from './accounts';
 import { clearCryptoKey, decryptString, encryptString, type Envelope } from './crypto';
-import { fetchViewer, GitHubApiError, type Viewer } from './github-api';
+import { GitHubApiError, type Viewer } from './github-api';
 
+// Legacy single-slot storage keys.  These continue to exist so that the
+// background service worker's storage-change listener still fires on
+// sign-in / sign-out (it watches TOKEN_STORAGE_KEY in `chrome.storage.sync`).
+// They also provide a migration path for users upgrading from pre-multi-
+// account builds.
 export const TOKEN_STORAGE_KEY = 'gh_workflow_token_v1';
 export const VIEWER_STORAGE_KEY = 'gh_workflow_viewer_v1';
-
-// OAuth client id must be provided at build time. Leaving it unset falls
-// back to PAT-only mode. See README for how to register a GitHub OAuth app.
-const OAUTH_CLIENT_ID = (import.meta.env?.VITE_GITHUB_OAUTH_CLIENT_ID ?? '') as string;
 
 export interface AuthState {
   token: string | null;
   viewer: Viewer | null;
 }
 
-interface StoredToken {
+interface StoredLegacyToken {
   envelope: Envelope;
 }
 
-export async function getStoredAuth(): Promise<AuthState> {
+async function readLegacyAuth(): Promise<AuthState> {
   const [syncBag, localBag] = await Promise.all([
     chrome.storage.sync.get(TOKEN_STORAGE_KEY),
     chrome.storage.local.get(VIEWER_STORAGE_KEY),
   ]);
-  const stored = syncBag[TOKEN_STORAGE_KEY] as StoredToken | undefined;
+  const stored = syncBag[TOKEN_STORAGE_KEY] as StoredLegacyToken | undefined;
   const viewer = (localBag[VIEWER_STORAGE_KEY] as Viewer | undefined) ?? null;
   if (!stored?.envelope) return { token: null, viewer: null };
   try {
     const token = await decryptString(stored.envelope);
     return { token, viewer };
   } catch {
-    // Key rotation or corruption — treat as logged out.
-    await clearStoredAuth();
     return { token: null, viewer: null };
   }
 }
 
-/** Returns the decrypted token, or null if signed out. */
-export async function getStoredToken(): Promise<string | null> {
-  const { token } = await getStoredAuth();
-  return token;
-}
-
-export async function saveToken(token: string, viewer: Viewer): Promise<void> {
+async function writeLegacyAuth(token: string, viewer: Viewer): Promise<void> {
   const envelope = await encryptString(token);
-  const payload: StoredToken = { envelope };
+  const payload: StoredLegacyToken = { envelope };
   await Promise.all([
     chrome.storage.sync.set({ [TOKEN_STORAGE_KEY]: payload }),
     chrome.storage.local.set({ [VIEWER_STORAGE_KEY]: viewer }),
   ]);
 }
 
-export async function clearStoredAuth(): Promise<void> {
+async function clearLegacyAuth(): Promise<void> {
   await Promise.all([
     chrome.storage.sync.remove(TOKEN_STORAGE_KEY),
     chrome.storage.local.remove(VIEWER_STORAGE_KEY),
-    clearCryptoKey(),
   ]);
 }
 
 /**
- * Verify a token with GitHub, persist it (encrypted) alongside the viewer
- * profile, and return the viewer. Throws GitHubApiError on failure.
+ * Read the active account's token and viewer. Falls back to the legacy
+ * single-slot storage if no accounts have been registered yet (migration
+ * path for pre-multi-account builds).
+ */
+export async function getStoredAuth(): Promise<AuthState> {
+  const active = await getActiveAccount();
+  if (active) {
+    try {
+      const token = await decryptString(active.envelope);
+      return { token, viewer: active.viewer };
+    } catch {
+      await clearAllAccounts();
+    }
+  }
+  // Legacy fallback + one-shot migration.
+  const legacy = await readLegacyAuth();
+  if (legacy.token && legacy.viewer) {
+    try {
+      await addAccount(legacy.token);
+    } catch {
+      // Ignore; the legacy token may no longer be valid.
+    }
+  }
+  return legacy;
+}
+
+/** Returns the decrypted token for the active account, or null. */
+export async function getStoredToken(): Promise<string | null> {
+  const token = await getActiveToken();
+  if (token) return token;
+  const legacy = await readLegacyAuth();
+  return legacy.token;
+}
+
+export async function getStoredViewer(): Promise<Viewer | null> {
+  const viewer = await getActiveViewer();
+  if (viewer) return viewer;
+  const legacy = await readLegacyAuth();
+  return legacy.viewer;
+}
+
+/**
+ * Sign in with a Personal Access Token. Persists the account in the
+ * multi-account store, marks it active, and mirrors the token into the
+ * legacy single-slot keys so existing listeners still fire.
  */
 export async function signInWithToken(token: string): Promise<Viewer> {
-  const trimmed = token.trim();
-  if (!trimmed) {
-    throw new GitHubApiError('Token is required', 0, 'other');
-  }
-  const viewer = await fetchViewer(trimmed);
-  await saveToken(trimmed, viewer);
+  const viewer = await addAccount(token);
+  // Mirror to legacy keys so the service worker's storage-change listener
+  // still fires and so pre-multi-account consumers keep working.
+  await writeLegacyAuth(token.trim(), viewer);
   return viewer;
 }
 
+/**
+ * Sign out of the active account. Removes it from the account map; if other
+ * accounts remain, the next one is promoted to active and its token is
+ * mirrored to the legacy slot.
+ */
 export async function signOut(): Promise<void> {
-  await clearStoredAuth();
+  const active = await getActiveAccount();
+  if (active) {
+    const remaining = await removeAccount(active.login);
+    const nextActive = remaining.find((a) => a.active);
+    if (nextActive) {
+      const nextToken = await getActiveToken();
+      const nextViewer = await getActiveViewer();
+      if (nextToken && nextViewer) {
+        await writeLegacyAuth(nextToken, nextViewer);
+        return;
+      }
+    }
+  }
+  await Promise.all([clearLegacyAuth(), clearCryptoKey()]);
 }
 
-// ---------- OAuth ----------
+/** Switch the active account and mirror its token into the legacy slot. */
+export async function setActiveAccount(login: string): Promise<Viewer | null> {
+  const viewer = await switchAccount(login);
+  if (!viewer) return null;
+  const token = await getActiveToken();
+  if (token) await writeLegacyAuth(token, viewer);
+  return viewer;
+}
+
+// OAuth client id must be provided at build time. Leaving it unset falls
+// back to PAT-only mode. See README for how to register a GitHub OAuth app.
+const OAUTH_CLIENT_ID = (import.meta.env?.VITE_GITHUB_OAUTH_CLIENT_ID ?? '') as string;
 
 function buildRedirectUri(): string {
-  // chrome.identity.getRedirectURL returns:
-  //   https://<extension-id>.chromiumapp.org/
   return chrome.identity.getRedirectURL('oauth2');
 }
 
@@ -93,18 +162,6 @@ export function isOAuthConfigured(): boolean {
   return OAUTH_CLIENT_ID.length > 0;
 }
 
-/**
- * Launch the GitHub OAuth web flow. Requires a deployed token-exchange
- * endpoint because GitHub's OAuth app flow mandates exchanging the code
- * server-side (the client secret cannot live in the extension).
- *
- * Consumers must configure:
- *   - VITE_GITHUB_OAUTH_CLIENT_ID at build time
- *   - VITE_GITHUB_OAUTH_EXCHANGE_URL at build time — a URL that accepts
- *     { code, state, redirect_uri } and returns { access_token }.
- *
- * If either is missing this throws and the user should fall back to PAT.
- */
 export async function signInWithOAuth(): Promise<Viewer> {
   const exchangeUrl = (import.meta.env?.VITE_GITHUB_OAUTH_EXCHANGE_URL ?? '') as string;
   if (!OAUTH_CLIENT_ID || !exchangeUrl) {

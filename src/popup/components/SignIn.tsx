@@ -4,15 +4,28 @@ import type { UseAuth } from '../hooks/useAuth';
 
 interface Props {
   auth: UseAuth;
+  heading?: string;
+  onCancel?: () => void;
 }
 
-export function SignIn({ auth }: Props) {
+export function SignIn({ auth, heading = 'Sign in to GitHub', onCancel }: Props) {
   const [token, setToken] = useState('');
   const oauthAvailable = isOAuthConfigured();
 
   return (
     <div className="flex h-full flex-col px-4 py-4">
-      <h2 className="text-sm font-semibold">Sign in to GitHub</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold">{heading}</h2>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="text-[11px] text-gh-fg-muted hover:text-gh-fg-default"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
       <p className="mt-1 text-xs text-gh-fg-muted">
         Connect your GitHub account to see assigned PRs, mentions, and reviews.
       </p>

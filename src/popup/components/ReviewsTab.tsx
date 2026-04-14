@@ -9,6 +9,7 @@ import {
   type SearchPullRequest,
   type Viewer,
 } from '../../lib/github-api';
+import { recordReview } from '../../lib/stats';
 import { useDismissed } from '../hooks/useDismissed';
 import { EmptyState, ErrorState, LoadingState, formatRelativeAge, openInNewTab } from './common';
 import {
@@ -159,7 +160,10 @@ export function ReviewsTab({ viewer }: Props) {
                 <button
                   type="button"
                   title="Mark as reviewed (hides from list)"
-                  onClick={() => void dismissed.dismiss(pr.id)}
+                  onClick={() => {
+                    void dismissed.dismiss(pr.id);
+                    void recordReview(viewer.login);
+                  }}
                   className="flex-none rounded-md border border-gh-border-default px-1.5 py-0.5 text-[10px] text-gh-fg-muted hover:border-gh-success-emphasis hover:text-gh-success-emphasis"
                 >
                   Reviewed

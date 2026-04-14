@@ -1,5 +1,7 @@
+import type { AccountSummary } from '../../lib/accounts';
 import type { Viewer } from '../../lib/github-api';
 import type { UseTheme } from '../hooks/useTheme';
+import { AccountSwitcher } from './AccountSwitcher';
 import { ThemeToggle } from './ThemeToggle';
 
 interface Props {
@@ -7,20 +9,39 @@ interface Props {
   onSignOut: () => void;
   busy: boolean;
   theme: UseTheme;
+  accounts: AccountSummary[];
+  onSwitchAccount: (login: string) => void;
+  onAddAccount: () => void;
 }
 
-export function Header({ viewer, onSignOut, busy, theme }: Props) {
+export function Header({
+  viewer,
+  onSignOut,
+  busy,
+  theme,
+  accounts,
+  onSwitchAccount,
+  onAddAccount,
+}: Props) {
   return (
-    <header className="flex items-center gap-3 border-b border-gh-border-default px-4 py-3">
+    <header className="flex items-center gap-2 border-b border-gh-border-default px-3 py-3">
       <img
         src={viewer.avatar_url}
         alt={viewer.login}
-        className="h-8 w-8 rounded-full border border-gh-border-default"
+        className="h-8 w-8 flex-none rounded-full border border-gh-border-default"
       />
       <div className="flex-1 min-w-0">
         <div className="truncate text-sm font-semibold">{viewer.name ?? viewer.login}</div>
         <div className="truncate text-xs text-gh-fg-muted">@{viewer.login}</div>
       </div>
+      {accounts.length > 0 && (
+        <AccountSwitcher
+          accounts={accounts}
+          activeLogin={viewer.login}
+          onSwitch={onSwitchAccount}
+          onAddAccount={onAddAccount}
+        />
+      )}
       <ThemeToggle theme={theme} />
       <button
         type="button"

@@ -6,6 +6,7 @@ import {
   type DashboardCounts,
   type Viewer,
 } from '../../lib/github-api';
+import { getStats, weeklyReviewCount } from '../../lib/stats';
 import type { TabId } from './TabBar';
 
 interface Props {
@@ -15,7 +16,7 @@ interface Props {
 
 type LoadState =
   | { kind: 'loading' }
-  | { kind: 'ready'; counts: DashboardCounts }
+  | { kind: 'ready'; counts: DashboardCounts; weeklyReviews: number }
   | { kind: 'error'; message: string };
 
 interface Row {
@@ -50,8 +51,11 @@ export function DashboardTab({ viewer, onNavigate }: Props) {
       return;
     }
     try {
-      const counts = await fetchDashboardCounts(viewer.login, token);
-      setState({ kind: 'ready', counts });
+      const [counts, stats] = await Promise.all([
+        fetchDashboardCounts(viewer.login, token),
+        getStats(viewer.login),
+      ]);
+      setState({ kind: 'ready', counts, weeklyReviews: weeklyReviewCount(stats) });
     } catch (err) {
       const message =
         err instanceof GitHubApiError ? err.message : 'Failed to load dashboard counts';
@@ -88,21 +92,33 @@ export function DashboardTab({ viewer, onNavigate }: Props) {
 
   const rows = buildRows(state.counts);
   const total = rows.reduce((sum, row) => sum + row.value, 0);
+  const weeklyBanner = (
+    <div className="border-b border-gh-border-muted bg-gh-canvas-subtle px-4 py-2 text-[11px] text-gh-fg-muted">
+      You've reviewed{' '}
+      <span className="font-semibold text-gh-fg-default">{state.weeklyReviews}</span> PR
+      {state.weeklyReviews === 1 ? '' : 's'} this week.
+    </div>
+  );
 
   if (total === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
-        <p className="text-sm font-semibold text-gh-fg-default">Inbox zero</p>
-        <p className="text-xs text-gh-fg-muted">
-          No assigned PRs, reviews, mentions, or notifications waiting.
-        </p>
+      <div className="flex h-full flex-col">
+        {weeklyBanner}
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 text-center">
+          <p className="text-sm font-semibold text-gh-fg-default">Inbox zero</p>
+          <p className="text-xs text-gh-fg-muted">
+            No assigned PRs, reviews, mentions, or notifications waiting.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <ul className="divide-y divide-gh-border-muted">
-      {rows.map((row) => (
+    <div>
+      {weeklyBanner}
+      <ul className="divide-y divide-gh-border-muted">
+        {rows.map((row) => (
         <li key={row.id}>
           <button
             type="button"
@@ -119,10 +135,11 @@ export function DashboardTab({ viewer, onNavigate }: Props) {
               }
             >
               {row.value}
-            </span>
-          </button>
-        </li>
-      ))}
-    </ul>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
