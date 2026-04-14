@@ -4,6 +4,7 @@ import { SignIn } from './components/SignIn';
 import { TabBar } from './components/TabBar';
 import { AssignedPrsTab } from './pages/AssignedPrsTab';
 import { HomeTab } from './pages/HomeTab';
+import { MentionsTab } from './pages/MentionsTab';
 import { PlaceholderTab } from './pages/PlaceholderTab';
 import type { TabId } from './tabs';
 import { useAuth } from './hooks/useAuth';
@@ -31,9 +32,7 @@ export default function App() {
       <main className="flex-1 overflow-y-auto">
         {tab === 'home' && <HomeTab viewer={auth.viewer} onNavigate={setTab} />}
         {tab === 'assigned' && <AssignedPrsTab viewer={auth.viewer} />}
-        {tab === 'mentions' && (
-          <PlaceholderTab title="Mentions" description="Ships in ticket #5." />
-        )}
+        {tab === 'mentions' && <MentionsTab viewer={auth.viewer} />}
         {tab === 'reviews' && (
           <PlaceholderTab title="Reviews" description="Ships in ticket #6." />
         )}
