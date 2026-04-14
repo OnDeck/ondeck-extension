@@ -5,6 +5,7 @@ import { Dashboard } from './components/Dashboard';
 import { AssignedTab } from './components/tabs/AssignedTab';
 import { MentionsTab } from './components/tabs/MentionsTab';
 import { ReviewsTab } from './components/tabs/ReviewsTab';
+import { NotificationsTab } from './components/tabs/NotificationsTab';
 import { TabBar, type TabDef } from './tabs/TabBar';
 import type { TabId } from './tabs/types';
 import { useAuth } from './hooks/useAuth';
@@ -58,20 +59,8 @@ export default function App() {
         {active === 'reviews' && (
           <ReviewsTab token={auth.token} login={auth.viewer.login} />
         )}
-        {active !== 'home' &&
-          active !== 'assigned' &&
-          active !== 'mentions' &&
-          active !== 'reviews' && <TabPlaceholder tab={active} />}
+        {active === 'notifications' && <NotificationsTab token={auth.token} />}
       </main>
-    </div>
-  );
-}
-
-function TabPlaceholder({ tab }: { tab: TabId }) {
-  return (
-    <div className="flex h-full items-center justify-center px-6 text-center text-xs text-gh-fg-muted">
-      The <span className="mx-1 font-semibold text-gh-fg-default">{tab}</span> tab ships in a
-      follow-up ticket.
     </div>
   );
 }

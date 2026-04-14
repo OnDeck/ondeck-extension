@@ -77,6 +77,87 @@ async function searchTotal(path: string, token: string): Promise<number> {
   return data.total_count ?? 0;
 }
 
+export type NotificationReason =
+  | 'assign'
+  | 'author'
+  | 'comment'
+  | 'invitation'
+  | 'manual'
+  | 'mention'
+  | 'review_requested'
+  | 'security_alert'
+  | 'state_change'
+  | 'subscribed'
+  | 'team_mention'
+  | 'ci_activity'
+  | string;
+
+export type NotificationSubjectType =
+  | 'PullRequest'
+  | 'Issue'
+  | 'Discussion'
+  | 'Release'
+  | 'Commit'
+  | string;
+
+export interface NotificationItem {
+  id: string;
+  unread: boolean;
+  reason: NotificationReason;
+  updated_at: string;
+  subject: {
+    title: string;
+    url: string | null;
+    latest_comment_url: string | null;
+    type: NotificationSubjectType;
+  };
+  repository: {
+    id: number;
+    full_name: string;
+    html_url: string;
+  };
+}
+
+export async function fetchNotifications(
+  token: string,
+  opts: { all?: boolean } = {},
+): Promise<NotificationItem[]> {
+  const all = opts.all ? 'true' : 'false';
+  const res = await githubFetch(`/notifications?all=${all}&per_page=50`, token);
+  const data = (await res.json()) as NotificationItem[];
+  return Array.isArray(data) ? data : [];
+}
+
+export async function markNotificationRead(id: string, token: string): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(`${GITHUB_API_BASE}/notifications/threads/${id}`, {
+      method: 'PATCH',
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
+  } catch (err) {
+    throw new GitHubApiError(
+      err instanceof Error ? err.message : 'Network error',
+      0,
+      'network',
+    );
+  }
+  // 205 Reset Content is the documented success for this endpoint.
+  if (response.status === 205 || response.ok) return;
+  if (response.status === 401) {
+    throw new GitHubApiError('Token is invalid or expired', 401, 'unauthorized');
+  }
+  throw new GitHubApiError(
+    `Failed to mark notification read (${response.status})`,
+    response.status,
+    'other',
+  );
+}
+
 async function notificationCount(token: string): Promise<number> {
   // The notifications endpoint does not expose total_count; the caller
   // pages the array. For an unread-badge count the first page up to 50
