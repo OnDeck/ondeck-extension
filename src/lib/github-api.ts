@@ -160,3 +160,43 @@ export function repoSlugFromUrl(repositoryUrl: string): string {
   const parts = repositoryUrl.split('/repos/')[1] ?? '';
   return parts;
 }
+
+export type PrReviewStatus = 'pending' | 'approved' | 'changes_requested' | 'commented';
+
+interface ReviewPayload {
+  state: 'PENDING' | 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED' | 'DISMISSED';
+  submitted_at: string | null;
+  user: { login: string } | null;
+}
+
+/**
+ * Resolve a PR's review decision by reading `/pulls/:n/reviews`. GitHub's
+ * search endpoint doesn't return the aggregated review decision, so we
+ * compute it by keeping the latest non-DISMISSED review per reviewer and
+ * checking for any CHANGES_REQUESTED.
+ */
+export async function fetchPrReviewStatus(
+  token: string,
+  repoSlug: string,
+  number: number,
+): Promise<PrReviewStatus> {
+  const res = await githubFetch(`/repos/${repoSlug}/pulls/${number}/reviews?per_page=100`, token);
+  const reviews = (await res.json()) as ReviewPayload[];
+  const latestByUser = new Map<string, ReviewPayload>();
+  for (const review of reviews) {
+    if (review.state === 'DISMISSED' || !review.user) continue;
+    const prev = latestByUser.get(review.user.login);
+    if (!prev) {
+      latestByUser.set(review.user.login, review);
+      continue;
+    }
+    const prevTime = prev.submitted_at ? Date.parse(prev.submitted_at) : 0;
+    const thisTime = review.submitted_at ? Date.parse(review.submitted_at) : 0;
+    if (thisTime >= prevTime) latestByUser.set(review.user.login, review);
+  }
+  const states = Array.from(latestByUser.values()).map((r) => r.state);
+  if (states.includes('CHANGES_REQUESTED')) return 'changes_requested';
+  if (states.includes('APPROVED')) return 'approved';
+  if (states.length > 0) return 'commented';
+  return 'pending';
+}
