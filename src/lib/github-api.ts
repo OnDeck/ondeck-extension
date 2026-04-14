@@ -299,3 +299,139 @@ export async function fetchUnreadNotificationsCount(token: string): Promise<numb
   }
   return total;
 }
+
+export type NotificationSubjectType =
+  | 'PullRequest'
+  | 'Issue'
+  | 'Discussion'
+  | 'Release'
+  | 'Commit'
+  | 'CheckSuite'
+  | string;
+
+export type NotificationReason =
+  | 'assign'
+  | 'author'
+  | 'comment'
+  | 'ci_activity'
+  | 'invitation'
+  | 'manual'
+  | 'mention'
+  | 'review_requested'
+  | 'security_alert'
+  | 'state_change'
+  | 'subscribed'
+  | 'team_mention'
+  | string;
+
+interface NotificationResponse {
+  id: string;
+  unread: boolean;
+  reason: NotificationReason;
+  updated_at: string;
+  subject: {
+    title: string;
+    url: string | null;
+    latest_comment_url: string | null;
+    type: NotificationSubjectType;
+  };
+  repository: {
+    id: number;
+    full_name: string;
+    html_url: string;
+    owner: { login: string; avatar_url: string };
+  };
+}
+
+export interface GitHubNotification {
+  id: string;
+  unread: boolean;
+  reason: NotificationReason;
+  updatedAt: string;
+  title: string;
+  subjectType: NotificationSubjectType;
+  subjectUrl: string | null;
+  repoFullName: string;
+  repoHtmlUrl: string;
+  ownerAvatar: string;
+}
+
+function toNotification(raw: NotificationResponse): GitHubNotification {
+  return {
+    id: raw.id,
+    unread: raw.unread,
+    reason: raw.reason,
+    updatedAt: raw.updated_at,
+    title: raw.subject.title,
+    subjectType: raw.subject.type,
+    subjectUrl: raw.subject.url ?? raw.subject.latest_comment_url ?? null,
+    repoFullName: raw.repository.full_name,
+    repoHtmlUrl: raw.repository.html_url,
+    ownerAvatar: raw.repository.owner.avatar_url,
+  };
+}
+
+/**
+ * Fetch the first page of unread notifications, mapped into our
+ * normalised shape. The 50-item cap keeps the popup snappy; users with
+ * noisier inboxes can open the Notifications tab on github.com for the
+ * full feed.
+ */
+export async function fetchUnreadNotifications(
+  token: string,
+  perPage = 50,
+): Promise<GitHubNotification[]> {
+  const res = await githubFetch(
+    `/notifications?all=false&per_page=${perPage}`,
+    token,
+  );
+  const data = (await res.json()) as NotificationResponse[];
+  return data.map(toNotification);
+}
+
+/**
+ * Mark a single notification thread as read. Returns true on success.
+ * GitHub returns 205 (Reset Content) on success for this endpoint, so
+ * we treat anything 2xx as OK and swallow individual failures.
+ */
+export async function markNotificationRead(
+  token: string,
+  threadId: string,
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${GITHUB_API_BASE}/notifications/threads/${threadId}`, {
+      method: 'PATCH',
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
+    return res.ok || res.status === 205;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Convert a GitHub subject.url (api.github.com/...) into the
+ * equivalent github.com html_url. We use this so clicking a
+ * notification opens the PR/Issue/Release in the browser.
+ */
+export function htmlUrlForNotificationSubject(
+  subjectUrl: string | null,
+  fallbackRepoUrl: string,
+): string {
+  if (!subjectUrl) return fallbackRepoUrl;
+  // Examples:
+  //   https://api.github.com/repos/o/r/issues/1
+  //   https://api.github.com/repos/o/r/pulls/1
+  //   https://api.github.com/repos/o/r/releases/123
+  const match = subjectUrl.match(
+    /api\.github\.com\/repos\/([^/]+)\/([^/]+)\/(issues|pulls|releases|commits)\/(.+)$/,
+  );
+  if (!match) return fallbackRepoUrl;
+  const [, owner, repo, kind, tail] = match;
+  const pathKind = kind === 'pulls' ? 'pull' : kind === 'commits' ? 'commit' : kind;
+  return `https://github.com/${owner}/${repo}/${pathKind}/${tail}`;
+}

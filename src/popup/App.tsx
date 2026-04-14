@@ -3,6 +3,7 @@ import { AssignedPrsTab } from './components/AssignedPrsTab';
 import { Dashboard } from './components/Dashboard';
 import { Header } from './components/Header';
 import { MentionsTab } from './components/MentionsTab';
+import { NotificationsTab } from './components/NotificationsTab';
 import { ReviewsTab } from './components/ReviewsTab';
 import { SignIn } from './components/SignIn';
 import { TabBar, type TabId } from './components/TabBar';
@@ -17,6 +18,12 @@ const PrGlyph = (
 const HomeGlyph = (
   <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
     <path d="M6.906.664a1.749 1.749 0 0 1 2.187 0l5.25 4.2c.415.332.657.835.657 1.367v7.019A1.75 1.75 0 0 1 13.25 15h-3.5a.75.75 0 0 1-.75-.75V9H7v5.25a.75.75 0 0 1-.75.75h-3.5A1.75 1.75 0 0 1 1 13.25V6.23c0-.531.242-1.034.657-1.366Z" />
+  </svg>
+);
+
+const BellGlyph = (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+    <path d="M8 16a2 2 0 0 0 1.985-1.75c.017-.137-.097-.25-.235-.25h-3.5c-.138 0-.252.113-.235.25A2 2 0 0 0 8 16ZM3 5a5 5 0 0 1 10 0v2.947c0 .05.015.098.042.139l1.703 2.555A1.519 1.519 0 0 1 13.482 13H2.518a1.516 1.516 0 0 1-1.263-2.36l1.703-2.554A.255.255 0 0 0 3 7.947Z" />
   </svg>
 );
 
@@ -57,6 +64,7 @@ export default function App() {
         {tab === 'assigned' && <AssignedPrsTab viewer={auth.viewer} />}
         {tab === 'reviews' && <ReviewsTab viewer={auth.viewer} />}
         {tab === 'mentions' && <MentionsTab viewer={auth.viewer} />}
+        {tab === 'notifications' && <NotificationsTab />}
       </main>
       <TabBar
         active={tab}
@@ -66,6 +74,7 @@ export default function App() {
           { id: 'assigned', label: 'Assigned', icon: PrGlyph },
           { id: 'reviews', label: 'Reviews', icon: EyeGlyph },
           { id: 'mentions', label: 'Mentions', icon: AtGlyph },
+          { id: 'notifications', label: 'Inbox', icon: BellGlyph },
         ]}
       />
     </div>
