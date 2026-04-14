@@ -7,6 +7,7 @@ import { TabPlaceholder } from './components/TabPlaceholder';
 import { useAuth } from './hooks/useAuth';
 import type { TabKey } from './tabs';
 import { AssignedPrsView } from './views/AssignedPrsView';
+import { MentionsView } from './views/MentionsView';
 
 const TAB_TITLES: Record<TabKey, string> = {
   home: 'Home',
@@ -47,7 +48,14 @@ export default function App() {
             onBack={() => setTab('home')}
           />
         )}
-        {tab !== 'home' && tab !== 'assigned' && (
+        {tab === 'mentions' && (
+          <MentionsView
+            token={auth.token}
+            login={auth.viewer.login}
+            onBack={() => setTab('home')}
+          />
+        )}
+        {tab !== 'home' && tab !== 'assigned' && tab !== 'mentions' && (
           <TabPlaceholder title={TAB_TITLES[tab]} onBack={() => setTab('home')} />
         )}
       </main>
