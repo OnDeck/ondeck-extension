@@ -121,6 +121,35 @@ export async function searchIssues(
   return (await res.json()) as SearchIssuesResponse;
 }
 
+export interface PullRequestDetail {
+  changed_files: number;
+  additions: number;
+  deletions: number;
+  user: { login: string; avatar_url: string } | null;
+}
+
+/**
+ * Fetch additional PR details (files changed, additions/deletions, author).
+ * `pullUrl` is the full API URL returned in `search` results' `pull_request.url`.
+ */
+export async function fetchPullRequestDetail(
+  pullUrl: string,
+  token: string,
+): Promise<PullRequestDetail> {
+  if (!pullUrl.startsWith(GITHUB_API_BASE)) {
+    throw new GitHubApiError('Invalid pull request URL', 0, 'other');
+  }
+  const path = pullUrl.slice(GITHUB_API_BASE.length);
+  const res = await githubFetch(path, token);
+  const data = (await res.json()) as PullRequestDetail;
+  return {
+    changed_files: data.changed_files ?? 0,
+    additions: data.additions ?? 0,
+    deletions: data.deletions ?? 0,
+    user: data.user ?? null,
+  };
+}
+
 async function fetchSearchCount(query: string, token: string): Promise<number> {
   const path = `/search/issues?q=${encodeURIComponent(query)}&per_page=1`;
   const res = await githubFetch(path, token);

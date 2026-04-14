@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AssignedPRsTab } from './components/AssignedPRsTab';
 import { DashboardTab } from './components/DashboardTab';
 import { MentionsTab } from './components/MentionsTab';
+import { ReviewsTab } from './components/ReviewsTab';
 import { Header } from './components/Header';
 import { SignIn } from './components/SignIn';
 import { TabBar, type TabId } from './components/TabBar';
@@ -40,7 +41,7 @@ export default function App() {
           <DashboardTab viewer={auth.viewer} onNavigate={setActiveTab} />
         )}
         {activeTab === 'assigned' && <AssignedPRsTab viewer={auth.viewer} />}
-        {activeTab === 'reviews' && <PlaceholderTab label="Reviews" />}
+        {activeTab === 'reviews' && <ReviewsTab viewer={auth.viewer} />}
         {activeTab === 'mentions' && <MentionsTab viewer={auth.viewer} />}
         {activeTab === 'notifications' && <PlaceholderTab label="Notifications" />}
       </main>
