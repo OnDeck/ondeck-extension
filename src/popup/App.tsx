@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { SignIn } from './components/SignIn';
 import { TabBar, type TabKey } from './components/TabBar';
 import { Dashboard } from './components/Dashboard';
+import { AssignedPRs } from './components/AssignedPRs';
 import { useAuth } from './hooks/useAuth';
 import { useToken } from './hooks/useToken';
 
@@ -31,7 +32,8 @@ export default function App() {
         {tab === 'home' && (
           <Dashboard viewer={auth.viewer} token={token} onNavigate={setTab} />
         )}
-        {tab !== 'home' && (
+        {tab === 'assigned' && <AssignedPRs viewer={auth.viewer} token={token} />}
+        {tab !== 'home' && tab !== 'assigned' && (
           <div className="px-4 py-3 text-xs text-gh-fg-muted">
             This tab ships in a subsequent ticket.
           </div>
