@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AssignedPrsView } from './components/AssignedPrsView';
 import { Dashboard } from './components/Dashboard';
 import { MentionsView } from './components/MentionsView';
+import { ReviewsView } from './components/ReviewsView';
 import { Header } from './components/Header';
 import { SignIn } from './components/SignIn';
 import { StatusMessage } from './components/StatusMessage';
@@ -32,9 +33,7 @@ export default function App() {
         {tab === 'dashboard' && <Dashboard active onNavigate={setTab} />}
         {tab === 'assigned' && <AssignedPrsView active={tab === 'assigned'} />}
         {tab === 'mentions' && <MentionsView active={tab === 'mentions'} />}
-        {tab === 'reviews' && (
-          <StatusMessage>Reviews view arrives in ticket #6.</StatusMessage>
-        )}
+        {tab === 'reviews' && <ReviewsView active={tab === 'reviews'} />}
         {tab === 'notifications' && (
           <StatusMessage>Notifications view arrives in ticket #7.</StatusMessage>
         )}
