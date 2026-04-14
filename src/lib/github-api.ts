@@ -63,3 +63,45 @@ export async function fetchViewer(token: string): Promise<Viewer> {
     html_url: data.html_url,
   };
 }
+
+export interface DashboardCounts {
+  assignedPrs: number;
+  reviewRequests: number;
+  mentions: number;
+  notifications: number;
+}
+
+interface SearchResponse {
+  total_count: number;
+}
+
+async function searchCount(token: string, query: string): Promise<number> {
+  const res = await githubFetch(
+    `/search/issues?q=${encodeURIComponent(query)}&per_page=1`,
+    token,
+  );
+  const data = (await res.json()) as SearchResponse;
+  return data.total_count;
+}
+
+async function notificationsCount(token: string): Promise<number> {
+  // GitHub doesn't expose a count endpoint; fetch first page (max 50) and use
+  // its length. For dashboards this is "good enough" — exact counts above 50
+  // get rendered as "50+".
+  const res = await githubFetch('/notifications?all=false&per_page=50', token);
+  const data = (await res.json()) as unknown[];
+  return data.length;
+}
+
+export async function fetchDashboardCounts(
+  token: string,
+  login: string,
+): Promise<DashboardCounts> {
+  const [assignedPrs, reviewRequests, mentions, notifications] = await Promise.all([
+    searchCount(token, `is:pr is:open assignee:${login}`),
+    searchCount(token, `is:pr is:open review-requested:${login}`),
+    searchCount(token, `is:open mentions:${login}`),
+    notificationsCount(token),
+  ]);
+  return { assignedPrs, reviewRequests, mentions, notifications };
+}
