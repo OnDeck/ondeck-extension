@@ -63,3 +63,58 @@ export async function fetchViewer(token: string): Promise<Viewer> {
     html_url: data.html_url,
   };
 }
+
+interface SearchCountResponse {
+  total_count: number;
+}
+
+async function fetchSearchCount(query: string, token: string): Promise<number> {
+  const res = await githubFetch(
+    `/search/issues?q=${encodeURIComponent(query)}&per_page=1`,
+    token,
+  );
+  const data = (await res.json()) as SearchCountResponse;
+  return data.total_count ?? 0;
+}
+
+export async function fetchAssignedPrCount(login: string, token: string): Promise<number> {
+  return fetchSearchCount(`is:pr is:open assignee:${login}`, token);
+}
+
+export async function fetchMentionCount(login: string, token: string): Promise<number> {
+  return fetchSearchCount(`is:open mentions:${login}`, token);
+}
+
+export async function fetchReviewRequestCount(login: string, token: string): Promise<number> {
+  return fetchSearchCount(`is:pr is:open review-requested:${login}`, token);
+}
+
+export interface NotificationSubjectRef {
+  id: string;
+  reason: string;
+  title: string;
+  repo: string;
+  type: string;
+  url: string | null;
+}
+
+export async function fetchUnreadNotifications(
+  token: string,
+): Promise<NotificationSubjectRef[]> {
+  const res = await githubFetch('/notifications?all=false&per_page=50', token);
+  const data = (await res.json()) as Array<{
+    id: string;
+    reason: string;
+    subject: { title: string; url: string | null; type: string };
+    repository: { full_name: string };
+  }>;
+  if (!Array.isArray(data)) return [];
+  return data.map((n) => ({
+    id: n.id,
+    reason: n.reason,
+    title: n.subject.title,
+    repo: n.repository.full_name,
+    type: n.subject.type,
+    url: n.subject.url,
+  }));
+}
