@@ -2,8 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Primer color tokens. The light palette is the default (`:root`), and
+ * the dark palette is applied when the <html> element has the `dark`
+ * class. src/popup/theme.ts toggles that class and honours the system
+ * preference when no explicit choice has been saved.
+ */
 :root {
+  color-scheme: light;
+  --gh-canvas-default: #ffffff;
+  --gh-canvas-subtle: #f6f8fa;
+  --gh-canvas-inset: #eaeef2;
+  --gh-border-default: #d0d7de;
+  --gh-border-muted: #e6ebf1;
+  --gh-fg-default: #1f2328;
+  --gh-fg-muted: #656d76;
+  --gh-accent-emphasis: #0969da;
+  --gh-success-emphasis: #1a7f37;
+  --gh-danger-emphasis: #cf222e;
+  --gh-attention-emphasis: #9a6700;
+  --gh-done-emphasis: #8250df;
+}
+
+html.dark {
   color-scheme: dark;
+  --gh-canvas-default: #0d1117;
+  --gh-canvas-subtle: #161b22;
+  --gh-canvas-inset: #010409;
+  --gh-border-default: #30363d;
+  --gh-border-muted: #21262d;
+  --gh-fg-default: #e6edf3;
+  --gh-fg-muted: #7d8590;
+  --gh-accent-emphasis: #1f6feb;
+  --gh-success-emphasis: #2ea043;
+  --gh-danger-emphasis: #f85149;
+  --gh-attention-emphasis: #9e6a03;
+  --gh-done-emphasis: #8250df;
 }
 
 html,

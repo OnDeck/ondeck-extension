@@ -6,6 +6,17 @@
     <title>GitHub Workflow Assistant</title>
   </head>
   <body class="w-[400px] h-[600px] m-0 bg-gh-canvas-default text-gh-fg-default font-sans">
+    <script>
+      // Pre-paint the correct theme so the popup doesn't flash. The
+      // useTheme hook will upgrade this to the stored preference once
+      // chrome.storage resolves.
+      (function () {
+        try {
+          var dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (dark) document.documentElement.classList.add('dark');
+        } catch (_) {}
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="./main.tsx"></script>
   </body>

@@ -10,6 +10,7 @@ import { TabBar, type TabDef } from './tabs/TabBar';
 import type { TabId } from './tabs/types';
 import { useAuth } from './hooks/useAuth';
 import { useCounts } from './hooks/useCounts';
+import { useTheme } from './hooks/useTheme';
 
 const TABS: TabDef[] = [
   { id: 'home', label: 'Home' },
@@ -21,6 +22,7 @@ const TABS: TabDef[] = [
 
 export default function App() {
   const auth = useAuth();
+  const theme = useTheme();
   const [active, setActive] = useState<TabId>('home');
   const counts = useCounts(auth.token, auth.viewer?.login ?? null);
 
@@ -38,7 +40,13 @@ export default function App() {
 
   return (
     <div className="flex h-full w-full flex-col">
-      <Header viewer={auth.viewer} onSignOut={() => void auth.signOut()} busy={auth.busy} />
+      <Header
+        viewer={auth.viewer}
+        onSignOut={() => void auth.signOut()}
+        busy={auth.busy}
+        themePreference={theme.preference}
+        onThemeChange={theme.setPreference}
+      />
       <TabBar tabs={TABS} active={active} onSelect={setActive} />
       <main className="flex-1 overflow-y-auto">
         {active === 'home' && (
