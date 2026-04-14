@@ -4,6 +4,7 @@ import { SignIn } from './components/SignIn';
 import { TabBar } from './components/TabBar';
 import { useAuth } from './hooks/useAuth';
 import type { TabId } from './tabs';
+import { AssignedView } from './views/AssignedView';
 import { HomeView } from './views/HomeView';
 import { PlaceholderView } from './views/PlaceholderView';
 
@@ -29,12 +30,7 @@ export default function App() {
       <TabBar active={tab} onChange={setTab} />
       <main className="flex-1 overflow-hidden">
         {tab === 'home' && <HomeView token={auth.token} onNavigate={setTab} />}
-        {tab === 'assigned' && (
-          <PlaceholderView
-            title="Assigned PRs"
-            message="Coming up in the next ticket."
-          />
-        )}
+        {tab === 'assigned' && <AssignedView token={auth.token} />}
         {tab === 'reviews' && (
           <PlaceholderView
             title="Review Requests"

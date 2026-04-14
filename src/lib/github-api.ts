@@ -153,3 +153,67 @@ export async function fetchAggregatedCounts(token: string): Promise<AggregatedCo
     ]);
   return { assignedPrs, reviewRequests, mentions, unreadNotifications };
 }
+
+// ---------- PR reviews ----------
+
+export type PullReviewState =
+  | 'APPROVED'
+  | 'CHANGES_REQUESTED'
+  | 'COMMENTED'
+  | 'DISMISSED'
+  | 'PENDING';
+
+interface RawPullReview {
+  id: number;
+  state: PullReviewState;
+  submitted_at: string | null;
+  user: { login: string } | null;
+}
+
+export async function fetchPullReviews(
+  token: string,
+  owner: string,
+  repo: string,
+  prNumber: number,
+): Promise<RawPullReview[]> {
+  const res = await githubFetch(
+    `/repos/${owner}/${repo}/pulls/${prNumber}/reviews?per_page=100`,
+    token,
+  );
+  return (await res.json()) as RawPullReview[];
+}
+
+/**
+ * Returns the latest non-comment review state across all reviewers.
+ * Used to detect "Changes Requested" status on the PR list.
+ */
+export async function fetchLatestReviewState(
+  token: string,
+  owner: string,
+  repo: string,
+  prNumber: number,
+): Promise<PullReviewState | null> {
+  const reviews = await fetchPullReviews(token, owner, repo, prNumber);
+  if (reviews.length === 0) return null;
+  // Track the latest state per reviewer, ignoring pure COMMENTED states.
+  const perReviewer = new Map<string, RawPullReview>();
+  for (const review of reviews) {
+    if (!review.user) continue;
+    if (review.state === 'COMMENTED' || review.state === 'PENDING') continue;
+    const prev = perReviewer.get(review.user.login);
+    if (!prev) {
+      perReviewer.set(review.user.login, review);
+      continue;
+    }
+    const a = review.submitted_at ? Date.parse(review.submitted_at) : 0;
+    const b = prev.submitted_at ? Date.parse(prev.submitted_at) : 0;
+    if (a >= b) perReviewer.set(review.user.login, review);
+  }
+  for (const review of perReviewer.values()) {
+    if (review.state === 'CHANGES_REQUESTED') return 'CHANGES_REQUESTED';
+  }
+  for (const review of perReviewer.values()) {
+    if (review.state === 'APPROVED') return 'APPROVED';
+  }
+  return null;
+}
