@@ -7,6 +7,16 @@ import {
 } from '../../lib/auth';
 import type { Viewer } from '../../lib/github-api';
 
+// Fire-and-forget messages to the background worker. Swallow errors so the
+// popup never blocks on service-worker wake-up races.
+function tellWorker(type: string): void {
+  try {
+    void chrome.runtime.sendMessage({ type });
+  } catch {
+    /* ignore */
+  }
+}
+
 export type AuthStatus = 'loading' | 'signed-out' | 'signed-in';
 
 export interface UseAuth {
@@ -49,6 +59,7 @@ export function useAuth(): UseAuth {
       const v = await signInWithToken(token);
       setViewer(v);
       setStatus('signed-in');
+      tellWorker('workflow:refresh');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign-in failed');
     } finally {
@@ -63,6 +74,7 @@ export function useAuth(): UseAuth {
       const v = await oauthSignIn();
       setViewer(v);
       setStatus('signed-in');
+      tellWorker('workflow:refresh');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'OAuth failed');
     } finally {
@@ -77,6 +89,7 @@ export function useAuth(): UseAuth {
       setViewer(null);
       setStatus('signed-out');
       setError(null);
+      tellWorker('workflow:signed-out');
     } finally {
       setBusy(false);
     }
