@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { AssignedPrsView } from './components/AssignedPrsView';
 import { Dashboard } from './components/Dashboard';
 import { MentionsView } from './components/MentionsView';
+import { NotificationsView } from './components/NotificationsView';
 import { ReviewsView } from './components/ReviewsView';
 import { Header } from './components/Header';
 import { SignIn } from './components/SignIn';
-import { StatusMessage } from './components/StatusMessage';
 import { TabNav, type TabKey } from './components/TabNav';
 import { useAuth } from './hooks/useAuth';
 
@@ -35,7 +35,7 @@ export default function App() {
         {tab === 'mentions' && <MentionsView active={tab === 'mentions'} />}
         {tab === 'reviews' && <ReviewsView active={tab === 'reviews'} />}
         {tab === 'notifications' && (
-          <StatusMessage>Notifications view arrives in ticket #7.</StatusMessage>
+          <NotificationsView active={tab === 'notifications'} />
         )}
       </main>
     </div>
