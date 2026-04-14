@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AssignedPrsTab } from './components/AssignedPrsTab';
 import { Dashboard } from './components/Dashboard';
 import { Header } from './components/Header';
 import { SignIn } from './components/SignIn';
@@ -30,7 +31,8 @@ export default function App() {
         {tab === 'dashboard' && (
           <Dashboard viewer={auth.viewer} onNavigate={setTab} />
         )}
-        {tab !== 'dashboard' && (
+        {tab === 'assigned' && <AssignedPrsTab viewer={auth.viewer} />}
+        {tab !== 'dashboard' && tab !== 'assigned' && (
           <div className="rounded-md border border-gh-border-default bg-gh-canvas-subtle p-3 text-xs text-gh-fg-muted">
             This tab ships in a subsequent ticket.
           </div>

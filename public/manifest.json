@@ -3,7 +3,7 @@
   "name": "GitHub Workflow Assistant",
   "version": "0.1.0",
   "description": "At-a-glance view of your GitHub workflow: assigned PRs, mentions, reviews, and notifications.",
-  "permissions": ["storage", "identity", "notifications", "alarms"],
+  "permissions": ["storage", "identity", "notifications", "alarms", "tabs"],
   "host_permissions": [
     "https://github.com/*",
     "https://api.github.com/*"

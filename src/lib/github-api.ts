@@ -105,6 +105,50 @@ export async function fetchUnreadNotificationsCount(token: string): Promise<numb
   return Array.isArray(data) ? data.length : 0;
 }
 
+export interface PullRequestRef {
+  url: string;
+  html_url: string;
+}
+
+export interface SearchIssueItem {
+  id: number;
+  number: number;
+  title: string;
+  html_url: string;
+  state: 'open' | 'closed';
+  draft?: boolean;
+  repository_url: string;
+  updated_at: string;
+  created_at: string;
+  body: string | null;
+  user: { login: string; avatar_url: string } | null;
+  labels: Array<{ name: string; color: string }>;
+  pull_request?: PullRequestRef;
+}
+
+interface SearchIssueResponse {
+  total_count: number;
+  items: SearchIssueItem[];
+}
+
+export async function searchIssues(
+  query: string,
+  token: string,
+  perPage = 30,
+): Promise<SearchIssueItem[]> {
+  const res = await githubFetch(
+    `/search/issues?q=${encodeURIComponent(query)}&per_page=${perPage}&sort=updated&order=desc`,
+    token,
+  );
+  const data = (await res.json()) as SearchIssueResponse;
+  return data.items ?? [];
+}
+
+export function repoFromIssue(item: SearchIssueItem): string {
+  // repository_url is like https://api.github.com/repos/owner/repo
+  return item.repository_url.replace('https://api.github.com/repos/', '');
+}
+
 export async function fetchDashboardCounts(
   login: string,
   token: string,
