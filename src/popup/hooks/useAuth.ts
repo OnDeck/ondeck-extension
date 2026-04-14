@@ -5,6 +5,7 @@ import {
   signInWithToken,
   signOut as doSignOut,
 } from '../../lib/auth';
+import { addAccountFromToken } from '../../lib/accounts';
 import type { Viewer } from '../../lib/github-api';
 
 export type AuthStatus = 'loading' | 'signed-out' | 'signed-in';
@@ -17,6 +18,8 @@ export interface UseAuth {
   signInWithPat: (token: string) => Promise<void>;
   signInWithOAuth: () => Promise<void>;
   signOut: () => Promise<void>;
+  reload: () => Promise<void>;
+  addAccountWithPat: (token: string) => Promise<void>;
 }
 
 export function useAuth(): UseAuth {
@@ -70,6 +73,31 @@ export function useAuth(): UseAuth {
     }
   }, []);
 
+  const reload = useCallback(async () => {
+    const { token, viewer } = await getStoredAuth();
+    if (token && viewer) {
+      setViewer(viewer);
+      setStatus('signed-in');
+    } else {
+      setViewer(null);
+      setStatus('signed-out');
+    }
+  }, []);
+
+  const addAccountWithPat = useCallback(async (token: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const account = await addAccountFromToken(token);
+      setViewer(account.viewer);
+      setStatus('signed-in');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add account');
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
   const signOut = useCallback(async () => {
     setBusy(true);
     try {
@@ -82,5 +110,15 @@ export function useAuth(): UseAuth {
     }
   }, []);
 
-  return { status, viewer, error, busy, signInWithPat, signInWithOAuth, signOut };
+  return {
+    status,
+    viewer,
+    error,
+    busy,
+    signInWithPat,
+    signInWithOAuth,
+    signOut,
+    reload,
+    addAccountWithPat,
+  };
 }

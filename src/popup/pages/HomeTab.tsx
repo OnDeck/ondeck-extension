@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { CountRow } from '../components/CountRow';
+import { WeeklyStats } from '../components/WeeklyStats';
 import type { TabId } from '../tabs';
 import {
   fetchDashboardCounts,
@@ -98,6 +99,8 @@ export function HomeTab({ viewer, onNavigate }: Props) {
           {error}
         </div>
       )}
+
+      <WeeklyStats />
 
       {counts && (
         <div className="flex flex-col gap-2">

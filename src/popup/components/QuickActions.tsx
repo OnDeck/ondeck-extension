@@ -5,12 +5,15 @@ import {
   markPullRequestReviewed,
   postIssueComment,
 } from '../../lib/github-api';
+import { getActiveAccountId } from '../../lib/accounts';
+import { recordReview } from '../../lib/analytics';
 
 interface Props {
   owner: string;
   repo: string;
   number: number;
   isPullRequest: boolean;
+  onReviewed?: () => void;
 }
 
 type Feedback =
@@ -19,7 +22,13 @@ type Feedback =
   | { kind: 'success'; msg: string }
   | { kind: 'error'; msg: string };
 
-export function QuickActions({ owner, repo, number, isPullRequest }: Props) {
+export function QuickActions({
+  owner,
+  repo,
+  number,
+  isPullRequest,
+  onReviewed,
+}: Props) {
   const [feedback, setFeedback] = useState<Feedback>({ kind: 'idle' });
   const [replying, setReplying] = useState(false);
   const [draft, setDraft] = useState('');
@@ -50,10 +59,14 @@ export function QuickActions({ owner, repo, number, isPullRequest }: Props) {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              void withToken(
-                (t) => markPullRequestReviewed(owner, repo, number, t),
-                'Marked reviewed',
-              );
+              void withToken(async (t) => {
+                await markPullRequestReviewed(owner, repo, number, t);
+                const accountId = await getActiveAccountId();
+                if (accountId) {
+                  await recordReview(accountId);
+                }
+                onReviewed?.();
+              }, 'Marked reviewed');
             }}
             disabled={feedback.kind === 'busy'}
             className="rounded-md border border-gh-border-default px-2 py-0.5 text-[10px] font-semibold text-gh-fg-muted hover:border-gh-success-emphasis hover:text-gh-success-emphasis disabled:opacity-60"
