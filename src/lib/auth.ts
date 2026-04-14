@@ -1,53 +1,205 @@
 import { clearCryptoKey, decryptString, encryptString, type Envelope } from './crypto';
 import { fetchViewer, GitHubApiError, type Viewer } from './github-api';
 
-export const TOKEN_STORAGE_KEY = 'gh_workflow_token_v1';
-export const VIEWER_STORAGE_KEY = 'gh_workflow_viewer_v1';
+// Legacy v1 keys (pre multi-account). Kept for migration only.
+const LEGACY_TOKEN_KEY = 'gh_workflow_token_v1';
+const LEGACY_VIEWER_KEY = 'gh_workflow_viewer_v1';
 
-// OAuth client id must be provided at build time. Leaving it unset falls
-// back to PAT-only mode. See README for how to register a GitHub OAuth app.
+// Multi-account storage (v2): keyed by numeric GitHub user id.
+export const ACCOUNTS_STORAGE_KEY = 'gh_workflow_accounts_v2';
+export const ACTIVE_ACCOUNT_KEY = 'gh_workflow_active_account_v2';
+export const VIEWERS_CACHE_KEY = 'gh_workflow_viewers_v2';
+
+// Re-export the original key name so existing imports (service worker) keep
+// working. The service worker listens on storage changes for this key to
+// decide whether the user is signed in.
+export const TOKEN_STORAGE_KEY = ACCOUNTS_STORAGE_KEY;
+
+interface StoredAccount {
+  envelope: Envelope;
+  summary: {
+    login: string;
+    name: string | null;
+    avatar_url: string;
+  };
+}
+
+type AccountsBag = Record<string, StoredAccount>;
+type ViewersCache = Record<string, Viewer>;
+
 const OAUTH_CLIENT_ID = (import.meta.env?.VITE_GITHUB_OAUTH_CLIENT_ID ?? '') as string;
 
 export interface AuthState {
   token: string | null;
   viewer: Viewer | null;
+  activeId: number | null;
+  accounts: AccountSummary[];
 }
 
-interface StoredToken {
-  envelope: Envelope;
+export interface AccountSummary {
+  id: number;
+  login: string;
+  name: string | null;
+  avatar_url: string;
 }
+
+// ---------- storage helpers ----------
+
+async function readAccounts(): Promise<AccountsBag> {
+  const bag = await chrome.storage.sync.get(ACCOUNTS_STORAGE_KEY);
+  return (bag[ACCOUNTS_STORAGE_KEY] as AccountsBag | undefined) ?? {};
+}
+
+async function writeAccounts(next: AccountsBag): Promise<void> {
+  await chrome.storage.sync.set({ [ACCOUNTS_STORAGE_KEY]: next });
+}
+
+async function readActiveId(): Promise<number | null> {
+  const bag = await chrome.storage.local.get(ACTIVE_ACCOUNT_KEY);
+  const value = bag[ACTIVE_ACCOUNT_KEY] as number | undefined;
+  return typeof value === 'number' ? value : null;
+}
+
+async function writeActiveId(id: number | null): Promise<void> {
+  if (id === null) {
+    await chrome.storage.local.remove(ACTIVE_ACCOUNT_KEY);
+  } else {
+    await chrome.storage.local.set({ [ACTIVE_ACCOUNT_KEY]: id });
+  }
+}
+
+async function readViewersCache(): Promise<ViewersCache> {
+  const bag = await chrome.storage.local.get(VIEWERS_CACHE_KEY);
+  return (bag[VIEWERS_CACHE_KEY] as ViewersCache | undefined) ?? {};
+}
+
+async function writeViewersCache(next: ViewersCache): Promise<void> {
+  await chrome.storage.local.set({ [VIEWERS_CACHE_KEY]: next });
+}
+
+function toSummary(viewer: Viewer): StoredAccount['summary'] {
+  return { login: viewer.login, name: viewer.name, avatar_url: viewer.avatar_url };
+}
+
+function listSummaries(accounts: AccountsBag): AccountSummary[] {
+  return Object.entries(accounts)
+    .map(([id, account]) => ({ id: Number(id), ...account.summary }))
+    .sort((a, b) => a.login.localeCompare(b.login));
+}
+
+// ---------- legacy migration ----------
+
+async function migrateLegacyIfNeeded(): Promise<void> {
+  const [syncBag, localBag] = await Promise.all([
+    chrome.storage.sync.get([LEGACY_TOKEN_KEY, ACCOUNTS_STORAGE_KEY]),
+    chrome.storage.local.get(LEGACY_VIEWER_KEY),
+  ]);
+  if (syncBag[ACCOUNTS_STORAGE_KEY]) return;
+  const legacyEnvelope = (
+    syncBag[LEGACY_TOKEN_KEY] as { envelope?: Envelope } | undefined
+  )?.envelope;
+  const legacyViewer = localBag[LEGACY_VIEWER_KEY] as Viewer | undefined;
+  if (!legacyEnvelope || !legacyViewer) return;
+  const accounts: AccountsBag = {
+    [legacyViewer.id]: {
+      envelope: legacyEnvelope,
+      summary: toSummary(legacyViewer),
+    },
+  };
+  const cache: ViewersCache = { [legacyViewer.id]: legacyViewer };
+  await Promise.all([
+    writeAccounts(accounts),
+    writeViewersCache(cache),
+    writeActiveId(legacyViewer.id),
+    chrome.storage.sync.remove(LEGACY_TOKEN_KEY),
+    chrome.storage.local.remove(LEGACY_VIEWER_KEY),
+  ]);
+}
+
+// ---------- public API ----------
 
 export async function getStoredAuth(): Promise<AuthState> {
-  const [syncBag, localBag] = await Promise.all([
-    chrome.storage.sync.get(TOKEN_STORAGE_KEY),
-    chrome.storage.local.get(VIEWER_STORAGE_KEY),
+  await migrateLegacyIfNeeded();
+  const [accounts, cache, activeId] = await Promise.all([
+    readAccounts(),
+    readViewersCache(),
+    readActiveId(),
   ]);
-  const stored = syncBag[TOKEN_STORAGE_KEY] as StoredToken | undefined;
-  const viewer = (localBag[VIEWER_STORAGE_KEY] as Viewer | undefined) ?? null;
-  if (!stored?.envelope) return { token: null, viewer: null };
+  const summaries = listSummaries(accounts);
+  if (summaries.length === 0 || activeId === null || !accounts[activeId]) {
+    return { token: null, viewer: null, activeId: null, accounts: summaries };
+  }
   try {
-    const token = await decryptString(stored.envelope);
-    return { token, viewer };
+    const token = await decryptString(accounts[activeId].envelope);
+    return {
+      token,
+      viewer: cache[activeId] ?? null,
+      activeId,
+      accounts: summaries,
+    };
   } catch {
-    // Key rotation or corruption — treat as logged out.
-    await clearStoredAuth();
-    return { token: null, viewer: null };
+    // Key rotation or corruption — drop this account so the user can re-auth.
+    delete accounts[activeId];
+    delete cache[activeId];
+    await Promise.all([writeAccounts(accounts), writeViewersCache(cache), writeActiveId(null)]);
+    return {
+      token: null,
+      viewer: null,
+      activeId: null,
+      accounts: listSummaries(accounts),
+    };
   }
 }
 
 export async function saveToken(token: string, viewer: Viewer): Promise<void> {
   const envelope = await encryptString(token);
-  const payload: StoredToken = { envelope };
+  const accounts = await readAccounts();
+  accounts[viewer.id] = { envelope, summary: toSummary(viewer) };
+  const cache = await readViewersCache();
+  cache[viewer.id] = viewer;
   await Promise.all([
-    chrome.storage.sync.set({ [TOKEN_STORAGE_KEY]: payload }),
-    chrome.storage.local.set({ [VIEWER_STORAGE_KEY]: viewer }),
+    writeAccounts(accounts),
+    writeViewersCache(cache),
+    writeActiveId(viewer.id),
   ]);
+}
+
+export async function switchActiveAccount(id: number): Promise<AuthState> {
+  const accounts = await readAccounts();
+  if (!accounts[id]) {
+    return getStoredAuth();
+  }
+  await writeActiveId(id);
+  return getStoredAuth();
+}
+
+export async function removeAccount(id: number): Promise<AuthState> {
+  const [accounts, cache, activeId] = await Promise.all([
+    readAccounts(),
+    readViewersCache(),
+    readActiveId(),
+  ]);
+  delete accounts[id];
+  delete cache[id];
+  const nextActive =
+    activeId === id
+      ? (Object.keys(accounts)[0] ? Number(Object.keys(accounts)[0]) : null)
+      : activeId;
+  await Promise.all([
+    writeAccounts(accounts),
+    writeViewersCache(cache),
+    writeActiveId(nextActive),
+  ]);
+  if (Object.keys(accounts).length === 0) {
+    await clearCryptoKey();
+  }
+  return getStoredAuth();
 }
 
 export async function clearStoredAuth(): Promise<void> {
   await Promise.all([
-    chrome.storage.sync.remove(TOKEN_STORAGE_KEY),
-    chrome.storage.local.remove(VIEWER_STORAGE_KEY),
+    chrome.storage.sync.remove(ACCOUNTS_STORAGE_KEY),
+    chrome.storage.local.remove([ACTIVE_ACCOUNT_KEY, VIEWERS_CACHE_KEY]),
     clearCryptoKey(),
   ]);
 }
@@ -67,14 +219,19 @@ export async function signInWithToken(token: string): Promise<Viewer> {
 }
 
 export async function signOut(): Promise<void> {
-  await clearStoredAuth();
+  // Sign out = remove only the currently active account. Other accounts stay
+  // signed in and are available via the account switcher.
+  const activeId = await readActiveId();
+  if (activeId !== null) {
+    await removeAccount(activeId);
+  } else {
+    await clearStoredAuth();
+  }
 }
 
 // ---------- OAuth ----------
 
 function buildRedirectUri(): string {
-  // chrome.identity.getRedirectURL returns:
-  //   https://<extension-id>.chromiumapp.org/
   return chrome.identity.getRedirectURL('oauth2');
 }
 
@@ -87,18 +244,6 @@ export function isOAuthConfigured(): boolean {
   return OAUTH_CLIENT_ID.length > 0;
 }
 
-/**
- * Launch the GitHub OAuth web flow. Requires a deployed token-exchange
- * endpoint because GitHub's OAuth app flow mandates exchanging the code
- * server-side (the client secret cannot live in the extension).
- *
- * Consumers must configure:
- *   - VITE_GITHUB_OAUTH_CLIENT_ID at build time
- *   - VITE_GITHUB_OAUTH_EXCHANGE_URL at build time — a URL that accepts
- *     { code, state, redirect_uri } and returns { access_token }.
- *
- * If either is missing this throws and the user should fall back to PAT.
- */
 export async function signInWithOAuth(): Promise<Viewer> {
   const exchangeUrl = (import.meta.env?.VITE_GITHUB_OAUTH_EXCHANGE_URL ?? '') as string;
   if (!OAUTH_CLIENT_ID || !exchangeUrl) {

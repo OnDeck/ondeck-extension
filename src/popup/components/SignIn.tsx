@@ -1,21 +1,45 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { isOAuthConfigured } from '../../lib/auth';
 import type { UseAuth } from '../hooks/useAuth';
 
 interface Props {
   auth: UseAuth;
+  onCancel?: () => void;
+  onSignedIn?: () => void;
 }
 
-export function SignIn({ auth }: Props) {
+export function SignIn({ auth, onCancel, onSignedIn }: Props) {
   const [token, setToken] = useState('');
   const oauthAvailable = isOAuthConfigured();
+  const initialStatus = useRef(auth.status);
+
+  useEffect(() => {
+    if (initialStatus.current !== 'signed-in' && auth.status === 'signed-in') {
+      onSignedIn?.();
+    }
+  }, [auth.status, onSignedIn]);
 
   return (
     <div className="flex h-full flex-col px-4 py-4">
-      <h2 className="text-sm font-semibold">Sign in to GitHub</h2>
-      <p className="mt-1 text-xs text-gh-fg-muted">
-        Connect your GitHub account to see assigned PRs, mentions, and reviews.
-      </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-gh-fg-default">
+            {onCancel ? 'Add a GitHub account' : 'Sign in to GitHub'}
+          </h2>
+          <p className="mt-1 text-xs text-gh-fg-muted">
+            Connect your GitHub account to see assigned PRs, mentions, and reviews.
+          </p>
+        </div>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-md border border-gh-border-default px-2 py-1 text-[10px] text-gh-fg-muted hover:text-gh-fg-default"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
 
       {oauthAvailable && (
         <button

@@ -4,6 +4,7 @@ import {
   submitPullReview,
   type SearchIssueItem,
 } from '../../lib/github-api';
+import { recordReviewSubmitted } from '../../lib/stats';
 import { FilterBar } from '../components/FilterBar';
 import { IssueRow } from '../components/IssueRow';
 import { ViewHeader } from '../components/ViewHeader';
@@ -19,6 +20,7 @@ import {
 
 interface Props {
   token: string | null;
+  activeAccountId: number | null;
 }
 
 const PRIORITY_LABEL_HINTS = [
@@ -40,7 +42,7 @@ function hasPriorityLabel(item: SearchIssueItem): string | null {
   return null;
 }
 
-export function ReviewsView({ token }: Props) {
+export function ReviewsView({ token, activeAccountId }: Props) {
   const query = 'is:pr is:open review-requested:@me archived:false';
   const { status, items, error, refresh } = useIssueList(token, query);
   const details = usePrDetails(token, items);
@@ -66,6 +68,7 @@ export function ReviewsView({ token }: Props) {
         'COMMENT',
         'Reviewed via GitHub Workflow Assistant ✅',
       );
+      await recordReviewSubmitted(activeAccountId);
       await refresh();
     } finally {
       setBusyIds((prev) => {

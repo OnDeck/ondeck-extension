@@ -1,9 +1,11 @@
 import { useCounts } from '../hooks/useCounts';
+import { useWeeklyReviewCount } from '../hooks/useWeeklyReviewCount';
 import type { TabId } from '../tabs';
 
 interface Props {
   token: string | null;
   onNavigate: (id: TabId) => void;
+  activeAccountId: number | null;
 }
 
 interface Row {
@@ -13,8 +15,9 @@ interface Row {
   value: number | null;
 }
 
-export function HomeView({ token, onNavigate }: Props) {
+export function HomeView({ token, onNavigate, activeAccountId }: Props) {
   const { status, counts, error, refresh } = useCounts(token);
+  const { count: weeklyReviews } = useWeeklyReviewCount(activeAccountId);
 
   const rows: Row[] = [
     {
@@ -64,6 +67,12 @@ export function HomeView({ token, onNavigate }: Props) {
           {error ?? 'Failed to load counts.'}
         </div>
       )}
+
+      <div className="mx-4 mb-2 rounded-md border border-gh-border-muted bg-gh-canvas-subtle p-2 text-[11px] text-gh-fg-muted">
+        You&rsquo;ve reviewed{' '}
+        <span className="font-semibold text-gh-fg-default">{weeklyReviews}</span>{' '}
+        {weeklyReviews === 1 ? 'PR' : 'PRs'} this week.
+      </div>
 
       <ul className="flex-1 overflow-y-auto px-2 pb-3">
         {rows.map((row) => {
