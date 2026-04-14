@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AssignedPrsTab } from './components/AssignedPrsTab';
 import { Dashboard } from './components/Dashboard';
 import { Header } from './components/Header';
+import { MentionsTab } from './components/MentionsTab';
 import { SignIn } from './components/SignIn';
 import { TabBar, type TabId } from './components/TabBar';
 import { useAuth } from './hooks/useAuth';
@@ -15,6 +16,13 @@ const PrGlyph = (
 const HomeGlyph = (
   <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
     <path d="M6.906.664a1.749 1.749 0 0 1 2.187 0l5.25 4.2c.415.332.657.835.657 1.367v7.019A1.75 1.75 0 0 1 13.25 15h-3.5a.75.75 0 0 1-.75-.75V9H7v5.25a.75.75 0 0 1-.75.75h-3.5A1.75 1.75 0 0 1 1 13.25V6.23c0-.531.242-1.034.657-1.366Z" />
+  </svg>
+);
+
+const AtGlyph = (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+    <path d="M5.5 8a2.5 2.5 0 1 1 5 0 2.5 2.5 0 0 1-5 0Z" />
+    <path d="M8 0a8 8 0 0 1 7.906 6.914c.064.39.094.779.094 1.172 0 1.98-.969 3.414-2.719 3.414-.953 0-1.66-.395-2.063-1.133-.679.73-1.648 1.133-2.719 1.133-2.125 0-3.75-1.617-3.75-4s1.625-4 3.75-4c.875 0 1.68.28 2.313.75V4.5h1.5v5.25c0 .5.312.75.937.75.938 0 1.5-.938 1.5-2.422 0-.297-.023-.59-.07-.879A6.496 6.496 0 1 0 13.5 13.016l.984 1.136A7.999 7.999 0 1 1 8 0Z" />
   </svg>
 );
 
@@ -40,6 +48,7 @@ export default function App() {
       <main className="flex-1 overflow-y-auto">
         {tab === 'home' && <Dashboard viewer={auth.viewer} onNavigate={setTab} />}
         {tab === 'assigned' && <AssignedPrsTab viewer={auth.viewer} />}
+        {tab === 'mentions' && <MentionsTab viewer={auth.viewer} />}
       </main>
       <TabBar
         active={tab}
@@ -47,6 +56,7 @@ export default function App() {
         tabs={[
           { id: 'home', label: 'Home', icon: HomeGlyph },
           { id: 'assigned', label: 'Assigned', icon: PrGlyph },
+          { id: 'mentions', label: 'Mentions', icon: AtGlyph },
         ]}
       />
     </div>

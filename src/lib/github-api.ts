@@ -70,6 +70,7 @@ export interface SearchIssueItem {
   id: number;
   number: number;
   title: string;
+  body?: string | null;
   html_url: string;
   repository_url: string;
   state: 'open' | 'closed';
@@ -91,9 +92,11 @@ export interface GitHubPrItem {
   id: number;
   number: number;
   title: string;
+  body: string | null;
   htmlUrl: string;
   repo: string;
   org: string;
+  isPullRequest: boolean;
   state: 'open' | 'closed';
   draft: boolean;
   createdAt: string;
@@ -117,9 +120,11 @@ function toPrItem(item: SearchIssueItem): GitHubPrItem {
     id: item.id,
     number: item.number,
     title: item.title,
+    body: item.body ?? null,
     htmlUrl: item.html_url,
     org,
     repo,
+    isPullRequest: Boolean(item.pull_request),
     state: item.state,
     draft: Boolean(item.draft ?? item.pull_request?.draft),
     createdAt: item.created_at,
