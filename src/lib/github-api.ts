@@ -268,6 +268,75 @@ export function subjectUrlToHtmlUrl(
   return `${repoHtmlUrl}/${segment}/${id}`;
 }
 
+async function githubPost(
+  path: string,
+  token: string,
+  body: unknown,
+): Promise<Response> {
+  let response: Response;
+  try {
+    response = await fetch(`${GITHUB_API_BASE}${path}`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    throw new GitHubApiError(
+      err instanceof Error ? err.message : 'Network error',
+      0,
+      'network',
+    );
+  }
+  if (!response.ok) {
+    throw new GitHubApiError(
+      `GitHub API error (${response.status})`,
+      response.status,
+      response.status === 401 ? 'unauthorized' : response.status === 403 ? 'forbidden' : 'other',
+    );
+  }
+  return response;
+}
+
+export async function markPrReviewed(
+  token: string,
+  repoSlug: string,
+  number: number,
+): Promise<void> {
+  // There's no "mark as reviewed" API, so we post a benign comment-type
+  // review instead — the action shows up as "reviewed" in the timeline
+  // without approving or requesting changes.
+  await githubPost(`/repos/${repoSlug}/pulls/${number}/reviews`, token, {
+    event: 'COMMENT',
+    body: 'Reviewed via GitHub Workflow Assistant',
+  });
+}
+
+export async function addThumbsUpReaction(
+  token: string,
+  repoSlug: string,
+  number: number,
+): Promise<void> {
+  await githubPost(`/repos/${repoSlug}/issues/${number}/reactions`, token, {
+    content: '+1',
+  });
+}
+
+export async function createIssueComment(
+  token: string,
+  repoSlug: string,
+  number: number,
+  body: string,
+): Promise<void> {
+  await githubPost(`/repos/${repoSlug}/issues/${number}/comments`, token, {
+    body,
+  });
+}
+
 export type PrReviewStatus = 'pending' | 'approved' | 'changes_requested' | 'commented';
 
 interface ReviewPayload {

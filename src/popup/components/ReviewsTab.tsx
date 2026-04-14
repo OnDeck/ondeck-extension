@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { repoSlugFromUrl, type SearchIssueItem, type Viewer } from '../../lib/github-api';
 import { usePullSummary } from '../hooks/usePullSummary';
 import { useSearchIssues } from '../hooks/useSearchIssues';
 import { openInNewTab, relativeTime } from '../lib/format';
+import { FeedFilters, INITIAL_FILTERS, applyFilters, type FeedFilterState } from './FeedFilters';
 import { FeedHeader } from './FeedHeader';
 import { FeedList } from './FeedList';
 import { FeedState } from './FeedState';
+import { QuickActions } from './QuickActions';
 
 interface Props {
   viewer: Viewer;
@@ -19,6 +22,8 @@ function isPriority(item: SearchIssueItem): boolean {
 export function ReviewsTab({ viewer }: Props) {
   const query = `is:pr is:open review-requested:${viewer.login}`;
   const { status, items, error, refresh } = useSearchIssues(query);
+  const [filters, setFilters] = useState<FeedFilterState>(INITIAL_FILTERS);
+  const filtered = applyFilters(items, filters);
 
   return (
     <div className="flex h-full flex-col">
@@ -28,6 +33,7 @@ export function ReviewsTab({ viewer }: Props) {
         busy={status === 'loading'}
         onRefresh={refresh}
       />
+      <FeedFilters items={items} state={filters} onChange={setFilters} />
       {status === 'error' && (
         <FeedState
           status="error"
@@ -41,9 +47,12 @@ export function ReviewsTab({ viewer }: Props) {
       {status === 'ready' && items.length === 0 && (
         <FeedState status="empty" message="No PRs waiting on your review." />
       )}
-      {items.length > 0 && (
+      {status === 'ready' && items.length > 0 && filtered.length === 0 && (
+        <FeedState status="empty" message="No review requests match those filters." />
+      )}
+      {filtered.length > 0 && (
         <FeedList>
-          {items.map((item) => (
+          {filtered.map((item) => (
             <li key={item.id}>
               <ReviewRow item={item} />
             </li>
@@ -59,11 +68,12 @@ function ReviewRow({ item }: { item: SearchIssueItem }) {
   const summary = usePullSummary(repoSlug, item.number);
   const priority = isPriority(item);
   return (
-    <button
-      type="button"
-      onClick={() => openInNewTab(item.html_url)}
-      className="flex w-full items-start gap-2 px-3 py-2 text-left transition hover:bg-gh-border-muted/40"
-    >
+    <div className="flex w-full items-start gap-2 px-3 py-2 transition hover:bg-gh-border-muted/40">
+      <button
+        type="button"
+        onClick={() => openInNewTab(item.html_url)}
+        className="flex min-w-0 flex-1 items-start gap-2 text-left"
+      >
       {item.user && (
         <img
           src={item.user.avatar_url}
@@ -97,6 +107,8 @@ function ReviewRow({ item }: { item: SearchIssueItem }) {
           )}
         </div>
       </div>
-    </button>
+      </button>
+      <QuickActions item={item} />
+    </div>
   );
 }
