@@ -3,6 +3,7 @@ import { AssignedPrsTab } from './components/AssignedPrsTab';
 import { Header } from './components/Header';
 import { HomeTab } from './components/HomeTab';
 import { MentionsTab } from './components/MentionsTab';
+import { NotificationsTab } from './components/NotificationsTab';
 import { ReviewsTab } from './components/ReviewsTab';
 import { SignIn } from './components/SignIn';
 import { TabBar } from './components/TabBar';
@@ -34,11 +35,7 @@ export default function App() {
         {tab === 'assigned' && <AssignedPrsTab viewer={auth.viewer} />}
         {tab === 'mentions' && <MentionsTab viewer={auth.viewer} />}
         {tab === 'reviews' && <ReviewsTab viewer={auth.viewer} />}
-        {tab !== 'home' && tab !== 'assigned' && tab !== 'mentions' && tab !== 'reviews' && (
-          <div className="rounded-md border border-gh-border-default bg-gh-canvas-subtle p-3 text-xs text-gh-fg-muted">
-            This tab ships in a subsequent ticket.
-          </div>
-        )}
+        {tab === 'notifications' && <NotificationsTab />}
       </main>
     </div>
   );
