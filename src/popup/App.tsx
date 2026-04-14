@@ -1,9 +1,14 @@
+import { useState } from 'react';
+import { Dashboard } from './components/Dashboard';
 import { Header } from './components/Header';
 import { SignIn } from './components/SignIn';
+import { TabBar } from './components/TabBar';
 import { useAuth } from './hooks/useAuth';
+import type { TabId } from './navigation';
 
 export default function App() {
   const auth = useAuth();
+  const [tab, setTab] = useState<TabId>('dashboard');
 
   if (auth.status === 'loading') {
     return (
@@ -20,11 +25,16 @@ export default function App() {
   return (
     <div className="flex h-full w-full flex-col">
       <Header viewer={auth.viewer} onSignOut={() => void auth.signOut()} busy={auth.busy} />
+      <TabBar active={tab} onChange={setTab} />
       <main className="flex-1 overflow-y-auto px-4 py-3">
-        <div className="rounded-md border border-gh-border-default bg-gh-canvas-subtle p-3 text-xs text-gh-fg-muted">
-          Signed in. Dashboard, assigned PRs, mentions, reviews, and notifications
-          ship in subsequent tickets.
-        </div>
+        {tab === 'dashboard' && (
+          <Dashboard viewer={auth.viewer} onNavigate={setTab} />
+        )}
+        {tab !== 'dashboard' && (
+          <div className="rounded-md border border-gh-border-default bg-gh-canvas-subtle p-3 text-xs text-gh-fg-muted">
+            This tab ships in a subsequent ticket.
+          </div>
+        )}
       </main>
     </div>
   );

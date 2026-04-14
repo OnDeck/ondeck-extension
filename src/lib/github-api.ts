@@ -19,7 +19,7 @@ export class GitHubApiError extends Error {
   }
 }
 
-async function githubFetch(path: string, token: string): Promise<Response> {
+export async function githubFetch(path: string, token: string): Promise<Response> {
   let response: Response;
   try {
     response = await fetch(`${GITHUB_API_BASE}${path}`, {
@@ -62,4 +62,58 @@ export async function fetchViewer(token: string): Promise<Viewer> {
     avatar_url: data.avatar_url,
     html_url: data.html_url,
   };
+}
+
+export interface DashboardCounts {
+  assignedPrs: number;
+  reviewRequests: number;
+  mentions: number;
+  unreadNotifications: number;
+}
+
+interface SearchResponse {
+  total_count: number;
+}
+
+async function fetchSearchCount(query: string, token: string): Promise<number> {
+  const res = await githubFetch(
+    `/search/issues?q=${encodeURIComponent(query)}&per_page=1`,
+    token,
+  );
+  const data = (await res.json()) as SearchResponse;
+  return data.total_count ?? 0;
+}
+
+export async function fetchAssignedPrCount(login: string, token: string): Promise<number> {
+  return fetchSearchCount(`is:pr is:open assignee:${login}`, token);
+}
+
+export async function fetchReviewRequestedCount(
+  login: string,
+  token: string,
+): Promise<number> {
+  return fetchSearchCount(`is:pr is:open review-requested:${login}`, token);
+}
+
+export async function fetchMentionsCount(login: string, token: string): Promise<number> {
+  return fetchSearchCount(`is:open mentions:${login}`, token);
+}
+
+export async function fetchUnreadNotificationsCount(token: string): Promise<number> {
+  const res = await githubFetch('/notifications?all=false&per_page=50', token);
+  const data = (await res.json()) as unknown[];
+  return Array.isArray(data) ? data.length : 0;
+}
+
+export async function fetchDashboardCounts(
+  login: string,
+  token: string,
+): Promise<DashboardCounts> {
+  const [assignedPrs, reviewRequests, mentions, unreadNotifications] = await Promise.all([
+    fetchAssignedPrCount(login, token),
+    fetchReviewRequestedCount(login, token),
+    fetchMentionsCount(login, token),
+    fetchUnreadNotificationsCount(token),
+  ]);
+  return { assignedPrs, reviewRequests, mentions, unreadNotifications };
 }
