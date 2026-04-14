@@ -1,5 +1,7 @@
+import type { AccountSummary } from '../../lib/auth';
 import type { Viewer } from '../../lib/github-api';
 import type { ThemePreference } from '../hooks/useTheme';
+import { AccountSwitcher } from './AccountSwitcher';
 
 interface Props {
   viewer: Viewer;
@@ -7,6 +9,11 @@ interface Props {
   busy: boolean;
   themePreference: ThemePreference;
   onCycleTheme: () => void;
+  accounts: AccountSummary[];
+  activeAccountId: number | null;
+  onSwitchAccount: (id: number) => void;
+  onAddAccount: (token: string) => Promise<void>;
+  onRemoveAccount: (id: number) => void;
 }
 
 function themeLabel(pref: ThemePreference): string {
@@ -37,6 +44,11 @@ export function Header({
   busy,
   themePreference,
   onCycleTheme,
+  accounts,
+  activeAccountId,
+  onSwitchAccount,
+  onAddAccount,
+  onRemoveAccount,
 }: Props) {
   return (
     <header className="flex items-center gap-3 border-b border-gh-border-default px-4 py-3">
@@ -51,6 +63,14 @@ export function Header({
         </div>
         <div className="truncate text-xs text-gh-fg-muted">@{viewer.login}</div>
       </div>
+      <AccountSwitcher
+        accounts={accounts}
+        activeId={activeAccountId}
+        busy={busy}
+        onSwitch={onSwitchAccount}
+        onAddAccount={onAddAccount}
+        onRemove={onRemoveAccount}
+      />
       <button
         type="button"
         onClick={onCycleTheme}
@@ -58,10 +78,7 @@ export function Header({
         aria-label={`Theme: ${themeLabel(themePreference)}`}
         className="rounded-md border border-gh-border-default px-2 py-1 text-[11px] text-gh-fg-muted hover:border-gh-accent-emphasis hover:text-gh-accent-emphasis"
       >
-        <span aria-hidden className="mr-1">
-          {themeIcon(themePreference)}
-        </span>
-        {themeLabel(themePreference)}
+        <span aria-hidden>{themeIcon(themePreference)}</span>
       </button>
       <button
         type="button"

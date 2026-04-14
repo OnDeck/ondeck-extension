@@ -14,6 +14,8 @@ import { QuickActions } from './QuickActions';
 interface Props {
   login: string;
   token: string;
+  accountId: number;
+  onStatsChanged?: () => void;
 }
 
 const BLOCKING_LABEL_PATTERN = /(blocking|urgent|p0|hotfix|critical)/i;
@@ -24,7 +26,7 @@ function isBlocking(item: SearchIssueItem): boolean {
 
 type DetailState = Record<number, { changedFiles: number }>;
 
-export function ReviewsTab({ login, token }: Props) {
+export function ReviewsTab({ login, token, accountId, onStatsChanged }: Props) {
   const fetcher = useCallback(() => fetchReviewRequests(login, token), [login, token]);
   const list = useIssueList(Boolean(login && token), fetcher, [login, token]);
   const [details, setDetails] = useState<DetailState>({});
@@ -117,8 +119,12 @@ export function ReviewsTab({ login, token }: Props) {
                       <QuickActions
                         item={item}
                         token={token}
+                        accountId={accountId}
                         showMarkReviewed
-                        onAfterAction={() => void list.refresh()}
+                        onAfterAction={() => {
+                          void list.refresh();
+                          onStatsChanged?.();
+                        }}
                       />
                     </div>
                   </div>

@@ -10,6 +10,7 @@ import { NotificationsTab } from './components/NotificationsTab';
 import { useAuth } from './hooks/useAuth';
 import { useDashboard } from './hooks/useDashboard';
 import { useTheme } from './hooks/useTheme';
+import { useWeeklyStats } from './hooks/useWeeklyStats';
 import type { TabId } from './tabs';
 
 export default function App() {
@@ -17,6 +18,9 @@ export default function App() {
   const theme = useTheme();
   const [tab, setTab] = useState<TabId>('dashboard');
   const dashboard = useDashboard(auth.viewer?.login, auth.token);
+  const { stats: weeklyStats, refresh: refreshStats } = useWeeklyStats(
+    auth.activeAccountId,
+  );
 
   if (auth.status === 'loading') {
     return (
@@ -30,6 +34,8 @@ export default function App() {
     return <SignIn auth={auth} />;
   }
 
+  const accountId = auth.activeAccountId ?? auth.viewer.id;
+
   return (
     <div className="flex h-full w-full flex-col">
       <Header
@@ -38,11 +44,21 @@ export default function App() {
         busy={auth.busy}
         themePreference={theme.preference}
         onCycleTheme={theme.cycle}
+        accounts={auth.accounts}
+        activeAccountId={auth.activeAccountId}
+        onSwitchAccount={(id) => void auth.switchAccount(id)}
+        onAddAccount={auth.addAccountWithPat}
+        onRemoveAccount={(id) => void auth.removeStoredAccount(id)}
       />
       <TabBar active={tab} onSelect={setTab} />
       <main className="flex-1 overflow-y-auto px-4 py-3">
         {tab === 'dashboard' && (
-          <DashboardTab viewer={auth.viewer} dashboard={dashboard} onNavigate={setTab} />
+          <DashboardTab
+            viewer={auth.viewer}
+            dashboard={dashboard}
+            onNavigate={setTab}
+            weeklyStats={weeklyStats}
+          />
         )}
         {tab === 'assigned' && auth.token && (
           <AssignedPrsTab login={auth.viewer.login} token={auth.token} />
@@ -51,7 +67,12 @@ export default function App() {
           <MentionsTab login={auth.viewer.login} token={auth.token} />
         )}
         {tab === 'reviews' && auth.token && (
-          <ReviewsTab login={auth.viewer.login} token={auth.token} />
+          <ReviewsTab
+            login={auth.viewer.login}
+            token={auth.token}
+            accountId={accountId}
+            onStatsChanged={() => void refreshStats()}
+          />
         )}
         {tab === 'notifications' && auth.token && (
           <NotificationsTab token={auth.token} />

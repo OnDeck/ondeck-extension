@@ -1,4 +1,5 @@
 import type { Viewer } from '../../lib/github-api';
+import type { WeeklyStats } from '../../lib/stats';
 import type { UseDashboard } from '../hooks/useDashboard';
 import type { TabId } from '../tabs';
 
@@ -6,6 +7,7 @@ interface Props {
   viewer: Viewer;
   dashboard: UseDashboard;
   onNavigate: (tab: TabId) => void;
+  weeklyStats: WeeklyStats;
 }
 
 interface Row {
@@ -16,7 +18,7 @@ interface Row {
   accent: string;
 }
 
-export function DashboardTab({ viewer, dashboard, onNavigate }: Props) {
+export function DashboardTab({ viewer, dashboard, onNavigate, weeklyStats }: Props) {
   const counts = dashboard.counts;
   const rows: Row[] = [
     {
@@ -76,6 +78,23 @@ export function DashboardTab({ viewer, dashboard, onNavigate }: Props) {
           {dashboard.error}
         </div>
       )}
+
+      <div className="rounded-md border border-gh-border-default bg-gh-canvas-subtle px-3 py-2">
+        <div className="text-[11px] uppercase tracking-wider text-gh-fg-muted">
+          Weekly review
+        </div>
+        <div className="flex items-baseline gap-2">
+          <div className="text-2xl font-bold tabular-nums text-gh-accent-emphasis">
+            {weeklyStats.reviewsThisWeek}
+          </div>
+          <div className="text-[11px] text-gh-fg-muted">
+            PR{weeklyStats.reviewsThisWeek === 1 ? '' : 's'} reviewed this week
+            {weeklyStats.reviewsLastWeek > 0 && (
+              <> · {weeklyStats.reviewsLastWeek} last week</>
+            )}
+          </div>
+        </div>
+      </div>
 
       <ul className="flex flex-col gap-2">
         {rows.map((row) => (

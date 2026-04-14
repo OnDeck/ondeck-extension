@@ -7,10 +7,12 @@ import {
   type ReactionContent,
   type SearchIssueItem,
 } from '../../lib/github-api';
+import { recordReview } from '../../lib/stats';
 
 interface Props {
   item: SearchIssueItem;
   token: string;
+  accountId?: number;
   showMarkReviewed?: boolean;
   onAfterAction?: () => void;
 }
@@ -23,7 +25,13 @@ const REACTIONS: { content: ReactionContent; glyph: string; label: string }[] = 
   { content: 'eyes', glyph: '👀', label: 'Eyes' },
 ];
 
-export function QuickActions({ item, token, showMarkReviewed, onAfterAction }: Props) {
+export function QuickActions({
+  item,
+  token,
+  accountId,
+  showMarkReviewed,
+  onAfterAction,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
   const [reactionOpen, setReactionOpen] = useState(false);
@@ -77,7 +85,12 @@ export function QuickActions({ item, token, showMarkReviewed, onAfterAction }: P
               type="button"
               disabled={busy}
               onClick={() =>
-                void run(() => submitMarkReviewed(owner, repo, item.number, token))
+                void run(async () => {
+                  await submitMarkReviewed(owner, repo, item.number, token);
+                  if (typeof accountId === 'number') {
+                    await recordReview(accountId);
+                  }
+                })
               }
               className="block w-full rounded-md px-2 py-1.5 text-left text-gh-fg-default hover:bg-gh-canvas-subtle disabled:opacity-60"
             >
