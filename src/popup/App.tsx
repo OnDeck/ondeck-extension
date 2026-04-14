@@ -1,4 +1,5 @@
 import { Header } from './components/Header';
+import { Notifications } from './components/Notifications';
 import { SignIn } from './components/SignIn';
 import { useAuth } from './hooks/useAuth';
 
@@ -20,11 +21,8 @@ export default function App() {
   return (
     <div className="flex h-full w-full flex-col">
       <Header viewer={auth.viewer} onSignOut={() => void auth.signOut()} busy={auth.busy} />
-      <main className="flex-1 overflow-y-auto px-4 py-3">
-        <div className="rounded-md border border-gh-border-default bg-gh-canvas-subtle p-3 text-xs text-gh-fg-muted">
-          Signed in. Dashboard, assigned PRs, mentions, reviews, and notifications
-          ship in subsequent tickets.
-        </div>
+      <main className="flex-1 overflow-hidden">
+        <Notifications />
       </main>
     </div>
   );
