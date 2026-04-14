@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { AssignedPrsTab } from './components/AssignedPrsTab';
 import { Dashboard } from './components/Dashboard';
 import { MentionsTab } from './components/MentionsTab';
+import { NotificationsTab } from './components/NotificationsTab';
 import { ReviewsTab } from './components/ReviewsTab';
 import { Header } from './components/Header';
 import { SignIn } from './components/SignIn';
 import { TabBar } from './components/TabBar';
-import { TabPlaceholder } from './components/TabPlaceholder';
 import { useAuth } from './hooks/useAuth';
 import type { TabId } from './navigation';
 
@@ -37,12 +37,7 @@ export default function App() {
         {tab === 'assigned' && <AssignedPrsTab viewer={auth.viewer} />}
         {tab === 'reviews' && <ReviewsTab viewer={auth.viewer} />}
         {tab === 'mentions' && <MentionsTab viewer={auth.viewer} />}
-        {tab === 'notifications' && (
-          <TabPlaceholder
-            title="Notifications"
-            description="Notifications feed lands in ticket #7."
-          />
-        )}
+        {tab === 'notifications' && <NotificationsTab />}
       </main>
     </div>
   );

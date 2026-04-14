@@ -181,6 +181,93 @@ export async function fetchPullSummary(
   };
 }
 
+export interface NotificationRepo {
+  id: number;
+  name: string;
+  full_name: string;
+  html_url: string;
+  owner: { login: string; avatar_url: string };
+}
+
+export type NotificationSubjectType =
+  | 'PullRequest'
+  | 'Issue'
+  | 'Discussion'
+  | 'Release'
+  | 'Commit'
+  | 'CheckSuite'
+  | string;
+
+export type NotificationReason =
+  | 'assign'
+  | 'author'
+  | 'comment'
+  | 'ci_activity'
+  | 'invitation'
+  | 'manual'
+  | 'mention'
+  | 'review_requested'
+  | 'security_alert'
+  | 'state_change'
+  | 'subscribed'
+  | 'team_mention'
+  | string;
+
+export interface NotificationThread {
+  id: string;
+  unread: boolean;
+  reason: NotificationReason;
+  updated_at: string;
+  subject: {
+    title: string;
+    url: string | null;
+    latest_comment_url: string | null;
+    type: NotificationSubjectType;
+  };
+  repository: NotificationRepo;
+}
+
+export async function fetchNotifications(token: string): Promise<NotificationThread[]> {
+  const res = await githubFetch('/notifications?all=false&per_page=50', token);
+  return (await res.json()) as NotificationThread[];
+}
+
+export async function markNotificationRead(token: string, threadId: string): Promise<void> {
+  try {
+    await fetch(`${GITHUB_API_BASE}/notifications/threads/${threadId}`, {
+      method: 'PATCH',
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
+  } catch (err) {
+    throw new GitHubApiError(
+      err instanceof Error ? err.message : 'Network error',
+      0,
+      'network',
+    );
+  }
+}
+
+/**
+ * Convert a notification subject API URL into the equivalent html_url.
+ * Example: https://api.github.com/repos/o/r/pulls/1 -> https://github.com/o/r/pull/1
+ */
+export function subjectUrlToHtmlUrl(
+  apiUrl: string | null,
+  repoHtmlUrl: string,
+): string {
+  if (!apiUrl) return repoHtmlUrl;
+  const match = apiUrl.match(/\/repos\/[^/]+\/[^/]+\/(pulls|issues|releases|commits)\/([^/?]+)/);
+  if (!match) return repoHtmlUrl;
+  const [, kind, id] = match;
+  const segment =
+    kind === 'pulls' ? 'pull' : kind === 'releases' ? 'releases/tag' : kind;
+  return `${repoHtmlUrl}/${segment}/${id}`;
+}
+
 export type PrReviewStatus = 'pending' | 'approved' | 'changes_requested' | 'commented';
 
 interface ReviewPayload {
