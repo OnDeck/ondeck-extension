@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { addAccount, getActiveAccount, removeAccount } from '../../lib/accounts';
 import {
   getStoredAuth,
   signInWithOAuth as oauthSignIn,
@@ -28,6 +29,14 @@ export function useAuth(): UseAuth {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // Prefer multi-account store; fall back to legacy single-account.
+      const active = await getActiveAccount();
+      if (cancelled) return;
+      if (active) {
+        setViewer(active.account.viewer);
+        setStatus('signed-in');
+        return;
+      }
       const { token, viewer } = await getStoredAuth();
       if (cancelled) return;
       if (token && viewer) {
@@ -47,6 +56,7 @@ export function useAuth(): UseAuth {
     setError(null);
     try {
       const v = await signInWithToken(token);
+      await addAccount(token, v);
       setViewer(v);
       setStatus('signed-in');
     } catch (err) {
@@ -61,7 +71,10 @@ export function useAuth(): UseAuth {
     setError(null);
     try {
       const v = await oauthSignIn();
-      setViewer(v);
+      // OAuth path also persists via the accounts layer where possible.
+      const active = await getActiveAccount();
+      if (active) setViewer(active.account.viewer);
+      else setViewer(v);
       setStatus('signed-in');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'OAuth failed');
@@ -73,6 +86,12 @@ export function useAuth(): UseAuth {
   const signOut = useCallback(async () => {
     setBusy(true);
     try {
+      // Remove the currently active account from the multi-account store
+      // (if any), then clear legacy single-account storage as well.
+      const active = await getActiveAccount();
+      if (active) {
+        await removeAccount(active.account.id);
+      }
       await doSignOut();
       setViewer(null);
       setStatus('signed-out');

@@ -1,14 +1,17 @@
 import type { Viewer } from '../../lib/github-api';
+import { AccountSwitcher } from './AccountSwitcher';
 
 interface Props {
   viewer: Viewer;
   onSignOut: () => void;
   busy: boolean;
+  onSwitchAccount?: (id: string) => void;
+  onAddAccount?: () => void;
 }
 
-export function Header({ viewer, onSignOut, busy }: Props) {
+export function Header({ viewer, onSignOut, busy, onSwitchAccount, onAddAccount }: Props) {
   return (
-    <header className="flex items-center gap-3 border-b border-gh-border-default px-4 py-3">
+    <header className="flex items-center gap-2 border-b border-gh-border-default px-4 py-3">
       <img
         src={viewer.avatar_url}
         alt={viewer.login}
@@ -18,6 +21,7 @@ export function Header({ viewer, onSignOut, busy }: Props) {
         <div className="truncate text-sm font-semibold">{viewer.name ?? viewer.login}</div>
         <div className="truncate text-xs text-gh-fg-muted">@{viewer.login}</div>
       </div>
+      <AccountSwitcher onSwitch={onSwitchAccount} onAddAccount={onAddAccount} />
       <button
         type="button"
         onClick={onSignOut}
