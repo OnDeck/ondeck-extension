@@ -15,6 +15,36 @@ export interface DashboardCounts {
   notifications: number;
 }
 
+export interface IssueSearchUser {
+  login: string;
+  avatar_url: string;
+  html_url: string;
+}
+
+export interface IssueSearchItem {
+  id: number;
+  number: number;
+  title: string;
+  html_url: string;
+  repository_url: string;
+  state: 'open' | 'closed';
+  draft?: boolean;
+  updated_at: string;
+  created_at: string;
+  user: IssueSearchUser | null;
+  body: string | null;
+  labels: Array<{ name: string; color: string }>;
+  pull_request?: { url: string; html_url: string; draft?: boolean } | null;
+  // Present on PRs returned by /search/issues via "requested_reviews"
+  // is not standard, so we keep it optional.
+}
+
+export interface IssueSearchResponse {
+  total_count: number;
+  incomplete_results: boolean;
+  items: IssueSearchItem[];
+}
+
 export class GitHubApiError extends Error {
   constructor(
     message: string,
@@ -91,6 +121,19 @@ async function notificationsCount(token: string): Promise<number> {
   const res = await githubFetch('/notifications?all=false&per_page=50', token);
   const data = (await res.json()) as unknown[];
   return Array.isArray(data) ? data.length : 0;
+}
+
+export async function searchIssues(
+  query: string,
+  token: string,
+  perPage = 30,
+): Promise<IssueSearchItem[]> {
+  const res = await githubFetch(
+    `/search/issues?per_page=${perPage}&q=${encodeURIComponent(query)}`,
+    token,
+  );
+  const data = (await res.json()) as IssueSearchResponse;
+  return data.items ?? [];
 }
 
 export async function fetchDashboardCounts(

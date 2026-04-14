@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Header } from './components/Header';
 import { SignIn } from './components/SignIn';
 import { TabBar } from './components/TabBar';
+import { AssignedPrsTab } from './pages/AssignedPrsTab';
 import { HomeTab } from './pages/HomeTab';
 import { PlaceholderTab } from './pages/PlaceholderTab';
 import type { TabId } from './tabs';
@@ -29,12 +30,7 @@ export default function App() {
       <TabBar active={tab} onChange={setTab} />
       <main className="flex-1 overflow-y-auto">
         {tab === 'home' && <HomeTab viewer={auth.viewer} onNavigate={setTab} />}
-        {tab === 'assigned' && (
-          <PlaceholderTab
-            title="Assigned PRs"
-            description="Ships in ticket #4."
-          />
-        )}
+        {tab === 'assigned' && <AssignedPrsTab viewer={auth.viewer} />}
         {tab === 'mentions' && (
           <PlaceholderTab title="Mentions" description="Ships in ticket #5." />
         )}
