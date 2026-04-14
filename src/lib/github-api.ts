@@ -201,6 +201,41 @@ export async function fetchDashboardCounts(
   };
 }
 
+interface PrDetailResponse {
+  changed_files: number;
+  additions: number;
+  deletions: number;
+}
+
+export interface PrMetrics {
+  changedFiles: number;
+  additions: number;
+  deletions: number;
+}
+
+/**
+ * Fetch per-PR metrics (files changed, additions, deletions) used by
+ * the Reviews tab to show reviewer effort at a glance.
+ */
+export async function fetchPrMetrics(
+  token: string,
+  org: string,
+  repo: string,
+  prNumber: number,
+): Promise<PrMetrics | null> {
+  try {
+    const res = await githubFetch(`/repos/${org}/${repo}/pulls/${prNumber}`, token);
+    const data = (await res.json()) as PrDetailResponse;
+    return {
+      changedFiles: data.changed_files ?? 0,
+      additions: data.additions ?? 0,
+      deletions: data.deletions ?? 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export type PrReviewState = 'approved' | 'changes_requested' | 'commented' | 'pending' | null;
 
 interface PrReviewResponse {
