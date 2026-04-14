@@ -63,3 +63,29 @@ export async function fetchViewer(token: string): Promise<Viewer> {
     html_url: data.html_url,
   };
 }
+
+interface SearchCountResponse {
+  total_count: number;
+}
+
+/**
+ * Run a GitHub search query and return just the total count. Uses
+ * `per_page=1` so the response stays small.
+ */
+export async function githubSearchCount(query: string, token: string): Promise<number> {
+  const path = `/search/issues?q=${encodeURIComponent(query)}&per_page=1`;
+  const res = await githubFetch(path, token);
+  const data = (await res.json()) as SearchCountResponse;
+  return data.total_count ?? 0;
+}
+
+/**
+ * Return the number of unread notifications for the authenticated user.
+ * GitHub does not expose a dedicated count endpoint, so we page through the
+ * unread list (capped at 50) which is sufficient for a badge-style count.
+ */
+export async function githubNotificationsCount(token: string): Promise<number> {
+  const res = await githubFetch('/notifications?all=false&per_page=50', token);
+  const data = (await res.json()) as unknown[];
+  return Array.isArray(data) ? data.length : 0;
+}
