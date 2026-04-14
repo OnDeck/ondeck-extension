@@ -86,6 +86,42 @@ async function notificationCount(token: string): Promise<number> {
   return Array.isArray(data) ? data.length : 0;
 }
 
+export interface IssueSearchItem {
+  id: number;
+  number: number;
+  title: string;
+  html_url: string;
+  repository_url: string;
+  updated_at: string;
+  created_at: string;
+  draft?: boolean;
+  labels: Array<{ name: string }>;
+  pull_request?: { url: string; html_url?: string; draft?: boolean };
+  user: { login: string; avatar_url: string } | null;
+}
+
+export function repoSlugFromIssue(item: IssueSearchItem): string {
+  // repository_url looks like https://api.github.com/repos/{owner}/{repo}
+  const marker = '/repos/';
+  const idx = item.repository_url.indexOf(marker);
+  if (idx === -1) return '';
+  return item.repository_url.slice(idx + marker.length);
+}
+
+/** Generic issue search wrapper returning up to 50 items. */
+export async function searchIssues(
+  query: string,
+  token: string,
+): Promise<IssueSearchItem[]> {
+  const q = encodeURIComponent(query);
+  const res = await githubFetch(
+    `/search/issues?q=${q}&per_page=50&sort=updated&order=desc`,
+    token,
+  );
+  const data = (await res.json()) as { items?: IssueSearchItem[] };
+  return data.items ?? [];
+}
+
 /**
  * Fetch the four dashboard counters in parallel. Any individual failure
  * propagates as a GitHubApiError so the UI can show a unified error state.
