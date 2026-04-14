@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getStoredAuth } from '../../lib/auth';
 import {
   GitHubApiError,
@@ -8,6 +8,15 @@ import {
   type Viewer,
 } from '../../lib/github-api';
 import { openInNewTab, relativeTime } from '../lib/format';
+import {
+  applyFilter,
+  EMPTY_FILTER,
+  uniqueLabels,
+  uniqueRepos,
+  type FilterState,
+} from '../lib/filters';
+import { FilterBar } from './FilterBar';
+import { QuickActions } from './QuickActions';
 
 interface Props {
   viewer: Viewer;
@@ -36,6 +45,7 @@ export function AssignedPrsTab({ viewer }: Props) {
   const [items, setItems] = useState<SearchIssueItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,6 +69,13 @@ export function AssignedPrsTab({ viewer }: Props) {
     void load();
   }, [load]);
 
+  const repos = useMemo(() => (items ? uniqueRepos(items) : []), [items]);
+  const labels = useMemo(() => (items ? uniqueLabels(items) : []), [items]);
+  const visible = useMemo(
+    () => (items ? applyFilter(items, filter) : []),
+    [items, filter],
+  );
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
@@ -75,6 +92,10 @@ export function AssignedPrsTab({ viewer }: Props) {
         </button>
       </div>
 
+      {items && items.length > 0 && (
+        <FilterBar filter={filter} repos={repos} labels={labels} onChange={setFilter} />
+      )}
+
       {error && (
         <div className="rounded-md border border-gh-danger-emphasis/60 bg-gh-danger-emphasis/10 px-3 py-2 text-xs text-gh-danger-emphasis">
           {error}
@@ -87,32 +108,41 @@ export function AssignedPrsTab({ viewer }: Props) {
         </div>
       )}
 
-      {items && items.length > 0 && (
+      {items && items.length > 0 && visible.length === 0 && (
+        <div className="rounded-md border border-gh-border-default bg-gh-canvas-subtle px-3 py-2 text-xs text-gh-fg-muted">
+          No PRs match the current filter.
+        </div>
+      )}
+
+      {visible.length > 0 && (
         <ul className="flex flex-col gap-2">
-          {items.map((item) => {
+          {visible.map((item) => {
             const status = statusOf(item);
             return (
               <li key={item.id}>
-                <button
-                  type="button"
-                  onClick={() => openInNewTab(item.html_url)}
-                  className="flex w-full flex-col gap-1 rounded-md border border-gh-border-default bg-gh-canvas-subtle px-3 py-2 text-left hover:border-gh-accent-emphasis"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="line-clamp-2 text-sm font-medium text-gh-fg-default">
-                      {item.title}
+                <div className="flex flex-col gap-2 rounded-md border border-gh-border-default bg-gh-canvas-subtle px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => openInNewTab(item.html_url)}
+                    className="flex flex-col gap-1 text-left"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="line-clamp-2 text-sm font-medium text-gh-fg-default">
+                        {item.title}
+                      </div>
+                      <span
+                        className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusClass(status)}`}
+                      >
+                        {status}
+                      </span>
                     </div>
-                    <span
-                      className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusClass(status)}`}
-                    >
-                      {status}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] text-gh-fg-muted">
-                    <span className="truncate">{repoFromIssue(item)}</span>
-                    <span>{relativeTime(item.updated_at)}</span>
-                  </div>
-                </button>
+                    <div className="flex items-center justify-between text-[11px] text-gh-fg-muted">
+                      <span className="truncate">{repoFromIssue(item)}</span>
+                      <span>{relativeTime(item.updated_at)}</span>
+                    </div>
+                  </button>
+                  <QuickActions item={item} onMarkedReviewed={() => void load()} />
+                </div>
               </li>
             );
           })}

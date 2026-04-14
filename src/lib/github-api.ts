@@ -149,6 +149,74 @@ export async function markNotificationRead(id: string, token: string): Promise<v
   });
 }
 
+async function githubMutate(
+  path: string,
+  method: 'POST' | 'PATCH' | 'PUT',
+  token: string,
+  body: unknown,
+  acceptHeader = 'application/vnd.github+json',
+): Promise<Response> {
+  const res = await fetch(`${GITHUB_API_BASE}${path}`, {
+    method,
+    headers: {
+      Accept: acceptHeader,
+      Authorization: `Bearer ${token}`,
+      'X-GitHub-Api-Version': '2022-11-28',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new GitHubApiError(
+      `GitHub API error (${res.status})`,
+      res.status,
+      res.status === 401
+        ? 'unauthorized'
+        : res.status === 403
+          ? 'forbidden'
+          : 'other',
+    );
+  }
+  return res;
+}
+
+export async function markPullRequestReviewed(
+  repoFullName: string,
+  number: number,
+  token: string,
+): Promise<void> {
+  await githubMutate(`/repos/${repoFullName}/pulls/${number}/reviews`, 'POST', token, {
+    event: 'COMMENT',
+    body: 'Reviewed via GitHub Workflow Assistant.',
+  });
+}
+
+export async function addIssueReaction(
+  repoFullName: string,
+  number: number,
+  content: '+1' | '-1' | 'laugh' | 'confused' | 'heart' | 'hooray' | 'rocket' | 'eyes',
+  token: string,
+): Promise<void> {
+  await githubMutate(
+    `/repos/${repoFullName}/issues/${number}/reactions`,
+    'POST',
+    token,
+    { content },
+    'application/vnd.github.squirrel-girl-preview+json',
+  );
+}
+
+export async function postIssueComment(
+  repoFullName: string,
+  number: number,
+  body: string,
+  token: string,
+): Promise<void> {
+  await githubMutate(`/repos/${repoFullName}/issues/${number}/comments`, 'POST', token, {
+    body,
+  });
+}
+
 export function notificationHtmlUrl(item: NotificationItem): string {
   const apiUrl = item.subject.url ?? '';
   if (!apiUrl) return item.repository.html_url;
