@@ -8,6 +8,7 @@ import { ReviewsTab } from './components/ReviewsTab';
 import { SignIn } from './components/SignIn';
 import { TabBar, type TabId } from './components/TabBar';
 import { useAuth } from './hooks/useAuth';
+import { useTheme } from './hooks/useTheme';
 
 const PrGlyph = (
   <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -42,6 +43,7 @@ const AtGlyph = (
 
 export default function App() {
   const auth = useAuth();
+  const theme = useTheme();
   const [tab, setTab] = useState<TabId>('home');
 
   if (auth.status === 'loading') {
@@ -58,7 +60,13 @@ export default function App() {
 
   return (
     <div className="flex h-full w-full flex-col">
-      <Header viewer={auth.viewer} onSignOut={() => void auth.signOut()} busy={auth.busy} />
+      <Header
+        viewer={auth.viewer}
+        onSignOut={() => void auth.signOut()}
+        busy={auth.busy}
+        themeMode={theme.mode}
+        onThemeChange={theme.setMode}
+      />
       <main className="flex-1 overflow-y-auto">
         {tab === 'home' && <Dashboard viewer={auth.viewer} onNavigate={setTab} />}
         {tab === 'assigned' && <AssignedPrsTab viewer={auth.viewer} />}
