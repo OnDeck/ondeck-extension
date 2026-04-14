@@ -1,8 +1,21 @@
-import type { SearchIssueItem } from '../../lib/github-api';
+import { useMemo, useState } from 'react';
+import {
+  parseRepoFromUrl,
+  submitPullReview,
+  type SearchIssueItem,
+} from '../../lib/github-api';
+import { FilterBar } from '../components/FilterBar';
 import { IssueRow } from '../components/IssueRow';
 import { ViewHeader } from '../components/ViewHeader';
 import { useIssueList } from '../hooks/useIssueList';
 import { usePrDetails } from '../hooks/usePrDetails';
+import {
+  DEFAULT_FILTERS,
+  applyFilters,
+  collectLabels,
+  collectRepos,
+  type ListFilters,
+} from '../filters';
 
 interface Props {
   token: string | null;
@@ -31,15 +44,48 @@ export function ReviewsView({ token }: Props) {
   const query = 'is:pr is:open review-requested:@me archived:false';
   const { status, items, error, refresh } = useIssueList(token, query);
   const details = usePrDetails(token, items);
+  const [filters, setFilters] = useState<ListFilters>(DEFAULT_FILTERS);
+  const [busyIds, setBusyIds] = useState<Set<number>>(() => new Set());
+
+  const filtered = useMemo(() => applyFilters(items, filters), [items, filters]);
+  const repos = useMemo(() => collectRepos(items), [items]);
+  const labels = useMemo(() => collectLabels(items), [items]);
+
+  async function markReviewed(item: SearchIssueItem): Promise<void> {
+    if (!token) return;
+    const repo = parseRepoFromUrl(item.repository_url);
+    const [owner, name] = repo.split('/');
+    if (!owner || !name) return;
+    setBusyIds((prev) => new Set(prev).add(item.id));
+    try {
+      await submitPullReview(
+        token,
+        owner,
+        name,
+        item.number,
+        'COMMENT',
+        'Reviewed via GitHub Workflow Assistant ✅',
+      );
+      await refresh();
+    } finally {
+      setBusyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  }
 
   return (
     <section className="flex h-full flex-col">
       <ViewHeader
         title="Review Requests"
-        count={status === 'ready' ? items.length : undefined}
+        count={status === 'ready' ? filtered.length : undefined}
         busy={status === 'loading'}
         onRefresh={() => void refresh()}
       />
+
+      <FilterBar filters={filters} repos={repos} labels={labels} onChange={setFilters} />
 
       {status === 'error' && (
         <div className="mx-4 my-3 rounded-md border border-gh-danger-emphasis/60 bg-gh-danger-emphasis/10 p-2 text-[11px] text-gh-danger-emphasis">
@@ -51,25 +97,28 @@ export function ReviewsView({ token }: Props) {
         <div className="flex-1 p-4 text-[11px] text-gh-fg-muted">Loading…</div>
       )}
 
-      {status === 'ready' && items.length === 0 && (
+      {status === 'ready' && filtered.length === 0 && (
         <div className="flex-1 p-6 text-center text-[11px] text-gh-fg-muted">
-          No pending review requests.
+          {items.length === 0
+            ? 'No pending review requests.'
+            : 'No reviews match the current filters.'}
         </div>
       )}
 
-      {items.length > 0 && (
+      {filtered.length > 0 && (
         <ul className="flex-1 overflow-y-auto">
-          {items.map((item) => {
+          {filtered.map((item) => {
             const pr = details.get(item.id) ?? null;
             const priority = hasPriorityLabel(item);
             const requester = pr?.user ?? item.user;
+            const busy = busyIds.has(item.id);
             return (
-              <li key={item.id}>
+              <li key={item.id} className="relative">
                 <IssueRow
                   item={item}
                   status={item.draft ? 'draft' : 'open'}
                   secondary={
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       {requester && (
                         <span className="flex items-center gap-1">
                           <img
@@ -90,6 +139,18 @@ export function ReviewsView({ token }: Props) {
                           ⚠ {priority}
                         </span>
                       )}
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          void markReviewed(item);
+                        }}
+                        className="ml-auto rounded-md border border-gh-border-default px-2 py-[2px] text-[10px] text-gh-fg-muted hover:border-gh-success-emphasis hover:text-gh-success-emphasis disabled:opacity-60"
+                      >
+                        {busy ? 'Working…' : 'Mark reviewed'}
+                      </button>
                     </div>
                   }
                 />

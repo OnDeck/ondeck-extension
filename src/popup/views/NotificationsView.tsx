@@ -6,6 +6,7 @@ import {
   type NotificationSubjectType,
 } from '../../lib/github-api';
 import { formatRelativeTime } from '../../lib/relative-time';
+import { QuickActions } from '../components/QuickActions';
 import { ViewHeader } from '../components/ViewHeader';
 import { useNotifications } from '../hooks/useNotifications';
 
@@ -157,14 +158,17 @@ export function NotificationsView({ token }: Props) {
                         <span>{formatRelativeTime(n.updated_at)}</span>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => void markRead(n.id)}
-                      className="rounded-md border border-gh-border-default px-2 py-[2px] text-[10px] text-gh-fg-muted hover:border-gh-accent-emphasis hover:text-gh-fg-default"
-                      title="Mark as read"
-                    >
-                      ✓
-                    </button>
+                    <div className="flex flex-col items-end gap-1">
+                      <button
+                        type="button"
+                        onClick={() => void markRead(n.id)}
+                        className="rounded-md border border-gh-border-default px-2 py-[2px] text-[10px] text-gh-fg-muted hover:border-gh-accent-emphasis hover:text-gh-fg-default"
+                        title="Mark as read"
+                      >
+                        ✓
+                      </button>
+                      <QuickActions token={token} notification={n} />
+                    </div>
                   </li>
                 ))}
               </ul>

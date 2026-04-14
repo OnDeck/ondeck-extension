@@ -255,6 +255,97 @@ export async function fetchPullDetails(
   return (await res.json()) as PullDetails;
 }
 
+// ---------- Reactions & comments ----------
+
+export type ReactionContent =
+  | '+1'
+  | '-1'
+  | 'laugh'
+  | 'confused'
+  | 'heart'
+  | 'hooray'
+  | 'rocket'
+  | 'eyes';
+
+export async function addIssueReaction(
+  token: string,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  content: ReactionContent,
+): Promise<void> {
+  await githubFetch(
+    `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`,
+    token,
+    {
+      method: 'POST',
+      headers: {
+        Accept: 'application/vnd.github.squirrel-girl-preview+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ content }),
+    },
+  );
+}
+
+export async function addCommentReaction(
+  token: string,
+  owner: string,
+  repo: string,
+  commentId: number,
+  content: ReactionContent,
+): Promise<void> {
+  await githubFetch(
+    `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`,
+    token,
+    {
+      method: 'POST',
+      headers: {
+        Accept: 'application/vnd.github.squirrel-girl-preview+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ content }),
+    },
+  );
+}
+
+export async function createIssueComment(
+  token: string,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  body: string,
+): Promise<void> {
+  await githubFetch(
+    `/repos/${owner}/${repo}/issues/${issueNumber}/comments`,
+    token,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body }),
+    },
+  );
+}
+
+export async function submitPullReview(
+  token: string,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  event: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT',
+  body: string | undefined,
+): Promise<void> {
+  await githubFetch(
+    `/repos/${owner}/${repo}/pulls/${prNumber}/reviews`,
+    token,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event, body: body ?? '' }),
+    },
+  );
+}
+
 // ---------- PR reviews ----------
 
 export type PullReviewState =
