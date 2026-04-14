@@ -1,12 +1,15 @@
 import type { Viewer } from '../../lib/github-api';
+import type { UseTheme } from '../hooks/useTheme';
+import { ThemeToggle } from './ThemeToggle';
 
 interface Props {
   viewer: Viewer;
   onSignOut: () => void;
   busy: boolean;
+  theme: UseTheme;
 }
 
-export function Header({ viewer, onSignOut, busy }: Props) {
+export function Header({ viewer, onSignOut, busy, theme }: Props) {
   return (
     <header className="flex items-center gap-3 border-b border-gh-border-default px-4 py-3">
       <img
@@ -18,6 +21,7 @@ export function Header({ viewer, onSignOut, busy }: Props) {
         <div className="truncate text-sm font-semibold">{viewer.name ?? viewer.login}</div>
         <div className="truncate text-xs text-gh-fg-muted">@{viewer.login}</div>
       </div>
+      <ThemeToggle theme={theme} />
       <button
         type="button"
         onClick={onSignOut}
