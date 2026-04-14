@@ -12,49 +12,62 @@ export type AuthStatus = 'loading' | 'signed-out' | 'signed-in';
 export interface UseAuth {
   status: AuthStatus;
   viewer: Viewer | null;
+  accountId: string | null;
   error: string | null;
   busy: boolean;
   signInWithPat: (token: string) => Promise<void>;
   signInWithOAuth: () => Promise<void>;
   signOut: () => Promise<void>;
+  refresh: () => Promise<void>;
 }
 
 export function useAuth(): UseAuth {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [viewer, setViewer] = useState<Viewer | null>(null);
+  const [accountId, setAccountId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const refresh = useCallback(async () => {
+    const { token, viewer, accountId } = await getStoredAuth();
+    if (token && viewer) {
+      setViewer(viewer);
+      setAccountId(accountId);
+      setStatus('signed-in');
+    } else {
+      setViewer(null);
+      setAccountId(null);
+      setStatus('signed-out');
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { token, viewer } = await getStoredAuth();
       if (cancelled) return;
-      if (token && viewer) {
-        setViewer(viewer);
-        setStatus('signed-in');
-      } else {
-        setStatus('signed-out');
-      }
+      await refresh();
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refresh]);
 
-  const signInWithPat = useCallback(async (token: string) => {
-    setBusy(true);
-    setError(null);
-    try {
-      const v = await signInWithToken(token);
-      setViewer(v);
-      setStatus('signed-in');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign-in failed');
-    } finally {
-      setBusy(false);
-    }
-  }, []);
+  const signInWithPat = useCallback(
+    async (token: string) => {
+      setBusy(true);
+      setError(null);
+      try {
+        const v = await signInWithToken(token);
+        setViewer(v);
+        await refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Sign-in failed');
+      } finally {
+        setBusy(false);
+      }
+    },
+    [refresh],
+  );
 
   const signInWithOAuth = useCallback(async () => {
     setBusy(true);
@@ -62,19 +75,20 @@ export function useAuth(): UseAuth {
     try {
       const v = await oauthSignIn();
       setViewer(v);
-      setStatus('signed-in');
+      await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'OAuth failed');
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [refresh]);
 
   const signOut = useCallback(async () => {
     setBusy(true);
     try {
       await doSignOut();
       setViewer(null);
+      setAccountId(null);
       setStatus('signed-out');
       setError(null);
     } finally {
@@ -82,5 +96,15 @@ export function useAuth(): UseAuth {
     }
   }, []);
 
-  return { status, viewer, error, busy, signInWithPat, signInWithOAuth, signOut };
+  return {
+    status,
+    viewer,
+    accountId,
+    error,
+    busy,
+    signInWithPat,
+    signInWithOAuth,
+    signOut,
+    refresh,
+  };
 }

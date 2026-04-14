@@ -1,5 +1,14 @@
-import { clearCryptoKey, decryptString, encryptString, type Envelope } from './crypto';
-import { fetchViewer, GitHubApiError, type Viewer } from './github-api';
+import {
+  addAccountWithToken,
+  getActiveAccount,
+  listAccounts,
+  migrateV1IfNeeded,
+  removeAccount,
+  setActiveAccount,
+  type AccountSummary,
+} from './accounts';
+import { clearCryptoKey } from './crypto';
+import { GitHubApiError, type Viewer } from './github-api';
 
 export const TOKEN_STORAGE_KEY = 'gh_workflow_token_v1';
 export const VIEWER_STORAGE_KEY = 'gh_workflow_viewer_v1';
@@ -11,59 +20,49 @@ const OAUTH_CLIENT_ID = (import.meta.env?.VITE_GITHUB_OAUTH_CLIENT_ID ?? '') as 
 export interface AuthState {
   token: string | null;
   viewer: Viewer | null;
-}
-
-interface StoredToken {
-  envelope: Envelope;
-}
-
-export async function getStoredAuth(): Promise<AuthState> {
-  const [syncBag, localBag] = await Promise.all([
-    chrome.storage.sync.get(TOKEN_STORAGE_KEY),
-    chrome.storage.local.get(VIEWER_STORAGE_KEY),
-  ]);
-  const stored = syncBag[TOKEN_STORAGE_KEY] as StoredToken | undefined;
-  const viewer = (localBag[VIEWER_STORAGE_KEY] as Viewer | undefined) ?? null;
-  if (!stored?.envelope) return { token: null, viewer: null };
-  try {
-    const token = await decryptString(stored.envelope);
-    return { token, viewer };
-  } catch {
-    // Key rotation or corruption — treat as logged out.
-    await clearStoredAuth();
-    return { token: null, viewer: null };
-  }
-}
-
-export async function saveToken(token: string, viewer: Viewer): Promise<void> {
-  const envelope = await encryptString(token);
-  const payload: StoredToken = { envelope };
-  await Promise.all([
-    chrome.storage.sync.set({ [TOKEN_STORAGE_KEY]: payload }),
-    chrome.storage.local.set({ [VIEWER_STORAGE_KEY]: viewer }),
-  ]);
-}
-
-export async function clearStoredAuth(): Promise<void> {
-  await Promise.all([
-    chrome.storage.sync.remove(TOKEN_STORAGE_KEY),
-    chrome.storage.local.remove(VIEWER_STORAGE_KEY),
-    clearCryptoKey(),
-  ]);
+  accountId: string | null;
 }
 
 /**
- * Verify a token with GitHub, persist it (encrypted) alongside the viewer
- * profile, and return the viewer. Throws GitHubApiError on failure.
+ * Return the currently-active account as an AuthState shape. This is
+ * the function the popup + service worker read on every load.
+ */
+export async function getStoredAuth(): Promise<AuthState> {
+  await migrateV1IfNeeded();
+  const active = await getActiveAccount();
+  if (!active) return { token: null, viewer: null, accountId: null };
+  return { token: active.token, viewer: active.viewer, accountId: active.id };
+}
+
+export async function getAllAccounts(): Promise<AccountSummary[]> {
+  return listAccounts();
+}
+
+export async function switchActiveAccount(id: string): Promise<void> {
+  await setActiveAccount(id);
+}
+
+export async function forgetAccount(id: string): Promise<void> {
+  await removeAccount(id);
+}
+
+/**
+ * Verify a token with GitHub, persist it (encrypted) into the
+ * multi-account store, and make it active.
  */
 export async function signInWithToken(token: string): Promise<Viewer> {
-  const trimmed = token.trim();
-  if (!trimmed) {
-    throw new GitHubApiError('Token is required', 0, 'other');
-  }
-  const viewer = await fetchViewer(trimmed);
-  await saveToken(trimmed, viewer);
+  const { viewer } = await addAccountWithToken(token);
   return viewer;
+}
+
+export async function clearStoredAuth(): Promise<void> {
+  // Remove every account we know about. clearCryptoKey is already
+  // called by removeAccount when the last account is gone.
+  const accounts = await listAccounts();
+  for (const account of accounts) {
+    await removeAccount(account.id);
+  }
+  await clearCryptoKey();
 }
 
 export async function signOut(): Promise<void> {
@@ -73,8 +72,6 @@ export async function signOut(): Promise<void> {
 // ---------- OAuth ----------
 
 function buildRedirectUri(): string {
-  // chrome.identity.getRedirectURL returns:
-  //   https://<extension-id>.chromiumapp.org/
   return chrome.identity.getRedirectURL('oauth2');
 }
 
@@ -91,13 +88,6 @@ export function isOAuthConfigured(): boolean {
  * Launch the GitHub OAuth web flow. Requires a deployed token-exchange
  * endpoint because GitHub's OAuth app flow mandates exchanging the code
  * server-side (the client secret cannot live in the extension).
- *
- * Consumers must configure:
- *   - VITE_GITHUB_OAUTH_CLIENT_ID at build time
- *   - VITE_GITHUB_OAUTH_EXCHANGE_URL at build time — a URL that accepts
- *     { code, state, redirect_uri } and returns { access_token }.
- *
- * If either is missing this throws and the user should fall back to PAT.
  */
 export async function signInWithOAuth(): Promise<Viewer> {
   const exchangeUrl = (import.meta.env?.VITE_GITHUB_OAUTH_EXCHANGE_URL ?? '') as string;

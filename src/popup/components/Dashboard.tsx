@@ -1,9 +1,11 @@
 import type { Viewer } from '../../lib/github-api';
 import { useDashboardCounts } from '../hooks/useDashboardCounts';
 import { CountRow } from './CountRow';
+import { WeeklyStats } from './WeeklyStats';
 
 interface Props {
   viewer: Viewer;
+  accountId: string | null;
   onNavigate?: (tab: 'assigned' | 'reviews' | 'mentions' | 'notifications') => void;
 }
 
@@ -39,7 +41,7 @@ const AtIcon = (
  * Unread Notifications. Each row click delegates to the parent so the
  * caller can switch tabs.
  */
-export function Dashboard({ viewer, onNavigate }: Props) {
+export function Dashboard({ viewer, accountId, onNavigate }: Props) {
   const { status, counts, error, refresh } = useDashboardCounts(viewer.login);
   const loading = status === 'loading' || status === 'idle';
 
@@ -116,6 +118,8 @@ export function Dashboard({ viewer, onNavigate }: Props) {
           Inbox zero. Nothing needs your attention right now.
         </div>
       )}
+
+      <WeeklyStats accountId={accountId} />
     </div>
   );
 }

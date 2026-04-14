@@ -4,24 +4,39 @@ import type { UseAuth } from '../hooks/useAuth';
 
 interface Props {
   auth: UseAuth;
+  headline?: string;
+  onDone?: () => void | Promise<void>;
 }
 
-export function SignIn({ auth }: Props) {
+export function SignIn({ auth, headline, onDone }: Props) {
   const [token, setToken] = useState('');
   const oauthAvailable = isOAuthConfigured();
+  const submit = async (fn: () => Promise<void>) => {
+    await fn();
+    if (!auth.error) await onDone?.();
+  };
 
   return (
     <div className="flex h-full flex-col px-4 py-4">
-      <h2 className="text-sm font-semibold">Sign in to GitHub</h2>
+      <h2 className="text-sm font-semibold">{headline ?? 'Sign in to GitHub'}</h2>
       <p className="mt-1 text-xs text-gh-fg-muted">
         Connect your GitHub account to see assigned PRs, mentions, and reviews.
       </p>
+      {onDone && (
+        <button
+          type="button"
+          onClick={() => void onDone()}
+          className="mt-2 self-start text-[11px] text-gh-fg-muted hover:text-gh-accent-emphasis"
+        >
+          ← Back
+        </button>
+      )}
 
       {oauthAvailable && (
         <button
           type="button"
           disabled={auth.busy}
-          onClick={() => void auth.signInWithOAuth()}
+          onClick={() => void submit(() => auth.signInWithOAuth())}
           className="mt-4 rounded-md border border-gh-border-default bg-gh-accent-emphasis px-3 py-2 text-xs font-semibold text-white hover:brightness-110 disabled:opacity-60"
         >
           {auth.busy ? 'Connecting…' : 'Sign in with GitHub'}
@@ -59,7 +74,7 @@ export function SignIn({ auth }: Props) {
         <button
           type="button"
           disabled={auth.busy || !token.trim()}
-          onClick={() => void auth.signInWithPat(token)}
+          onClick={() => void submit(() => auth.signInWithPat(token))}
           className="mt-2 w-full rounded-md border border-gh-border-default bg-gh-canvas-subtle px-3 py-2 text-xs font-semibold text-gh-fg-default hover:border-gh-accent-emphasis disabled:opacity-60"
         >
           {auth.busy ? 'Verifying…' : 'Connect with token'}

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { recordReview } from '../../lib/analytics';
 import { getStoredAuth } from '../../lib/auth';
 import {
   addIssueReaction,
@@ -32,16 +33,16 @@ export function QuickActions({ org, repo, number, isPullRequest, onReviewed }: P
 
   const run = async (
     setState: (s: ActionStatus) => void,
-    fn: (token: string) => Promise<boolean>,
+    fn: (token: string, accountId: string | null) => Promise<boolean>,
   ) => {
     setState('busy');
     try {
-      const { token } = await getStoredAuth();
+      const { token, accountId } = await getStoredAuth();
       if (!token) {
         setState('error');
         return;
       }
-      const ok = await fn(token);
+      const ok = await fn(token, accountId);
       setState(ok ? 'done' : 'error');
     } catch {
       setState('error');
@@ -63,7 +64,11 @@ export function QuickActions({ org, repo, number, isPullRequest, onReviewed }: P
                 setReviewState(s);
                 if (s === 'done') onReviewed?.();
               },
-              (token) => submitPrReview(token, org, repo, number, 'COMMENT'),
+              async (token, accountId) => {
+                const ok = await submitPrReview(token, org, repo, number, 'COMMENT');
+                if (ok && accountId) await recordReview(accountId);
+                return ok;
+              },
             )
           }
           className="rounded-md border border-gh-border-default px-1.5 py-0.5 text-[10px] text-gh-fg-muted hover:border-gh-success-emphasis hover:text-gh-success-emphasis disabled:opacity-60"

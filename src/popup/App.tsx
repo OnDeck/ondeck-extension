@@ -7,6 +7,7 @@ import { NotificationsTab } from './components/NotificationsTab';
 import { ReviewsTab } from './components/ReviewsTab';
 import { SignIn } from './components/SignIn';
 import { TabBar, type TabId } from './components/TabBar';
+import { useAccounts } from './hooks/useAccounts';
 import { useAuth } from './hooks/useAuth';
 import { useTheme } from './hooks/useTheme';
 
@@ -44,7 +45,12 @@ const AtGlyph = (
 export default function App() {
   const auth = useAuth();
   const theme = useTheme();
+  const accounts = useAccounts(auth.accountId);
   const [tab, setTab] = useState<TabId>('home');
+  // `addingAccount` short-circuits the signed-in view to show the
+  // SignIn screen again, so the user can paste a token for a second
+  // identity without losing the active one.
+  const [addingAccount, setAddingAccount] = useState(false);
 
   if (auth.status === 'loading') {
     return (
@@ -54,8 +60,17 @@ export default function App() {
     );
   }
 
-  if (auth.status === 'signed-out' || !auth.viewer) {
-    return <SignIn auth={auth} />;
+  if (auth.status === 'signed-out' || !auth.viewer || addingAccount) {
+    return (
+      <SignIn
+        auth={auth}
+        onDone={async () => {
+          setAddingAccount(false);
+          await accounts.refresh();
+        }}
+        headline={addingAccount ? 'Add another account' : undefined}
+      />
+    );
   }
 
   return (
@@ -66,9 +81,22 @@ export default function App() {
         busy={auth.busy}
         themeMode={theme.mode}
         onThemeChange={theme.setMode}
+        accounts={accounts.accounts}
+        activeAccountId={accounts.activeId}
+        onSwitchAccount={async (id) => {
+          await accounts.switchTo(id);
+          await auth.refresh();
+        }}
+        onForgetAccount={async (id) => {
+          await accounts.forget(id);
+          await auth.refresh();
+        }}
+        onAddAccount={() => setAddingAccount(true)}
       />
       <main className="flex-1 overflow-y-auto">
-        {tab === 'home' && <Dashboard viewer={auth.viewer} onNavigate={setTab} />}
+        {tab === 'home' && (
+          <Dashboard viewer={auth.viewer} accountId={auth.accountId} onNavigate={setTab} />
+        )}
         {tab === 'assigned' && <AssignedPrsTab viewer={auth.viewer} />}
         {tab === 'reviews' && <ReviewsTab viewer={auth.viewer} />}
         {tab === 'mentions' && <MentionsTab viewer={auth.viewer} />}

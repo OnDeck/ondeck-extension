@@ -41,11 +41,19 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 // so react to it here and either resume polling or clear the badge.
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'sync') return;
-  if ('gh_workflow_token_v1' in changes) {
-    if (changes.gh_workflow_token_v1.newValue) {
+  if ('gh_workflow_accounts_v2' in changes || 'gh_workflow_active_account_v2' in changes) {
+    const accountsChange = changes.gh_workflow_accounts_v2;
+    const activeChange = changes.gh_workflow_active_account_v2;
+    const hasAccounts =
+      accountsChange && accountsChange.newValue
+        ? Object.keys(accountsChange.newValue).length > 0
+        : undefined;
+    const hasActive = activeChange ? Boolean(activeChange.newValue) : undefined;
+    const signedIn = hasAccounts ?? hasActive;
+    if (signedIn) {
       void schedule();
       void poll();
-    } else {
+    } else if (signedIn === false) {
       void clearBadge();
       void chrome.alarms.clear(ALARM_NAME);
     }
