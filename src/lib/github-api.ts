@@ -117,6 +117,33 @@ export async function searchIssues(
   return data.items ?? [];
 }
 
+export interface PullRequestDetail {
+  number: number;
+  changed_files: number;
+  additions: number;
+  deletions: number;
+}
+
+/**
+ * Fetch the PR detail for an owner/repo/number combo. Used by the Reviews
+ * tab to enrich rows with a files-changed count after the initial render.
+ */
+export async function fetchPullRequestDetail(
+  owner: string,
+  repo: string,
+  number: number,
+  token: string,
+): Promise<PullRequestDetail> {
+  const res = await githubFetch(`/repos/${owner}/${repo}/pulls/${number}`, token);
+  const data = (await res.json()) as PullRequestDetail;
+  return {
+    number: data.number,
+    changed_files: data.changed_files,
+    additions: data.additions,
+    deletions: data.deletions,
+  };
+}
+
 /**
  * Return the number of unread notifications for the authenticated user.
  * GitHub does not expose a dedicated count endpoint, so we page through the
