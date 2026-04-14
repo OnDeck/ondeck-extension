@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AssignedPrsTab } from './components/AssignedPrsTab';
 import { Dashboard } from './components/Dashboard';
 import { MentionsTab } from './components/MentionsTab';
+import { ReviewsTab } from './components/ReviewsTab';
 import { Header } from './components/Header';
 import { SignIn } from './components/SignIn';
 import { TabBar } from './components/TabBar';
@@ -34,12 +35,7 @@ export default function App() {
           <Dashboard viewer={auth.viewer} onNavigate={setTab} />
         )}
         {tab === 'assigned' && <AssignedPrsTab viewer={auth.viewer} />}
-        {tab === 'reviews' && (
-          <TabPlaceholder
-            title="Reviews"
-            description="Review-requests feed lands in ticket #6."
-          />
-        )}
+        {tab === 'reviews' && <ReviewsTab viewer={auth.viewer} />}
         {tab === 'mentions' && <MentionsTab viewer={auth.viewer} />}
         {tab === 'notifications' && (
           <TabPlaceholder

@@ -161,6 +161,26 @@ export function repoSlugFromUrl(repositoryUrl: string): string {
   return parts;
 }
 
+export interface PullSummary {
+  changed_files: number;
+  additions: number;
+  deletions: number;
+}
+
+export async function fetchPullSummary(
+  token: string,
+  repoSlug: string,
+  number: number,
+): Promise<PullSummary> {
+  const res = await githubFetch(`/repos/${repoSlug}/pulls/${number}`, token);
+  const data = (await res.json()) as PullSummary;
+  return {
+    changed_files: data.changed_files,
+    additions: data.additions,
+    deletions: data.deletions,
+  };
+}
+
 export type PrReviewStatus = 'pending' | 'approved' | 'changes_requested' | 'commented';
 
 interface ReviewPayload {
