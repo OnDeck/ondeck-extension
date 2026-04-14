@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { getActiveAccountId } from '../../lib/accounts';
+import { incrementReviewed } from '../../lib/analytics';
 import { getStoredAuth } from '../../lib/auth';
 import {
   addIssueReaction,
@@ -53,9 +55,11 @@ export function QuickActions({ owner, repo, number, isPr }: Props) {
           disabled={busy}
           onClick={(e) => {
             e.stopPropagation();
-            void run('Reviewed', () =>
-              withToken((t) => markPullRequestReviewed(owner, repo, number, t)),
-            );
+            void run('Reviewed', async () => {
+              await withToken((t) => markPullRequestReviewed(owner, repo, number, t));
+              const accountId = await getActiveAccountId();
+              if (accountId) await incrementReviewed(accountId);
+            });
           }}
           className="rounded-md border border-gh-border-default px-1.5 py-0.5 text-gh-fg-muted hover:border-gh-accent-emphasis hover:text-gh-accent-emphasis disabled:opacity-60"
         >

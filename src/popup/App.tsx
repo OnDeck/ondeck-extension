@@ -32,14 +32,23 @@ export default function App() {
     <div className="flex h-full w-full flex-col">
       <Header
         viewer={auth.viewer}
+        activeAccountId={auth.activeAccountId}
         onSignOut={() => void auth.signOut()}
         busy={auth.busy}
         theme={theme}
         onThemeChange={setTheme}
+        onSwitchAccount={auth.setViewer}
+        onAddAccount={auth.requestAddAccount}
       />
       <TabBar active={tab} onSelect={setTab} />
       <main className="flex-1 overflow-y-auto px-4 py-3">
-        {tab === 'home' && <HomeTab viewer={auth.viewer} onNavigate={setTab} />}
+        {tab === 'home' && (
+          <HomeTab
+            viewer={auth.viewer}
+            accountId={auth.activeAccountId}
+            onNavigate={setTab}
+          />
+        )}
         {tab === 'assigned' && <AssignedPrsTab viewer={auth.viewer} />}
         {tab === 'mentions' && <MentionsTab viewer={auth.viewer} />}
         {tab === 'reviews' && <ReviewsTab viewer={auth.viewer} />}

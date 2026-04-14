@@ -44,6 +44,10 @@ export async function saveToken(token: string, viewer: Viewer): Promise<void> {
   ]);
 }
 
+// Re-export so accounts.ts can import without needing the crypto module
+// directly. Keeps the public surface area stable.
+export type { Envelope } from './crypto';
+
 export async function clearStoredAuth(): Promise<void> {
   await Promise.all([
     chrome.storage.sync.remove(TOKEN_STORAGE_KEY),

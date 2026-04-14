@@ -3,9 +3,11 @@ import { fetchDashboardCounts, type DashboardCounts } from '../../lib/counts';
 import { getStoredAuth } from '../../lib/auth';
 import type { Viewer } from '../../lib/github-api';
 import type { TabId } from '../tabs';
+import { WeeklyStats } from './WeeklyStats';
 
 interface Props {
   viewer: Viewer;
+  accountId: string | null;
   onNavigate: (tab: TabId) => void;
 }
 
@@ -18,7 +20,7 @@ interface Row {
   count: number;
 }
 
-export function HomeTab({ viewer, onNavigate }: Props) {
+export function HomeTab({ viewer, accountId, onNavigate }: Props) {
   const [status, setStatus] = useState<Status>('loading');
   const [counts, setCounts] = useState<DashboardCounts | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -108,6 +110,8 @@ export function HomeTab({ viewer, onNavigate }: Props) {
           {status === 'loading' ? '…' : 'Refresh'}
         </button>
       </div>
+
+      {accountId && <WeeklyStats accountId={accountId} />}
 
       <ul className="divide-y divide-gh-border-muted rounded-md border border-gh-border-default bg-gh-canvas-subtle">
         {rows.map((row) => (
