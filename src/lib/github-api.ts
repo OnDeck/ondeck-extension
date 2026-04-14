@@ -154,6 +154,27 @@ export async function fetchAggregatedCounts(token: string): Promise<AggregatedCo
   return { assignedPrs, reviewRequests, mentions, unreadNotifications };
 }
 
+// ---------- PR details ----------
+
+export interface PullDetails {
+  number: number;
+  changed_files: number;
+  additions: number;
+  deletions: number;
+  user: { login: string; avatar_url: string } | null;
+  requested_reviewers: Array<{ login: string; avatar_url: string }>;
+}
+
+export async function fetchPullDetails(
+  token: string,
+  owner: string,
+  repo: string,
+  prNumber: number,
+): Promise<PullDetails> {
+  const res = await githubFetch(`/repos/${owner}/${repo}/pulls/${prNumber}`, token);
+  return (await res.json()) as PullDetails;
+}
+
 // ---------- PR reviews ----------
 
 export type PullReviewState =

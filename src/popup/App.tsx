@@ -8,6 +8,7 @@ import { AssignedView } from './views/AssignedView';
 import { HomeView } from './views/HomeView';
 import { MentionsView } from './views/MentionsView';
 import { PlaceholderView } from './views/PlaceholderView';
+import { ReviewsView } from './views/ReviewsView';
 
 export default function App() {
   const auth = useAuth();
@@ -32,12 +33,7 @@ export default function App() {
       <main className="flex-1 overflow-hidden">
         {tab === 'home' && <HomeView token={auth.token} onNavigate={setTab} />}
         {tab === 'assigned' && <AssignedView token={auth.token} />}
-        {tab === 'reviews' && (
-          <PlaceholderView
-            title="Review Requests"
-            message="Coming up in the next ticket."
-          />
-        )}
+        {tab === 'reviews' && <ReviewsView token={auth.token} />}
         {tab === 'mentions' && (
           <MentionsView token={auth.token} viewerLogin={auth.viewer.login} />
         )}
