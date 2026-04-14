@@ -1,9 +1,12 @@
 import { Header } from './components/Header';
 import { SignIn } from './components/SignIn';
+import { ThemeToggle } from './components/ThemeToggle';
 import { useAuth } from './hooks/useAuth';
+import { useTheme } from './hooks/useTheme';
 
 export default function App() {
   const auth = useAuth();
+  const theme = useTheme();
 
   if (auth.status === 'loading') {
     return (
@@ -18,7 +21,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-full w-full flex-col">
+    <div className="flex h-full w-full flex-col bg-gh-canvas-default text-gh-fg-default">
       <Header viewer={auth.viewer} onSignOut={() => void auth.signOut()} busy={auth.busy} />
       <main className="flex-1 overflow-y-auto px-4 py-3">
         <div className="rounded-md border border-gh-border-default bg-gh-canvas-subtle p-3 text-xs text-gh-fg-muted">
@@ -26,6 +29,13 @@ export default function App() {
           ship in subsequent tickets.
         </div>
       </main>
+      <footer className="flex items-center justify-between border-t border-gh-border-default px-4 py-2">
+        <span className="text-[11px] text-gh-fg-muted">Theme</span>
+        <ThemeToggle
+          preference={theme.preference}
+          onChange={(next) => void theme.setPreference(next)}
+        />
+      </footer>
     </div>
   );
 }

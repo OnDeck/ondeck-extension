@@ -2,11 +2,96 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/*
+ * GitHub Primer color tokens exposed as CSS variables so every component can
+ * reference them via Tailwind without hard-coded colors. Defaults to the dark
+ * palette; the .theme-light class (or prefers-color-scheme: light when the
+ * preference is "system") switches to the light palette.
+ */
+:root,
+.theme-dark {
   color-scheme: dark;
+
+  --gh-canvas-default: #0d1117;
+  --gh-canvas-subtle: #161b22;
+  --gh-canvas-overlay: #1c2128;
+
+  --gh-border-default: #30363d;
+  --gh-border-muted: #21262d;
+
+  --gh-fg-default: #e6edf3;
+  --gh-fg-muted: #7d8590;
+  --gh-fg-subtle: #6e7681;
+
+  --gh-accent-emphasis: #1f6feb;
+  --gh-accent-fg: #2f81f7;
+  --gh-success-emphasis: #2ea043;
+  --gh-success-fg: #3fb950;
+  --gh-danger-emphasis: #f85149;
+  --gh-danger-fg: #f85149;
+  --gh-attention-emphasis: #9e6a03;
+  --gh-attention-fg: #d29922;
+  --gh-done-emphasis: #8250df;
+  --gh-done-fg: #a371f7;
+}
+
+.theme-light {
+  color-scheme: light;
+
+  --gh-canvas-default: #ffffff;
+  --gh-canvas-subtle: #f6f8fa;
+  --gh-canvas-overlay: #ffffff;
+
+  --gh-border-default: #d0d7de;
+  --gh-border-muted: #d8dee4;
+
+  --gh-fg-default: #1f2328;
+  --gh-fg-muted: #656d76;
+  --gh-fg-subtle: #6e7781;
+
+  --gh-accent-emphasis: #0969da;
+  --gh-accent-fg: #0969da;
+  --gh-success-emphasis: #1a7f37;
+  --gh-success-fg: #1a7f37;
+  --gh-danger-emphasis: #cf222e;
+  --gh-danger-fg: #cf222e;
+  --gh-attention-emphasis: #9a6700;
+  --gh-attention-fg: #9a6700;
+  --gh-done-emphasis: #8250df;
+  --gh-done-fg: #8250df;
+}
+
+@media (prefers-color-scheme: light) {
+  :root.theme-system {
+    color-scheme: light;
+
+    --gh-canvas-default: #ffffff;
+    --gh-canvas-subtle: #f6f8fa;
+    --gh-canvas-overlay: #ffffff;
+
+    --gh-border-default: #d0d7de;
+    --gh-border-muted: #d8dee4;
+
+    --gh-fg-default: #1f2328;
+    --gh-fg-muted: #656d76;
+    --gh-fg-subtle: #6e7781;
+
+    --gh-accent-emphasis: #0969da;
+    --gh-accent-fg: #0969da;
+    --gh-success-emphasis: #1a7f37;
+    --gh-success-fg: #1a7f37;
+    --gh-danger-emphasis: #cf222e;
+    --gh-danger-fg: #cf222e;
+    --gh-attention-emphasis: #9a6700;
+    --gh-attention-fg: #9a6700;
+    --gh-done-emphasis: #8250df;
+    --gh-done-fg: #8250df;
+  }
 }
 
 html,
 body {
   height: 100%;
+  background-color: var(--gh-canvas-default);
+  color: var(--gh-fg-default);
 }
