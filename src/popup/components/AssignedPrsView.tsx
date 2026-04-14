@@ -11,6 +11,7 @@ export function AssignedPrsView({ active }: Props) {
       title="Assigned PRs"
       query="assignedPrs"
       emptyMessage="No open PRs are assigned to you. You're clear!"
+      dismissLabel="Mark as reviewed"
     />
   );
 }

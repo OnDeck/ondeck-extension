@@ -20,6 +20,7 @@ export function ReviewsView({ active }: Props) {
       emptyMessage="No PRs are waiting on your review. Nice."
       showPriority
       subtitleFor={subtitleFor}
+      dismissLabel="Mark as reviewed"
     />
   );
 }
