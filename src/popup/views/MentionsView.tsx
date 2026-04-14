@@ -39,6 +39,7 @@ export function MentionsView({ token, login, onBack }: Props) {
       error={error}
       onRefresh={refresh}
       emptyLabel="No open mentions."
+      enableFilters
       renderRow={(issue) => (
         <IssueRow issue={issue} snippet={snippetForMention(issue.body, login)} />
       )}

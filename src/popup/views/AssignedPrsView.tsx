@@ -20,6 +20,8 @@ export function AssignedPrsView({ token, login, onBack }: Props) {
       error={error}
       onRefresh={refresh}
       emptyLabel="No PRs are assigned to you."
+      enableFilters
+      dismissNamespace="assigned"
     />
   );
 }

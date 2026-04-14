@@ -24,6 +24,8 @@ export function ReviewsView({ token, login, onBack }: Props) {
       onRefresh={refresh}
       emptyLabel="No PRs are waiting on your review."
       showPriority
+      enableFilters
+      dismissNamespace="reviews"
     />
   );
 }
