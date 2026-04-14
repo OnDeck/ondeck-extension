@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useIssueSearch } from '../hooks/useIssueSearch';
 import { IssueListView } from '../components/IssueListView';
+import { incrementReviewCount } from '../../lib/stats';
 
 interface Props {
   token: string;
@@ -26,6 +27,7 @@ export function ReviewsView({ token, login, onBack }: Props) {
       showPriority
       enableFilters
       dismissNamespace="reviews"
+      onDismiss={() => void incrementReviewCount(login)}
     />
   );
 }

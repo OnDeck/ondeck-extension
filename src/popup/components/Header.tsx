@@ -1,10 +1,16 @@
 import type { Viewer } from '../../lib/github-api';
+import type { AccountSummary } from '../../lib/accounts';
 import { useTheme, type ThemeChoice } from '../hooks/useTheme';
+import { AccountSwitcher } from './AccountSwitcher';
 
 interface Props {
   viewer: Viewer;
   onSignOut: () => void;
   busy: boolean;
+  accounts: AccountSummary[];
+  onSwitchAccount: (login: string) => void;
+  onRemoveAccount: (login: string) => void;
+  onAddAccount: () => void;
 }
 
 const THEME_GLYPH: Record<ThemeChoice, string> = {
@@ -19,10 +25,19 @@ const THEME_TITLE: Record<ThemeChoice, string> = {
   dark: 'Theme: dark',
 };
 
-export function Header({ viewer, onSignOut, busy }: Props) {
+export function Header({
+  viewer,
+  onSignOut,
+  busy,
+  accounts,
+  onSwitchAccount,
+  onRemoveAccount,
+  onAddAccount,
+}: Props) {
   const { choice, cycle } = useTheme();
+  const hasMany = accounts.length >= 2;
   return (
-    <header className="flex items-center gap-3 border-b border-gh-border-default px-4 py-3">
+    <header className="flex items-center gap-2 border-b border-gh-border-default px-4 py-3">
       <img
         src={viewer.avatar_url}
         alt={viewer.login}
@@ -32,6 +47,24 @@ export function Header({ viewer, onSignOut, busy }: Props) {
         <div className="truncate text-sm font-semibold">{viewer.name ?? viewer.login}</div>
         <div className="truncate text-xs text-gh-fg-muted">@{viewer.login}</div>
       </div>
+      {hasMany ? (
+        <AccountSwitcher
+          accounts={accounts}
+          activeLogin={viewer.login}
+          onSwitch={onSwitchAccount}
+          onRemove={onRemoveAccount}
+          onAddAccount={onAddAccount}
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={onAddAccount}
+          title="Add account"
+          className="rounded-md border border-gh-border-default px-2 py-1 text-[11px] text-gh-fg-muted hover:border-gh-accent-emphasis hover:text-gh-fg-default"
+        >
+          +
+        </button>
+      )}
       <button
         type="button"
         onClick={cycle}

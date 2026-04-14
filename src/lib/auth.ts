@@ -1,5 +1,11 @@
 import { clearCryptoKey, decryptString, encryptString, type Envelope } from './crypto';
 import { fetchViewer, GitHubApiError, type Viewer } from './github-api';
+import {
+  addOrUpdateAccount,
+  getActiveAccount,
+  migrateLegacyAccount,
+  removeAccount as removeStoredAccount,
+} from './accounts';
 
 export const TOKEN_STORAGE_KEY = 'gh_workflow_token_v1';
 export const VIEWER_STORAGE_KEY = 'gh_workflow_viewer_v1';
@@ -18,24 +24,32 @@ interface StoredToken {
 }
 
 export async function getStoredAuth(): Promise<AuthState> {
+  await migrateLegacyAccount();
+  const active = await getActiveAccount();
+  if (active) {
+    // Mirror into the legacy keys so the background service worker (which
+    // still listens on those storage paths) keeps working.
+    await mirrorLegacy(active.token, active.viewer);
+    return active;
+  }
+  // Fallback: try the legacy single-slot directly.
   const [syncBag, localBag] = await Promise.all([
     chrome.storage.sync.get(TOKEN_STORAGE_KEY),
     chrome.storage.local.get(VIEWER_STORAGE_KEY),
   ]);
   const stored = syncBag[TOKEN_STORAGE_KEY] as StoredToken | undefined;
   const viewer = (localBag[VIEWER_STORAGE_KEY] as Viewer | undefined) ?? null;
-  if (!stored?.envelope) return { token: null, viewer: null };
+  if (!stored?.envelope || !viewer) return { token: null, viewer: null };
   try {
     const token = await decryptString(stored.envelope);
     return { token, viewer };
   } catch {
-    // Key rotation or corruption — treat as logged out.
     await clearStoredAuth();
     return { token: null, viewer: null };
   }
 }
 
-export async function saveToken(token: string, viewer: Viewer): Promise<void> {
+async function mirrorLegacy(token: string, viewer: Viewer): Promise<void> {
   const envelope = await encryptString(token);
   const payload: StoredToken = { envelope };
   await Promise.all([
@@ -44,7 +58,24 @@ export async function saveToken(token: string, viewer: Viewer): Promise<void> {
   ]);
 }
 
+export async function saveToken(token: string, viewer: Viewer): Promise<void> {
+  await addOrUpdateAccount(token, viewer);
+  await mirrorLegacy(token, viewer);
+}
+
 export async function clearStoredAuth(): Promise<void> {
+  // Remove only the active account; other accounts stay warm.
+  const active = await getActiveAccount();
+  if (active) {
+    const fallback = await removeStoredAccount(active.viewer.login);
+    if (fallback) {
+      const next = await getActiveAccount();
+      if (next) {
+        await mirrorLegacy(next.token, next.viewer);
+        return;
+      }
+    }
+  }
   await Promise.all([
     chrome.storage.sync.remove(TOKEN_STORAGE_KEY),
     chrome.storage.local.remove(VIEWER_STORAGE_KEY),

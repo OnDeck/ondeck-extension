@@ -21,6 +21,8 @@ interface Props {
   enableFilters?: boolean;
   /** When set, each row exposes a "Mark as reviewed" action backed by useDismissed. */
   dismissNamespace?: string;
+  /** Optional callback fired after a row is dismissed (used to increment stats). */
+  onDismiss?: (issue: IssueResult) => void;
   renderRow?: (issue: IssueResult) => ReactNode;
 }
 
@@ -35,6 +37,7 @@ export function IssueListView({
   showPriority,
   enableFilters,
   dismissNamespace,
+  onDismiss,
   renderRow,
 }: Props) {
   const [filters, setFilters] = useState<IssueFilters>(EMPTY_FILTERS);
@@ -111,6 +114,7 @@ export function IssueListView({
                       event.preventDefault();
                       event.stopPropagation();
                       dismissed.dismiss(issue.id);
+                      onDismiss?.(issue);
                     }}
                     className="absolute right-2 top-2 rounded-md border border-gh-border-default bg-gh-canvas-default px-1.5 py-0.5 text-[10px] text-gh-fg-muted hover:border-gh-accent-emphasis hover:text-gh-fg-default"
                     title="Mark as reviewed"

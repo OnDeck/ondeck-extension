@@ -9,13 +9,29 @@ interface Props {
 export function SignIn({ auth }: Props) {
   const [token, setToken] = useState('');
   const oauthAvailable = isOAuthConfigured();
+  const isAddingAccount = auth.status === 'add-account';
 
   return (
     <div className="flex h-full flex-col px-4 py-4">
-      <h2 className="text-sm font-semibold">Sign in to GitHub</h2>
-      <p className="mt-1 text-xs text-gh-fg-muted">
-        Connect your GitHub account to see assigned PRs, mentions, and reviews.
-      </p>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h2 className="text-sm font-semibold">
+            {isAddingAccount ? 'Add another account' : 'Sign in to GitHub'}
+          </h2>
+          <p className="mt-1 text-xs text-gh-fg-muted">
+            Connect your GitHub account to see assigned PRs, mentions, and reviews.
+          </p>
+        </div>
+        {isAddingAccount && (
+          <button
+            type="button"
+            onClick={auth.cancelAddAccount}
+            className="rounded-md border border-gh-border-default px-2 py-1 text-[11px] text-gh-fg-muted hover:border-gh-accent-emphasis hover:text-gh-fg-default"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
 
       {oauthAvailable && (
         <button

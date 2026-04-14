@@ -22,13 +22,21 @@ export default function App() {
     );
   }
 
-  if (auth.status === 'signed-out' || !auth.viewer || !auth.token) {
+  if (auth.status === 'signed-out' || auth.status === 'add-account' || !auth.viewer || !auth.token) {
     return <SignIn auth={auth} />;
   }
 
   return (
     <div className="flex h-full w-full flex-col">
-      <Header viewer={auth.viewer} onSignOut={() => void auth.signOut()} busy={auth.busy} />
+      <Header
+        viewer={auth.viewer}
+        onSignOut={() => void auth.signOut()}
+        busy={auth.busy}
+        accounts={auth.accounts}
+        onSwitchAccount={(login) => void auth.switchAccount(login)}
+        onRemoveAccount={(login) => void auth.removeAccount(login)}
+        onAddAccount={auth.beginAddAccount}
+      />
       <TabNav active={tab} onChange={setTab} />
       <main className="flex-1 overflow-hidden">
         {tab === 'home' && (

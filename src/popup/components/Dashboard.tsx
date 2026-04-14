@@ -5,6 +5,7 @@ import {
   type DashboardCounts,
   type Viewer,
 } from '../../lib/github-api';
+import { getReviewCount } from '../../lib/stats';
 import type { TabKey } from '../tabs';
 
 interface Props {
@@ -22,6 +23,7 @@ interface CountRow {
 
 export function Dashboard({ token, viewer, onNavigate }: Props) {
   const [counts, setCounts] = useState<DashboardCounts | null>(null);
+  const [reviewedThisWeek, setReviewedThisWeek] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,8 +31,12 @@ export function Dashboard({ token, viewer, onNavigate }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const next = await fetchDashboardCounts(token, viewer.login);
+      const [next, week] = await Promise.all([
+        fetchDashboardCounts(token, viewer.login),
+        getReviewCount(viewer.login),
+      ]);
       setCounts(next);
+      setReviewedThisWeek(week);
     } catch (err) {
       setError(
         err instanceof GitHubApiError
@@ -85,32 +91,37 @@ export function Dashboard({ token, viewer, onNavigate }: Props) {
         )}
 
         {counts && (
-          <ul className="divide-y divide-gh-border-muted overflow-hidden rounded-md border border-gh-border-default bg-gh-canvas-subtle">
-            {rows.map((row) => (
-              <li key={row.key}>
-                <button
-                  type="button"
-                  onClick={() => onNavigate(row.key)}
-                  className="flex w-full items-center justify-between px-3 py-2.5 text-left transition-colors hover:bg-gh-canvas-default"
-                >
-                  <span className="text-xs text-gh-fg-default">{row.label}</span>
-                  <span
-                    className={`min-w-[28px] rounded-full px-2 py-0.5 text-center text-[11px] font-semibold ${
-                      row.emphasis && row.value > 0
-                        ? 'bg-gh-accent-emphasis text-white'
-                        : 'bg-gh-canvas-default text-gh-fg-muted'
-                    }`}
+          <>
+            <ul className="divide-y divide-gh-border-muted overflow-hidden rounded-md border border-gh-border-default bg-gh-canvas-subtle">
+              {rows.map((row) => (
+                <li key={row.key}>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate(row.key)}
+                    className="flex w-full items-center justify-between px-3 py-2.5 text-left transition-colors hover:bg-gh-canvas-default"
                   >
-                    {row.value}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+                    <span className="text-xs text-gh-fg-default">{row.label}</span>
+                    <span
+                      className={`min-w-[28px] rounded-full px-2 py-0.5 text-center text-[11px] font-semibold ${
+                        row.emphasis && row.value > 0
+                          ? 'bg-gh-accent-emphasis text-white'
+                          : 'bg-gh-canvas-default text-gh-fg-muted'
+                      }`}
+                    >
+                      {row.value}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-center text-[11px] text-gh-fg-muted">
+              You've reviewed {reviewedThisWeek} PR{reviewedThisWeek === 1 ? '' : 's'} this week.
+            </p>
+          </>
         )}
 
         {counts && rows.every((row) => row.value === 0) && !loading && !error && (
-          <p className="mt-3 text-center text-[11px] text-gh-fg-muted">
+          <p className="mt-1 text-center text-[11px] text-gh-fg-muted">
             All caught up. Nothing needs your attention right now.
           </p>
         )}
