@@ -12,6 +12,7 @@ export type AuthStatus = 'loading' | 'signed-out' | 'signed-in';
 export interface UseAuth {
   status: AuthStatus;
   viewer: Viewer | null;
+  token: string | null;
   error: string | null;
   busy: boolean;
   signInWithPat: (token: string) => Promise<void>;
@@ -22,6 +23,7 @@ export interface UseAuth {
 export function useAuth(): UseAuth {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [viewer, setViewer] = useState<Viewer | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -31,6 +33,7 @@ export function useAuth(): UseAuth {
       const { token, viewer } = await getStoredAuth();
       if (cancelled) return;
       if (token && viewer) {
+        setToken(token);
         setViewer(viewer);
         setStatus('signed-in');
       } else {
@@ -42,11 +45,12 @@ export function useAuth(): UseAuth {
     };
   }, []);
 
-  const signInWithPat = useCallback(async (token: string) => {
+  const signInWithPat = useCallback(async (rawToken: string) => {
     setBusy(true);
     setError(null);
     try {
-      const v = await signInWithToken(token);
+      const v = await signInWithToken(rawToken);
+      setToken(rawToken.trim());
       setViewer(v);
       setStatus('signed-in');
     } catch (err) {
@@ -61,6 +65,9 @@ export function useAuth(): UseAuth {
     setError(null);
     try {
       const v = await oauthSignIn();
+      // oauthSignIn persists the token; re-read storage to pick it up.
+      const stored = await getStoredAuth();
+      setToken(stored.token);
       setViewer(v);
       setStatus('signed-in');
     } catch (err) {
@@ -74,6 +81,7 @@ export function useAuth(): UseAuth {
     setBusy(true);
     try {
       await doSignOut();
+      setToken(null);
       setViewer(null);
       setStatus('signed-out');
       setError(null);
@@ -82,5 +90,5 @@ export function useAuth(): UseAuth {
     }
   }, []);
 
-  return { status, viewer, error, busy, signInWithPat, signInWithOAuth, signOut };
+  return { status, viewer, token, error, busy, signInWithPat, signInWithOAuth, signOut };
 }
