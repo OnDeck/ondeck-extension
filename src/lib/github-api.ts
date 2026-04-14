@@ -63,3 +63,42 @@ export async function fetchViewer(token: string): Promise<Viewer> {
     html_url: data.html_url,
   };
 }
+
+export interface BadgeCounts {
+  reviewRequests: number;
+  mentions: number;
+  assignedPrs: number;
+  notifications: number;
+}
+
+interface SearchResponse {
+  total_count: number;
+}
+
+async function searchCount(token: string, query: string): Promise<number> {
+  const res = await githubFetch(
+    `/search/issues?q=${encodeURIComponent(query)}&per_page=1`,
+    token,
+  );
+  const data = (await res.json()) as SearchResponse;
+  return data.total_count;
+}
+
+async function notificationsCount(token: string): Promise<number> {
+  const res = await githubFetch('/notifications?all=false&per_page=50', token);
+  const data = (await res.json()) as unknown[];
+  return data.length;
+}
+
+export async function fetchBadgeCounts(
+  token: string,
+  login: string,
+): Promise<BadgeCounts> {
+  const [reviewRequests, mentions, assignedPrs, notifications] = await Promise.all([
+    searchCount(token, `is:pr is:open review-requested:${login}`),
+    searchCount(token, `is:open mentions:${login}`),
+    searchCount(token, `is:pr is:open assignee:${login}`),
+    notificationsCount(token),
+  ]);
+  return { reviewRequests, mentions, assignedPrs, notifications };
+}
