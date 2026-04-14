@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   fetchPullRequestDetail,
   fetchReviewRequests,
@@ -8,6 +8,8 @@ import {
 import { useIssueList } from '../hooks/useIssueList';
 import { relativeAge } from './IssueRowMeta';
 import { TabHeader, TabStates } from './TabChrome';
+import { applyFilter, EMPTY_FILTER, FilterBar, type FilterState } from './FilterBar';
+import { QuickActions } from './QuickActions';
 
 interface Props {
   login: string;
@@ -26,6 +28,9 @@ export function ReviewsTab({ login, token }: Props) {
   const fetcher = useCallback(() => fetchReviewRequests(login, token), [login, token]);
   const list = useIssueList(Boolean(login && token), fetcher, [login, token]);
   const [details, setDetails] = useState<DetailState>({});
+  const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER);
+
+  const filtered = useMemo(() => applyFilter(list.items, filter), [list.items, filter]);
 
   // After the list resolves, fan out detail fetches for changed_files.
   // Keep it bounded: the search call already caps at 30 items.
@@ -62,14 +67,19 @@ export function ReviewsTab({ login, token }: Props) {
         status={list.status}
         onRefresh={() => void list.refresh()}
       />
+      <FilterBar items={list.items} state={filter} onChange={setFilter} />
       <TabStates
         status={list.status}
         error={list.error}
-        isEmpty={list.items.length === 0}
-        emptyMessage="Your review queue is empty. Go ship something."
+        isEmpty={filtered.length === 0}
+        emptyMessage={
+          list.items.length === 0
+            ? 'Your review queue is empty. Go ship something.'
+            : 'No reviews match these filters.'
+        }
       >
         <ul className="flex flex-col gap-2">
-          {list.items.map((item) => {
+          {filtered.map((item) => {
             const blocking = isBlocking(item);
             const detail = details[item.id];
             return (
@@ -100,8 +110,16 @@ export function ReviewsTab({ login, token }: Props) {
                         {item.title}
                       </div>
                     </div>
-                    <div className="shrink-0 text-[10px] text-gh-fg-muted">
-                      {relativeAge(item.updated_at ?? item.created_at)}
+                    <div className="flex shrink-0 items-center gap-1">
+                      <span className="text-[10px] text-gh-fg-muted">
+                        {relativeAge(item.updated_at ?? item.created_at)}
+                      </span>
+                      <QuickActions
+                        item={item}
+                        token={token}
+                        showMarkReviewed
+                        onAfterAction={() => void list.refresh()}
+                      />
                     </div>
                   </div>
                   <div className="mt-1 flex items-center gap-2">

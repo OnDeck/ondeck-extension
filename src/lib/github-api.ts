@@ -162,6 +162,64 @@ interface PullRequestDetail {
   deletions: number;
 }
 
+/** Post a PR review with event COMMENT and an empty body — used as a
+ * non-destructive "mark as reviewed" quick action. */
+export async function submitMarkReviewed(
+  owner: string,
+  repo: string,
+  number: number,
+  token: string,
+): Promise<void> {
+  await githubFetch(`/repos/${owner}/${repo}/pulls/${number}/reviews`, token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event: 'COMMENT', body: 'Reviewed.' }),
+  });
+}
+
+/** Add a comment to an issue or PR (issues and PRs share this endpoint). */
+export async function createIssueComment(
+  owner: string,
+  repo: string,
+  number: number,
+  body: string,
+  token: string,
+): Promise<void> {
+  await githubFetch(`/repos/${owner}/${repo}/issues/${number}/comments`, token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ body }),
+  });
+}
+
+export type ReactionContent =
+  | '+1'
+  | '-1'
+  | 'laugh'
+  | 'hooray'
+  | 'confused'
+  | 'heart'
+  | 'rocket'
+  | 'eyes';
+
+/** Add a reaction to an issue or PR. */
+export async function addIssueReaction(
+  owner: string,
+  repo: string,
+  number: number,
+  content: ReactionContent,
+  token: string,
+): Promise<void> {
+  await githubFetch(`/repos/${owner}/${repo}/issues/${number}/reactions`, token, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/vnd.github.squirrel-girl-preview+json',
+    },
+    body: JSON.stringify({ content }),
+  });
+}
+
 export async function fetchPullRequestDetail(
   owner: string,
   repo: string,

@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   fetchMentions,
   repoSlugFromUrl,
@@ -7,6 +7,8 @@ import {
 import { useIssueList } from '../hooks/useIssueList';
 import { relativeAge } from './IssueRowMeta';
 import { TabHeader, TabStates } from './TabChrome';
+import { applyFilter, EMPTY_FILTER, FilterBar, type FilterState } from './FilterBar';
+import { QuickActions } from './QuickActions';
 
 interface Props {
   login: string;
@@ -31,6 +33,9 @@ function bodySnippet(body: string | null | undefined, login: string): string {
 export function MentionsTab({ login, token }: Props) {
   const fetcher = useCallback(() => fetchMentions(login, token), [login, token]);
   const list = useIssueList(Boolean(login && token), fetcher, [login, token]);
+  const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER);
+
+  const filtered = useMemo(() => applyFilter(list.items, filter), [list.items, filter]);
 
   return (
     <section>
@@ -40,14 +45,19 @@ export function MentionsTab({ login, token }: Props) {
         status={list.status}
         onRefresh={() => void list.refresh()}
       />
+      <FilterBar items={list.items} state={filter} onChange={setFilter} />
       <TabStates
         status={list.status}
         error={list.error}
-        isEmpty={list.items.length === 0}
-        emptyMessage="No open threads mention you. You're caught up."
+        isEmpty={filtered.length === 0}
+        emptyMessage={
+          list.items.length === 0
+            ? "No open threads mention you. You're caught up."
+            : 'No mentions match these filters.'
+        }
       >
         <ul className="flex flex-col gap-2">
-          {list.items.map((item) => {
+          {filtered.map((item) => {
             const snippet = bodySnippet(item.body, login);
             const kind = isPullRequest(item) ? 'PR' : 'Issue';
             return (
@@ -70,8 +80,11 @@ export function MentionsTab({ login, token }: Props) {
                         {item.title}
                       </div>
                     </div>
-                    <div className="shrink-0 text-[10px] text-gh-fg-muted">
-                      {relativeAge(item.updated_at ?? item.created_at)}
+                    <div className="flex shrink-0 items-center gap-1">
+                      <span className="text-[10px] text-gh-fg-muted">
+                        {relativeAge(item.updated_at ?? item.created_at)}
+                      </span>
+                      <QuickActions item={item} token={token} onAfterAction={() => void list.refresh()} />
                     </div>
                   </div>
                   {snippet && (
