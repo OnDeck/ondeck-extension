@@ -143,6 +143,21 @@ export interface DashboardCounts {
   notifications: number;
 }
 
+export interface PullRequestDetails {
+  number: number;
+  changed_files: number;
+  user: { login: string; avatar_url: string };
+}
+
+export async function fetchPullRequestDetails(
+  token: string,
+  repoFullName: string,
+  number: number,
+): Promise<PullRequestDetails> {
+  const res = await githubFetch(`/repos/${repoFullName}/pulls/${number}`, token);
+  return (await res.json()) as PullRequestDetails;
+}
+
 export async function fetchDashboardCounts(
   token: string,
   login: string,

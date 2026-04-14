@@ -5,6 +5,7 @@ import { TabBar, type TabKey } from './components/TabBar';
 import { Dashboard } from './components/Dashboard';
 import { AssignedPRs } from './components/AssignedPRs';
 import { Mentions } from './components/Mentions';
+import { Reviews } from './components/Reviews';
 import { useAuth } from './hooks/useAuth';
 import { useToken } from './hooks/useToken';
 
@@ -35,7 +36,8 @@ export default function App() {
         )}
         {tab === 'assigned' && <AssignedPRs viewer={auth.viewer} token={token} />}
         {tab === 'mentions' && <Mentions viewer={auth.viewer} token={token} />}
-        {tab !== 'home' && tab !== 'assigned' && tab !== 'mentions' && (
+        {tab === 'reviews' && <Reviews viewer={auth.viewer} token={token} />}
+        {tab !== 'home' && tab !== 'assigned' && tab !== 'mentions' && tab !== 'reviews' && (
           <div className="px-4 py-3 text-xs text-gh-fg-muted">
             This tab ships in a subsequent ticket.
           </div>
