@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AssignedPrsView } from './components/AssignedPrsView';
 import { Dashboard } from './components/Dashboard';
 import { Header } from './components/Header';
 import { SignIn } from './components/SignIn';
@@ -28,9 +29,7 @@ export default function App() {
       <TabNav active={tab} onChange={setTab} />
       <main className="flex-1 overflow-y-auto px-4 py-3">
         {tab === 'dashboard' && <Dashboard active onNavigate={setTab} />}
-        {tab === 'assigned' && (
-          <StatusMessage>Assigned PRs view arrives in ticket #4.</StatusMessage>
-        )}
+        {tab === 'assigned' && <AssignedPrsView active={tab === 'assigned'} />}
         {tab === 'mentions' && (
           <StatusMessage>Mentions view arrives in ticket #5.</StatusMessage>
         )}
