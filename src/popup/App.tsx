@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { SignIn } from './components/SignIn';
 import { TabBar } from './components/TabBar';
 import { DashboardTab } from './components/DashboardTab';
+import { AssignedPrsTab } from './components/AssignedPrsTab';
 import { useAuth } from './hooks/useAuth';
 import { useDashboard } from './hooks/useDashboard';
 import type { TabId } from './tabs';
@@ -32,7 +33,10 @@ export default function App() {
         {tab === 'dashboard' && (
           <DashboardTab viewer={auth.viewer} dashboard={dashboard} onNavigate={setTab} />
         )}
-        {tab !== 'dashboard' && (
+        {tab === 'assigned' && auth.token && (
+          <AssignedPrsTab login={auth.viewer.login} token={auth.token} />
+        )}
+        {tab !== 'dashboard' && tab !== 'assigned' && (
           <div className="rounded-md border border-gh-border-default bg-gh-canvas-subtle p-3 text-xs text-gh-fg-muted">
             This tab ships in a later ticket.
           </div>

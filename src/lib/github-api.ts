@@ -68,10 +68,38 @@ export async function fetchViewer(token: string): Promise<Viewer> {
 
 // ---------- Search helpers ----------
 
+export interface SearchUser {
+  login: string;
+  avatar_url: string;
+  html_url: string;
+}
+
+export interface SearchLabel {
+  name: string;
+  color: string;
+}
+
+export interface SearchIssueItem {
+  id: number;
+  number: number;
+  title: string;
+  html_url: string;
+  state: 'open' | 'closed';
+  draft?: boolean;
+  user: SearchUser | null;
+  labels: SearchLabel[];
+  repository_url: string;
+  pull_request?: { html_url: string; merged_at: string | null } | null;
+  comments: number;
+  created_at: string;
+  updated_at: string;
+  body?: string | null;
+}
+
 interface SearchIssuesResponse {
   total_count: number;
   incomplete_results: boolean;
-  items: unknown[];
+  items: SearchIssueItem[];
 }
 
 async function searchIssuesCount(query: string, token: string): Promise<number> {
@@ -83,8 +111,38 @@ async function searchIssuesCount(query: string, token: string): Promise<number> 
   return data.total_count ?? 0;
 }
 
+export async function searchIssues(
+  query: string,
+  token: string,
+  perPage = 30,
+): Promise<SearchIssueItem[]> {
+  const res = await githubFetch(
+    `/search/issues?per_page=${perPage}&sort=updated&order=desc&q=${encodeURIComponent(query)}`,
+    token,
+  );
+  const data = (await res.json()) as SearchIssuesResponse;
+  return data.items ?? [];
+}
+
+/**
+ * GitHub's search API returns an API URL for the repo (e.g.
+ * https://api.github.com/repos/owner/name). Extract the `owner/name` slug
+ * for display.
+ */
+export function repoSlugFromUrl(repositoryUrl: string): string {
+  const match = repositoryUrl.match(/\/repos\/([^/]+\/[^/]+)$/);
+  return match ? match[1] : repositoryUrl;
+}
+
 export async function fetchAssignedPrCount(login: string, token: string): Promise<number> {
   return searchIssuesCount(`is:pr is:open assignee:${login}`, token);
+}
+
+export async function fetchAssignedPrs(
+  login: string,
+  token: string,
+): Promise<SearchIssueItem[]> {
+  return searchIssues(`is:pr is:open assignee:${login}`, token);
 }
 
 export async function fetchReviewRequestCount(login: string, token: string): Promise<number> {
