@@ -70,6 +70,57 @@ interface SearchCountResponse {
   total_count: number;
 }
 
+export interface SearchLabel {
+  name: string;
+  color: string;
+}
+
+export interface SearchPullRequest {
+  id: number;
+  number: number;
+  title: string;
+  html_url: string;
+  state: 'open' | 'closed';
+  draft: boolean;
+  repository_url: string;
+  created_at: string;
+  updated_at: string;
+  user: { login: string; avatar_url: string } | null;
+  labels: SearchLabel[];
+  pull_request?: {
+    merged_at: string | null;
+    url: string;
+    html_url: string;
+  };
+  body?: string | null;
+}
+
+interface SearchIssuesResponse {
+  total_count: number;
+  items: SearchPullRequest[];
+}
+
+/**
+ * Extract `owner/repo` from a repository API URL like
+ * `https://api.github.com/repos/foo/bar`.
+ */
+export function parseRepoNwo(repositoryUrl: string): string {
+  const marker = '/repos/';
+  const idx = repositoryUrl.indexOf(marker);
+  if (idx === -1) return repositoryUrl;
+  return repositoryUrl.slice(idx + marker.length);
+}
+
+export async function searchIssues(
+  query: string,
+  token: string,
+  perPage = 30,
+): Promise<SearchIssuesResponse> {
+  const path = `/search/issues?q=${encodeURIComponent(query)}&per_page=${perPage}&sort=updated&order=desc`;
+  const res = await githubFetch(path, token);
+  return (await res.json()) as SearchIssuesResponse;
+}
+
 async function fetchSearchCount(query: string, token: string): Promise<number> {
   const path = `/search/issues?q=${encodeURIComponent(query)}&per_page=1`;
   const res = await githubFetch(path, token);

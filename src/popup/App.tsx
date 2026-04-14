@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AssignedPRsTab } from './components/AssignedPRsTab';
 import { DashboardTab } from './components/DashboardTab';
 import { Header } from './components/Header';
 import { SignIn } from './components/SignIn';
@@ -37,7 +38,7 @@ export default function App() {
         {activeTab === 'home' && (
           <DashboardTab viewer={auth.viewer} onNavigate={setActiveTab} />
         )}
-        {activeTab === 'assigned' && <PlaceholderTab label="Assigned PRs" />}
+        {activeTab === 'assigned' && <AssignedPRsTab viewer={auth.viewer} />}
         {activeTab === 'reviews' && <PlaceholderTab label="Reviews" />}
         {activeTab === 'mentions' && <PlaceholderTab label="Mentions" />}
         {activeTab === 'notifications' && <PlaceholderTab label="Notifications" />}
