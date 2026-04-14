@@ -8,6 +8,7 @@ import { useAuth } from './hooks/useAuth';
 import type { TabKey } from './tabs';
 import { AssignedPrsView } from './views/AssignedPrsView';
 import { MentionsView } from './views/MentionsView';
+import { ReviewsView } from './views/ReviewsView';
 
 const TAB_TITLES: Record<TabKey, string> = {
   home: 'Home',
@@ -55,7 +56,14 @@ export default function App() {
             onBack={() => setTab('home')}
           />
         )}
-        {tab !== 'home' && tab !== 'assigned' && tab !== 'mentions' && (
+        {tab === 'reviews' && (
+          <ReviewsView
+            token={auth.token}
+            login={auth.viewer.login}
+            onBack={() => setTab('home')}
+          />
+        )}
+        {tab === 'notifications' && (
           <TabPlaceholder title={TAB_TITLES[tab]} onBack={() => setTab('home')} />
         )}
       </main>
