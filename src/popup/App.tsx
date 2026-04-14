@@ -3,20 +3,12 @@ import { Dashboard } from './components/Dashboard';
 import { Header } from './components/Header';
 import { SignIn } from './components/SignIn';
 import { TabNav } from './components/TabNav';
-import { TabPlaceholder } from './components/TabPlaceholder';
 import { useAuth } from './hooks/useAuth';
 import type { TabKey } from './tabs';
 import { AssignedPrsView } from './views/AssignedPrsView';
 import { MentionsView } from './views/MentionsView';
+import { NotificationsView } from './views/NotificationsView';
 import { ReviewsView } from './views/ReviewsView';
-
-const TAB_TITLES: Record<TabKey, string> = {
-  home: 'Home',
-  assigned: 'Assigned PRs',
-  mentions: 'Mentions',
-  reviews: 'Review requests',
-  notifications: 'Notifications',
-};
 
 export default function App() {
   const auth = useAuth();
@@ -64,7 +56,7 @@ export default function App() {
           />
         )}
         {tab === 'notifications' && (
-          <TabPlaceholder title={TAB_TITLES[tab]} onBack={() => setTab('home')} />
+          <NotificationsView token={auth.token} onBack={() => setTab('home')} />
         )}
       </main>
     </div>
