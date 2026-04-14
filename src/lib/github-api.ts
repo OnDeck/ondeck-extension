@@ -194,6 +194,83 @@ export async function fetchUnreadNotificationCount(token: string): Promise<numbe
   return Array.isArray(data) ? data.length : 0;
 }
 
+export type NotificationReason =
+  | 'assign'
+  | 'author'
+  | 'comment'
+  | 'ci_activity'
+  | 'invitation'
+  | 'manual'
+  | 'mention'
+  | 'review_requested'
+  | 'security_alert'
+  | 'state_change'
+  | 'subscribed'
+  | 'team_mention'
+  | (string & {});
+
+export type NotificationSubjectType =
+  | 'PullRequest'
+  | 'Issue'
+  | 'Discussion'
+  | 'Release'
+  | 'Commit'
+  | (string & {});
+
+export interface GitHubNotification {
+  id: string;
+  unread: boolean;
+  reason: NotificationReason;
+  updated_at: string;
+  subject: {
+    title: string;
+    url: string | null;
+    latest_comment_url: string | null;
+    type: NotificationSubjectType;
+  };
+  repository: {
+    id: number;
+    name: string;
+    full_name: string;
+    html_url: string;
+  };
+}
+
+export async function fetchNotifications(
+  token: string,
+  opts: { all?: boolean } = {},
+): Promise<GitHubNotification[]> {
+  const params = new URLSearchParams({
+    all: opts.all ? 'true' : 'false',
+    per_page: '50',
+  });
+  const res = await githubFetch(`/notifications?${params.toString()}`, token);
+  const data = (await res.json()) as GitHubNotification[];
+  return Array.isArray(data) ? data : [];
+}
+
+export async function markNotificationRead(
+  threadId: string,
+  token: string,
+): Promise<void> {
+  await githubFetch(`/notifications/threads/${threadId}`, token, { method: 'PATCH' });
+}
+
+/**
+ * Turn a GitHub API subject URL (api.github.com/repos/.../issues/42) into the
+ * user-facing github.com URL so the row click-through lands on the right page.
+ */
+export function notificationHtmlUrl(n: GitHubNotification): string {
+  const subject = n.subject.url;
+  if (subject) {
+    const replaced = subject
+      .replace('https://api.github.com/repos/', 'https://github.com/')
+      .replace('/pulls/', '/pull/');
+    return replaced;
+  }
+  return n.repository.html_url;
+}
+
 export interface DashboardCounts {
   assignedPrs: number;
   reviewRequests: number;
