@@ -53,6 +53,7 @@ export function useAuth(): UseAuth {
       setToken(raw.trim());
       setViewer(v);
       setStatus('signed-in');
+      void chrome.runtime.sendMessage({ type: 'workflow:refresh' }).catch(() => {});
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign-in failed');
     } finally {
@@ -85,6 +86,7 @@ export function useAuth(): UseAuth {
       setViewer(null);
       setStatus('signed-out');
       setError(null);
+      void chrome.runtime.sendMessage({ type: 'workflow:signed-out' }).catch(() => {});
     } finally {
       setBusy(false);
     }
