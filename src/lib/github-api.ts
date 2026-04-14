@@ -171,6 +171,86 @@ export async function fetchNotifications(token: string): Promise<NotificationThr
   return Array.isArray(data) ? data : [];
 }
 
+async function githubMutate(
+  method: 'POST' | 'PATCH' | 'PUT',
+  path: string,
+  token: string,
+  body?: unknown,
+): Promise<Response> {
+  let response: Response;
+  try {
+    response = await fetch(`${GITHUB_API_BASE}${path}`, {
+      method,
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type': 'application/json',
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch (err) {
+    throw new GitHubApiError(
+      err instanceof Error ? err.message : 'Network error',
+      0,
+      'network',
+    );
+  }
+  if (response.status === 401) {
+    throw new GitHubApiError('Token is invalid or expired', 401, 'unauthorized');
+  }
+  if (!response.ok && response.status !== 205) {
+    throw new GitHubApiError(
+      `GitHub API error (${response.status})`,
+      response.status,
+      response.status === 403 ? 'forbidden' : 'other',
+    );
+  }
+  return response;
+}
+
+export async function markPullRequestReviewed(
+  owner: string,
+  repo: string,
+  number: number,
+  token: string,
+): Promise<void> {
+  await githubMutate('POST', `/repos/${owner}/${repo}/pulls/${number}/reviews`, token, {
+    event: 'COMMENT',
+    body: 'Reviewed via GitHub Workflow Assistant.',
+  });
+}
+
+export async function addIssueReaction(
+  owner: string,
+  repo: string,
+  number: number,
+  content: '+1' | 'heart' | 'hooray' | 'rocket' | 'eyes',
+  token: string,
+): Promise<void> {
+  await githubMutate(
+    'POST',
+    `/repos/${owner}/${repo}/issues/${number}/reactions`,
+    token,
+    { content },
+  );
+}
+
+export async function postIssueComment(
+  owner: string,
+  repo: string,
+  number: number,
+  body: string,
+  token: string,
+): Promise<void> {
+  await githubMutate(
+    'POST',
+    `/repos/${owner}/${repo}/issues/${number}/comments`,
+    token,
+    { body },
+  );
+}
+
 export async function markNotificationRead(id: string, token: string): Promise<void> {
   let response: Response;
   try {

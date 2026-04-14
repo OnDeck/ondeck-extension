@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ListShell } from '../components/ListShell';
+import { FilterBar } from '../components/FilterBar';
+import { QuickActions } from '../components/QuickActions';
 import { getStoredAuth } from '../../lib/auth';
 import {
   searchIssues,
@@ -8,6 +10,7 @@ import {
   type Viewer,
 } from '../../lib/github-api';
 import { openInNewTab, ownerRepoFromIssueUrl, relativeTime } from '../../lib/format';
+import { applyFilter, availableRepos, EMPTY_FILTER, type FilterState } from '../filters';
 
 interface Props {
   viewer: Viewer;
@@ -44,10 +47,17 @@ function statusBadge(item: IssueSearchItem): { label: string; className: string 
   };
 }
 
+function parseOwnerRepoNumber(item: IssueSearchItem): [string, string, number] | null {
+  const m = item.repository_url.match(/\/repos\/([^/]+)\/([^/]+)/);
+  if (!m) return null;
+  return [m[1], m[2], item.number];
+}
+
 export function AssignedPrsTab({ viewer }: Props) {
   const [status, setStatus] = useState<Status>('loading');
   const [items, setItems] = useState<IssueSearchItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER);
 
   const load = useCallback(async () => {
     setStatus('loading');
@@ -66,13 +76,13 @@ export function AssignedPrsTab({ viewer }: Props) {
       setItems(results);
       setStatus(results.length === 0 ? 'empty' : 'ready');
     } catch (err) {
-      const msg =
+      setError(
         err instanceof GitHubApiError
           ? err.message
           : err instanceof Error
             ? err.message
-            : 'Failed to load assigned PRs';
-      setError(msg);
+            : 'Failed to load assigned PRs',
+      );
       setStatus('error');
     }
   }, [viewer.login]);
@@ -81,46 +91,73 @@ export function AssignedPrsTab({ viewer }: Props) {
     void load();
   }, [load]);
 
+  const filtered = useMemo(() => applyFilter(items, filter), [items, filter]);
+  const repoOptions = useMemo(() => availableRepos(items), [items]);
+  const listStatus: Status =
+    status === 'ready' && filtered.length === 0 ? 'empty' : status;
+
   return (
-    <ListShell
-      title="Assigned PRs"
-      onRefresh={() => void load()}
-      busy={status === 'loading'}
-      status={status}
-      error={error}
-      emptyMessage="No open PRs are assigned to you right now."
-    >
-      {items.map((item) => {
-        const badge = statusBadge(item);
-        return (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => openInNewTab(item.html_url)}
-            className="flex w-full flex-col gap-1 rounded-md border border-gh-border-default bg-gh-canvas-subtle px-3 py-2 text-left transition-colors hover:border-gh-accent-emphasis"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 flex-1 truncate text-xs font-semibold text-gh-fg-default">
-                {item.title}
-              </div>
-              <span
-                className={
-                  'shrink-0 rounded-full border px-2 text-[10px] font-semibold uppercase tracking-wide ' +
-                  badge.className
-                }
+    <div className="flex h-full flex-col">
+      {status === 'ready' && items.length > 0 && (
+        <FilterBar value={filter} onChange={setFilter} repoOptions={repoOptions} />
+      )}
+      <ListShell
+        title="Assigned PRs"
+        onRefresh={() => void load()}
+        busy={status === 'loading'}
+        status={listStatus}
+        error={error}
+        emptyMessage={
+          items.length === 0
+            ? 'No open PRs are assigned to you right now.'
+            : 'Nothing matches your filters.'
+        }
+      >
+        {filtered.map((item) => {
+          const badge = statusBadge(item);
+          const parsed = parseOwnerRepoNumber(item);
+          return (
+            <div
+              key={item.id}
+              className="flex flex-col gap-1 rounded-md border border-gh-border-default bg-gh-canvas-subtle px-3 py-2"
+            >
+              <button
+                type="button"
+                onClick={() => openInNewTab(item.html_url)}
+                className="flex flex-col gap-1 text-left"
               >
-                {badge.label}
-              </span>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1 truncate text-xs font-semibold text-gh-fg-default">
+                    {item.title}
+                  </div>
+                  <span
+                    className={
+                      'shrink-0 rounded-full border px-2 text-[10px] font-semibold uppercase tracking-wide ' +
+                      badge.className
+                    }
+                  >
+                    {badge.label}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-gh-fg-muted">
+                  <span className="truncate">
+                    {ownerRepoFromIssueUrl(item.repository_url)}#{item.number}
+                  </span>
+                  <span>{relativeTime(item.updated_at)}</span>
+                </div>
+              </button>
+              {parsed && (
+                <QuickActions
+                  owner={parsed[0]}
+                  repo={parsed[1]}
+                  number={parsed[2]}
+                  isPullRequest
+                />
+              )}
             </div>
-            <div className="flex items-center justify-between text-[11px] text-gh-fg-muted">
-              <span className="truncate">
-                {ownerRepoFromIssueUrl(item.repository_url)}#{item.number}
-              </span>
-              <span>{relativeTime(item.updated_at)}</span>
-            </div>
-          </button>
-        );
-      })}
-    </ListShell>
+          );
+        })}
+      </ListShell>
+    </div>
   );
 }
