@@ -105,6 +105,61 @@ export async function fetchUnreadNotificationsCount(token: string): Promise<numb
   return Array.isArray(data) ? data.length : 0;
 }
 
+export type NotificationSubjectType =
+  | 'PullRequest'
+  | 'Issue'
+  | 'Discussion'
+  | 'Release'
+  | 'Commit'
+  | 'CheckSuite';
+
+export interface NotificationItem {
+  id: string;
+  unread: boolean;
+  reason: string;
+  updated_at: string;
+  subject: {
+    title: string;
+    url: string | null;
+    latest_comment_url: string | null;
+    type: NotificationSubjectType | string;
+  };
+  repository: {
+    full_name: string;
+    html_url: string;
+  };
+}
+
+export async function fetchNotifications(token: string): Promise<NotificationItem[]> {
+  const res = await githubFetch('/notifications?all=false&per_page=50', token);
+  const data = (await res.json()) as NotificationItem[];
+  return Array.isArray(data) ? data : [];
+}
+
+export async function markNotificationRead(id: string, token: string): Promise<void> {
+  await githubFetch(`/notifications/threads/${id}`, token).catch(() => undefined);
+  // PATCH variant — githubFetch is GET-only, so do a direct fetch
+  await fetch(`${GITHUB_API_BASE}/notifications/threads/${id}`, {
+    method: 'PATCH',
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${token}`,
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+  });
+}
+
+export function notificationHtmlUrl(item: NotificationItem): string {
+  const apiUrl = item.subject.url ?? '';
+  if (!apiUrl) return item.repository.html_url;
+  // Convert API URL to html URL.
+  // e.g. https://api.github.com/repos/o/r/pulls/1 → https://github.com/o/r/pull/1
+  return apiUrl
+    .replace('https://api.github.com/repos/', 'https://github.com/')
+    .replace('/pulls/', '/pull/')
+    .replace('/commits/', '/commit/');
+}
+
 export interface PullRequestRef {
   url: string;
   html_url: string;
