@@ -1,3 +1,6 @@
+// Format an ISO timestamp as a localized "x minutes ago" string using
+// Intl.RelativeTimeFormat. Returns '' when the input can't be parsed.
+
 const UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
   ['year', 60 * 60 * 24 * 365],
   ['month', 60 * 60 * 24 * 30],

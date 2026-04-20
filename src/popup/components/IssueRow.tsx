@@ -4,7 +4,8 @@ import {
   repoFullNameFromItem,
   type IssueSearchItem,
 } from '../../lib/github-api';
-import { relativeTime } from '../lib/relativeTime';
+import { relativeTime } from '../../lib/relativeTime';
+import { Badge } from './Badge';
 
 interface Props {
   item: IssueSearchItem;
@@ -12,34 +13,20 @@ interface Props {
   subtitle?: React.ReactNode;
 }
 
+const CHANGES_REQUESTED_RE = /changes.?requested/i;
+
 function StatusBadge({ item }: { item: IssueSearchItem }) {
   if (!isPullRequest(item)) {
-    return (
-      <span className="rounded-full bg-gh-success-emphasis/20 px-1.5 py-0.5 text-[10px] font-semibold text-gh-success-emphasis">
-        Issue
-      </span>
-    );
+    return <Badge tone="success">Issue</Badge>;
   }
   if (isDraftPullRequest(item)) {
-    return (
-      <span className="rounded-full bg-gh-fg-muted/20 px-1.5 py-0.5 text-[10px] font-semibold text-gh-fg-muted">
-        Draft
-      </span>
-    );
+    return <Badge tone="muted">Draft</Badge>;
   }
-  const changesRequested = item.labels.some((l) => /changes.?requested/i.test(l.name));
+  const changesRequested = item.labels.some((l) => CHANGES_REQUESTED_RE.test(l.name));
   if (changesRequested) {
-    return (
-      <span className="rounded-full bg-gh-danger-emphasis/20 px-1.5 py-0.5 text-[10px] font-semibold text-gh-danger-emphasis">
-        Changes
-      </span>
-    );
+    return <Badge tone="danger">Changes</Badge>;
   }
-  return (
-    <span className="rounded-full bg-gh-success-emphasis/20 px-1.5 py-0.5 text-[10px] font-semibold text-gh-success-emphasis">
-      Open
-    </span>
-  );
+  return <Badge tone="success">Open</Badge>;
 }
 
 export function IssueRow({ item, trailing, subtitle }: Props) {
