@@ -6,9 +6,11 @@ import {
   type NotificationItem,
   type NotificationReason,
 } from '../../lib/github-api';
+import { relativeTime } from '../../lib/relativeTime';
 import { useGitHubQuery } from '../hooks/useGitHubQuery';
-import { relativeTime } from '../lib/relativeTime';
+import { cn } from '../lib/cn';
 import { EmptyState, ErrorState, Spinner } from './States';
+import { SubjectIcon } from './SubjectIcon';
 
 interface Props {
   token: string;
@@ -24,22 +26,15 @@ const REASON_FILTERS: Array<{ id: ReasonFilter; label: string }> = [
   { id: 'team_mention', label: 'Team' },
 ];
 
-function SubjectIcon({ type }: { type: string }) {
-  // Unicode glyphs keep this dependency-free. Colors come from Primer tokens.
-  const map: Record<string, { icon: string; color: string }> = {
-    PullRequest: { icon: '⬈', color: 'text-gh-success-emphasis' },
-    Issue: { icon: '◎', color: 'text-gh-success-emphasis' },
-    Discussion: { icon: '💬', color: 'text-gh-done-emphasis' },
-    Release: { icon: '⏷', color: 'text-gh-accent-emphasis' },
-    Commit: { icon: '◆', color: 'text-gh-fg-muted' },
-    CheckSuite: { icon: '✓', color: 'text-gh-attention-emphasis' },
-  };
-  const entry = map[type] ?? { icon: '•', color: 'text-gh-fg-muted' };
-  return (
-    <span aria-hidden="true" className={`mt-0.5 shrink-0 text-sm ${entry.color}`}>
-      {entry.icon}
-    </span>
-  );
+function groupByRepo(items: NotificationItem[]): Array<[string, NotificationItem[]]> {
+  const map = new Map<string, NotificationItem[]>();
+  for (const item of items) {
+    const key = item.repository.full_name;
+    const bucket = map.get(key) ?? [];
+    bucket.push(item);
+    map.set(key, bucket);
+  }
+  return Array.from(map.entries());
 }
 
 export function Notifications({ token }: Props) {
@@ -55,16 +50,7 @@ export function Notifications({ token }: Props) {
     return visible.filter((n) => n.reason === filter);
   }, [query.data, filter, locallyRead]);
 
-  const grouped = useMemo(() => {
-    const map = new Map<string, NotificationItem[]>();
-    for (const item of filtered) {
-      const key = item.repository.full_name;
-      const bucket = map.get(key) ?? [];
-      bucket.push(item);
-      map.set(key, bucket);
-    }
-    return Array.from(map.entries());
-  }, [filtered]);
+  const grouped = useMemo(() => groupByRepo(filtered), [filtered]);
 
   const handleMarkRead = async (item: NotificationItem) => {
     setMarkingIds((prev) => new Set(prev).add(item.id));
@@ -92,12 +78,12 @@ export function Notifications({ token }: Props) {
               key={f.id}
               type="button"
               onClick={() => setFilter(f.id)}
-              className={
-                'shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold transition-colors ' +
-                (active
+              className={cn(
+                'shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold transition-colors',
+                active
                   ? 'border-gh-accent-emphasis bg-gh-accent-emphasis/20 text-gh-accent-emphasis'
-                  : 'border-gh-border-default text-gh-fg-muted hover:text-gh-fg-default')
-              }
+                  : 'border-gh-border-default text-gh-fg-muted hover:text-gh-fg-default',
+              )}
             >
               {f.label}
             </button>
