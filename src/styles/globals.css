@@ -2,11 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Geist font ─────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
+
+/* ── Triage design tokens ───────────────────────────────────────── */
 :root {
   color-scheme: dark;
+
+  --tg-sans: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --tg-mono: 'Geist Mono', 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+
+  --tg-bg0: #0a0b0d;
+  --tg-bg1: #101216;
+  --tg-bg2: #161a20;
+  --tg-bg3: #1d2128;
+  --tg-bg4: #252a33;
+  --tg-line: #1f242c;
+  --tg-line-strong: #2a313c;
+
+  --tg-fg0: #e8eaee;
+  --tg-fg1: #b3b9c4;
+  --tg-fg2: #7a818c;
+  --tg-fg3: #525864;
+
+  --tg-accent: #3b82f6;
+  --tg-accent-soft: rgba(59, 130, 246, 0.12);
+  --tg-accent-border: rgba(59, 130, 246, 0.35);
+
+  --tg-critical: #ef6b6b;
+  --tg-critical-soft: rgba(239, 107, 107, 0.13);
+  --tg-important: #f59e0b;
+  --tg-important-soft: rgba(245, 158, 11, 0.13);
+  --tg-success: #34d399;
+  --tg-success-soft: rgba(52, 211, 153, 0.13);
+  --tg-muted: #64748b;
 }
 
 html,
 body {
   height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: var(--tg-sans);
+  -webkit-font-smoothing: antialiased;
+  background: var(--tg-bg0);
+  color: var(--tg-fg0);
 }
+
+#root {
+  height: 100%;
+}
+
+/* Skeleton shimmer */
+@keyframes tg-skel {
+  0%   { opacity: 0.55; }
+  50%  { opacity: 0.95; }
+  100% { opacity: 0.55; }
+}
+.tg-skel { animation: tg-skel 1.4s ease-in-out infinite; }
+
+/* Thin scrollbar for notification lists */
+.tg-scroll::-webkit-scrollbar { width: 4px; }
+.tg-scroll::-webkit-scrollbar-track { background: transparent; }
+.tg-scroll::-webkit-scrollbar-thumb { background: var(--tg-line-strong); border-radius: 2px; }
+.tg-scroll { scrollbar-width: thin; scrollbar-color: var(--tg-line-strong) transparent; }

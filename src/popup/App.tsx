@@ -1,22 +1,30 @@
 import { useState } from 'react';
-import { AssignedPRs } from './components/AssignedPRs';
 import { Dashboard } from './components/Dashboard';
 import { Header } from './components/Header';
-import { Mentions } from './components/Mentions';
 import { Notifications } from './components/Notifications';
-import { Reviews } from './components/Reviews';
+import { PopupFooter } from './components/PopupFooter';
 import { SignIn } from './components/SignIn';
-import { TabBar } from './components/TabBar';
 import { useAuth } from './hooks/useAuth';
-import type { TabId } from './tabs';
 
 export default function App() {
   const auth = useAuth();
-  const [tab, setTab] = useState<TabId>('dashboard');
+  const [dashboardActive, setDashboardActive] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   if (auth.status === 'loading') {
     return (
-      <div className="flex h-full items-center justify-center text-xs text-gh-fg-muted">
+      <div
+        style={{
+          display: 'flex',
+          height: '100%',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 12,
+          color: 'var(--tg-fg3)',
+          background: 'var(--tg-bg0)',
+          fontFamily: 'var(--tg-mono)',
+        }}
+      >
         Loading…
       </div>
     );
@@ -30,18 +38,34 @@ export default function App() {
   const login = auth.viewer.login;
 
   return (
-    <div className="flex h-full w-full flex-col">
-      <Header viewer={auth.viewer} onSignOut={() => void auth.signOut()} busy={auth.busy} />
-      <TabBar active={tab} onChange={setTab} />
-      <main className="flex-1 overflow-y-auto">
-        {tab === 'dashboard' && (
-          <Dashboard token={token} login={login} onNavigate={setTab} />
+    <div
+      style={{
+        display: 'flex',
+        height: '100%',
+        width: '100%',
+        flexDirection: 'column',
+        background: 'var(--tg-bg0)',
+      }}
+    >
+      <Header
+        viewer={auth.viewer}
+        unreadCount={unreadCount}
+        onSignOut={() => void auth.signOut()}
+        busy={auth.busy}
+        onSearch={() => void 0}
+        onDashboard={() => setDashboardActive((v) => !v)}
+        dashboardActive={dashboardActive}
+      />
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        {dashboardActive ? (
+          <Dashboard token={token} login={login} />
+        ) : (
+          <Notifications token={token} onUnreadCountChange={setUnreadCount} />
         )}
-        {tab === 'prs' && <AssignedPRs token={token} login={login} />}
-        {tab === 'mentions' && <Mentions token={token} login={login} />}
-        {tab === 'reviews' && <Reviews token={token} login={login} />}
-        {tab === 'notifications' && <Notifications token={token} />}
-      </main>
+      </div>
+
+      <PopupFooter selectedCount={0} />
     </div>
   );
 }
