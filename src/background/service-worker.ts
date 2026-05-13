@@ -1,9 +1,28 @@
-// Background service worker entry point.
-// Subsequent tickets will add alarms, badge updates, and notification dispatch.
-// Kept as an empty registration so Chrome loads the worker on install.
+import { setupAlarm, registerAlarmHandler } from './schedulers/alarm';
+import { syncNotifications } from './workers/sync';
 
 chrome.runtime.onInstalled.addListener(() => {
-  // No-op for now. Hook future install/upgrade work here.
+  setupAlarm();
+  void syncNotifications();
+});
+
+// Re-sync on browser startup (service worker restarts).
+chrome.runtime.onStartup.addListener(() => {
+  setupAlarm();
+  void syncNotifications();
+});
+
+registerAlarmHandler();
+
+// Popup requests a fresh sync so it always opens with current data.
+chrome.runtime.onMessage.addListener((message: unknown) => {
+  if (
+    typeof message === 'object' &&
+    message !== null &&
+    (message as Record<string, unknown>)['type'] === 'REQUEST_SYNC'
+  ) {
+    void syncNotifications();
+  }
 });
 
 export {};
