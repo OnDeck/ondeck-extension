@@ -8,22 +8,43 @@
     "dev": "vite build --watch --mode development",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src tests",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\" \"tests/**/*.ts\""
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,md}": "prettier --write"
   },
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/chrome": "^0.0.268",
     "@types/node": "^20.14.2",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.3",
+    "@typescript-eslint/parser": "^8.59.3",
     "@vitejs/plugin-react": "^4.3.1",
+    "@vitest/coverage-v8": "^4.1.6",
     "autoprefixer": "^10.4.19",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "lint-staged": "^17.0.4",
     "postcss": "^8.4.38",
+    "prettier": "^3.8.3",
     "tailwindcss": "^3.4.4",
     "typescript": "^5.4.5",
-    "vite": "^5.3.1"
+    "vite": "^5.3.1",
+    "vitest": "^4.1.6"
   }
 }
