@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { TabId } from '../tabs';
 import { cn } from '../lib/cn';
 import { getSettings } from '../../lib/settings';
-import type { CountsCache } from '../../shared/settings/types';
+import type { CountsCache, UserSettings } from '../../shared/settings/types';
 
 interface Tab {
   id: TabId;
@@ -22,6 +22,14 @@ interface Props {
   onChange: (id: TabId) => void;
 }
 
+const mapCountsToState = (cached: CountsCache): Record<TabId, number> => ({
+  dashboard: 0,
+  prs: cached.prs || 0,
+  mentions: cached.mentions || 0,
+  reviews: cached.reviews || 0,
+  notifications: cached.notifications || 0,
+});
+
 export function TabBar({ active, onChange }: Props) {
   const [counts, setCounts] = useState<Record<TabId, number>>({
     dashboard: 0,
@@ -31,27 +39,33 @@ export function TabBar({ active, onChange }: Props) {
     notifications: 0,
   });
   const [showCounts, setShowCounts] = useState(false);
+  const [tabsToShow, setTabsToShow] = useState<TabId[]>([
+    'dashboard',
+    'prs',
+    'mentions',
+    'reviews',
+    'notifications',
+  ]);
 
   useEffect(() => {
     // Load initial counts and settings
     const loadData = async () => {
-      const [storageCounts, settings] = await Promise.all([
-        chrome.storage.local.get('counts'),
-        getSettings(),
-      ]);
+      try {
+        const [storageCounts, settings] = await Promise.all([
+          chrome.storage.local.get('counts'),
+          getSettings(),
+        ]);
 
-      const cached = storageCounts.counts as CountsCache | undefined;
-      if (cached) {
-        setCounts({
-          dashboard: 0,
-          prs: cached.prs,
-          mentions: cached.mentions,
-          reviews: cached.reviews,
-          notifications: cached.notifications,
-        });
+        const cached = storageCounts.counts as CountsCache | undefined;
+        if (cached) {
+          setCounts(mapCountsToState(cached));
+        }
+
+        setShowCounts(settings.display.showTabCounts);
+        setTabsToShow(settings.display.tabsToShow);
+      } catch (error) {
+        console.error('Failed to load TabBar data:', error);
       }
-
-      setShowCounts(settings.display.showTabCounts);
     };
 
     loadData();
@@ -63,18 +77,15 @@ export function TabBar({ active, onChange }: Props) {
     ) => {
       if (areaName === 'local' && changes.counts?.newValue) {
         const cached = changes.counts.newValue as CountsCache;
-        setCounts({
-          dashboard: 0,
-          prs: cached.prs,
-          mentions: cached.mentions,
-          reviews: cached.reviews,
-          notifications: cached.notifications,
-        });
+        setCounts(mapCountsToState(cached));
       }
 
       if (areaName === 'sync' && changes.settings?.newValue) {
-        const settings = changes.settings.newValue;
-        setShowCounts(settings.display.showTabCounts);
+        const newSettings = changes.settings.newValue as UserSettings | undefined;
+        if (newSettings?.display) {
+          setShowCounts(newSettings.display.showTabCounts);
+          setTabsToShow(newSettings.display.tabsToShow);
+        }
       }
     };
 
@@ -93,7 +104,7 @@ export function TabBar({ active, onChange }: Props) {
       {TABS.map((tab) => {
         const isActive = tab.id === active;
         const count = counts[tab.id];
-        const shouldShowBadge = showCounts && count > 0;
+        const shouldShowBadge = showCounts && count > 0 && tabsToShow.includes(tab.id);
 
         return (
           <button
