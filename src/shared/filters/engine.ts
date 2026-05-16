@@ -18,6 +18,9 @@ export function applyFilter(
     if (filter.reasons?.length && !filter.reasons.includes(item.reason)) {
       return false;
     }
+    if (filter.subjectTypes?.length && !filter.subjectTypes.includes(item.subject.type)) {
+      return false;
+    }
     if (filter.unreadOnly && !item.unread) {
       return false;
     }
