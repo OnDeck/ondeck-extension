@@ -96,11 +96,11 @@ export async function syncAndUpdateBadge(token: string, login: string): Promise<
     const settings = await getSettings();
 
     if (!settings.sync.enabled) {
-      console.log('[sync] Sync disabled in settings, skipping');
+      logger.info({ module: MODULE, message: 'Sync disabled in settings, skipping' });
       return;
     }
 
-    console.log('[sync] Starting sync...');
+    logger.info({ module: MODULE, message: 'Starting sync' });
 
     // Fetch all counts in parallel
     const [prs, reviews, mentions, inbox] = await Promise.all([
@@ -118,7 +118,7 @@ export async function syncAndUpdateBadge(token: string, login: string): Promise<
       timestamp: Date.now(),
     };
 
-    console.log('[sync] Counts fetched:', counts);
+    logger.info({ module: MODULE, message: 'Counts fetched', context: counts });
 
     // Cache counts in local storage
     await chrome.storage.local.set({ counts });
@@ -126,19 +126,18 @@ export async function syncAndUpdateBadge(token: string, login: string): Promise<
     // Calculate badge value based on settings
     const badgeCount = calculateBadgeCount(counts, settings.badge);
 
-    console.log(`[sync] Badge count: ${badgeCount} (formula: ${settings.badge.formula})`);
+    logger.info({ module: MODULE, message: `Badge count: ${badgeCount}`, context: { formula: settings.badge.formula } });
 
     // Update extension badge icon
+    const badgeText = badgeCount > 0 ? String(Math.min(badgeCount, 99)) : '';
+    await chrome.action.setBadgeText({ text: badgeText });
     if (badgeCount > 0) {
-      await chrome.action.setBadgeText({ text: String(badgeCount) });
-      await chrome.action.setBadgeBackgroundColor({ color: '#1f6feb' });
-    } else {
-      await chrome.action.setBadgeText({ text: '' });
+      await chrome.action.setBadgeBackgroundColor({ color: BADGE_COLOR_DEFAULT });
     }
 
-    console.log('[sync] Sync completed');
+    logger.info({ module: MODULE, message: 'Sync completed' });
   } catch (error) {
-    console.error('[sync] Sync failed:', error);
+    logger.error({ module: MODULE, message: 'Sync failed', error });
     // Keep showing last cached counts on error
   }
 }
