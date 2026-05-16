@@ -1,21 +1,36 @@
-import { SYNC_ALARM_NAME, SYNC_INTERVAL_MINUTES } from '../../shared/constants';
+import { SYNC_ALARM_NAME } from '../../shared/constants';
 import { logger } from '../../shared/logger';
-import { syncNotifications } from '../workers/sync';
+import { syncAndUpdateBadge } from '../workers/sync';
+import { getStoredAuth } from '../../lib/auth';
 
 const MODULE = 'alarm-scheduler';
 
-export function setupAlarm(): void {
-  chrome.alarms.create(SYNC_ALARM_NAME, {
-    delayInMinutes: 1,
-    periodInMinutes: SYNC_INTERVAL_MINUTES,
+/**
+ * Schedule periodic sync alarm
+ */
+export async function setupAlarm(intervalMinutes: number): Promise<void> {
+  logger.info({ module: MODULE, message: `Scheduling sync every ${intervalMinutes} minutes` });
+  await chrome.alarms.create(SYNC_ALARM_NAME, {
+    periodInMinutes: intervalMinutes,
+    delayInMinutes: 0, // run immediately on schedule
   });
-  logger.info({ module: MODULE, message: `Alarm registered (every ${SYNC_INTERVAL_MINUTES}m)` });
 }
 
+// Handle alarm triggers
 export function registerAlarmHandler(): void {
-  chrome.alarms.onAlarm.addListener((alarm) => {
+  chrome.alarms.onAlarm.addListener(async (alarm) => {
     if (alarm.name === SYNC_ALARM_NAME) {
-      void syncNotifications();
+      logger.info({ module: MODULE, message: 'github-sync alarm fired' });
+
+      // Get auth state
+      const auth = await getStoredAuth();
+
+      if (auth.token && auth.viewer?.login) {
+        logger.info({ module: MODULE, message: `Running sync for user: ${auth.viewer.login}` });
+        await syncAndUpdateBadge(auth.token, auth.viewer.login);
+      } else {
+        logger.info({ module: MODULE, message: 'No auth token found, skipping sync' });
+      }
     }
   });
 }

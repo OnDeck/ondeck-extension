@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import type { Viewer } from '../../lib/github-api';
+import { SettingsDrawer } from './SettingsDrawer';
 
 interface Props {
   viewer: Viewer;
@@ -69,6 +71,8 @@ export function Header({
   onDashboard,
   dashboardActive,
 }: Props) {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
   return (
     <header
       style={{
@@ -200,8 +204,9 @@ export function Header({
       {/* Settings */}
       <button
         type="button"
-        onClick={() => void 0}
+        onClick={() => setSettingsOpen(true)}
         title="Settings"
+        aria-label="Settings"
         style={{ ...iconBtnBase, color: 'var(--tg-fg2)' }}
         onMouseEnter={(e) => {
           (e.currentTarget as HTMLElement).style.color = 'var(--tg-fg0)';
@@ -214,6 +219,11 @@ export function Header({
       >
         <CogIcon />
       </button>
+
+      <SettingsDrawer
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </header>
   );
 }
