@@ -2,63 +2,93 @@ import { useMemo, useState } from 'react';
 import {
   listNotifications,
   markNotificationRead,
-  notificationHtmlUrl,
   type NotificationItem,
-  type NotificationReason,
 } from '../../lib/github-api';
-import { relativeTime } from '../../lib/relativeTime';
+import { applyFilter } from '../../shared/filters/engine';
+import type { NotificationFilter } from '../../shared/filters/types';
+import { groupNotifications, type GroupBy } from '../../shared/notifications/grouper';
+import { prioritizeAll } from '../../shared/notifications/prioritizer';
 import { useGitHubQuery } from '../hooks/useGitHubQuery';
-import { cn } from '../lib/cn';
+import type { ChipId } from './ChipRail';
+import { ChipRail } from './ChipRail';
+import { GroupHeader } from './GroupHeader';
+import { NotifRow } from './NotifRow';
 import { EmptyState, ErrorState, Spinner } from './States';
-import { SubjectIcon } from './SubjectIcon';
 
 interface Props {
   token: string;
+  onUnreadCountChange: (n: number) => void;
 }
 
-type ReasonFilter = 'all' | NotificationReason;
+type GroupByMode = GroupBy | 'none';
 
-const REASON_FILTERS: Array<{ id: ReasonFilter; label: string }> = [
-  { id: 'all', label: 'All' },
-  { id: 'assign', label: 'Assigned' },
-  { id: 'mention', label: 'Mentions' },
-  { id: 'review_requested', label: 'Reviews' },
-  { id: 'team_mention', label: 'Team' },
-];
-
-function groupByRepo(items: NotificationItem[]): Array<[string, NotificationItem[]]> {
-  const map = new Map<string, NotificationItem[]>();
-  for (const item of items) {
-    const key = item.repository.full_name;
-    const bucket = map.get(key) ?? [];
-    bucket.push(item);
-    map.set(key, bucket);
+function buildFilter(chip: ChipId): NotificationFilter {
+  switch (chip) {
+    case 'unread':   return { unreadOnly: true };
+    case 'reviews':  return { reasons: ['review_requested'] };
+    case 'mentions': return { reasons: ['mention', 'team_mention'] };
+    case 'assigned': return { reasons: ['assign'] };
+    case 'ci':       return { reasons: ['ci_activity'] };
+    case 'security': return { reasons: ['security_alert'] };
+    default:         return {};
   }
-  return Array.from(map.entries());
 }
 
-export function Notifications({ token }: Props) {
+function countsByChip(
+  items: ReturnType<typeof prioritizeAll>,
+): Partial<Record<ChipId, number>> {
+  return {
+    all:      items.length,
+    unread:   items.filter((n) => n.unread).length,
+    reviews:  items.filter((n) => n.reason === 'review_requested').length,
+    mentions: items.filter((n) => n.reason === 'mention' || n.reason === 'team_mention').length,
+    assigned: items.filter((n) => n.reason === 'assign').length,
+    ci:       items.filter((n) => n.reason === 'ci_activity').length,
+    security: items.filter((n) => n.reason === 'security_alert').length,
+  };
+}
+
+export function Notifications({ token, onUnreadCountChange }: Props) {
   const query = useGitHubQuery(() => listNotifications(token, { all: false }), [token]);
-  const [filter, setFilter] = useState<ReasonFilter>('all');
+
+  const [chip, setChip] = useState<ChipId>('all');
+  const [groupBy] = useState<GroupByMode>('priority');
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [markingIds, setMarkingIds] = useState<Set<string>>(new Set());
   const [locallyRead, setLocallyRead] = useState<Set<string>>(new Set());
 
-  const filtered = useMemo(() => {
-    const items = query.data ?? [];
-    const visible = items.filter((n) => !locallyRead.has(n.id));
-    if (filter === 'all') return visible;
-    return visible.filter((n) => n.reason === filter);
-  }, [query.data, filter, locallyRead]);
+  const prioritized = useMemo(() => {
+    const raw = (query.data ?? []).filter((n) => !locallyRead.has(n.id));
+    const p = prioritizeAll(raw);
+    onUnreadCountChange(p.filter((n) => n.unread).length);
+    return p;
+  }, [query.data, locallyRead, onUnreadCountChange]);
 
-  const grouped = useMemo(() => groupByRepo(filtered), [filtered]);
+  const counts = useMemo(() => countsByChip(prioritized), [prioritized]);
 
-  const handleMarkRead = async (item: NotificationItem) => {
+  const filtered = useMemo(
+    () => applyFilter(prioritized, buildFilter(chip)),
+    [prioritized, chip],
+  );
+
+  const groups = useMemo(
+    () =>
+      groupBy === 'none'
+        ? [{ key: 'all', label: null as string | null, items: filtered }]
+        : groupNotifications(filtered, groupBy as GroupBy),
+    [filtered, groupBy],
+  );
+
+  const toggle = (key: string) =>
+    setCollapsed((c) => ({ ...c, [key]: !c[key] }));
+
+  const handleMark = async (item: NotificationItem) => {
     setMarkingIds((prev) => new Set(prev).add(item.id));
     try {
       await markNotificationRead(token, item.id);
       setLocallyRead((prev) => new Set(prev).add(item.id));
     } catch {
-      // Leave the row visible; the error state covers re-fetch via refetch.
+      // row stays visible; user can retry
     } finally {
       setMarkingIds((prev) => {
         const next = new Set(prev);
@@ -69,78 +99,46 @@ export function Notifications({ token }: Props) {
   };
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex gap-1 overflow-x-auto border-b border-gh-border-muted px-2 py-1.5">
-        {REASON_FILTERS.map((f) => {
-          const active = f.id === filter;
-          return (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() => setFilter(f.id)}
-              className={cn(
-                'shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold transition-colors',
-                active
-                  ? 'border-gh-accent-emphasis bg-gh-accent-emphasis/20 text-gh-accent-emphasis'
-                  : 'border-gh-border-default text-gh-fg-muted hover:text-gh-fg-default',
-              )}
-            >
-              {f.label}
-            </button>
-          );
-        })}
-      </div>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <ChipRail active={chip} counts={counts} onChange={setChip} />
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="tg-scroll" style={{ flex: 1, overflowY: 'auto', background: 'var(--tg-bg1)' }}>
         {query.status === 'loading' || query.status === 'idle' ? (
           <Spinner />
         ) : query.status === 'error' && query.error ? (
           <ErrorState error={query.error} onRetry={query.refetch} />
-        ) : grouped.length === 0 ? (
-          <EmptyState
-            title="Inbox zero"
-            hint="Unread notifications will appear here."
-          />
+        ) : filtered.length === 0 ? (
+          <EmptyState />
         ) : (
-          grouped.map(([repo, items]) => (
-            <section key={repo} className="border-b border-gh-border-muted last:border-b-0">
-              <header className="sticky top-0 bg-gh-canvas-subtle px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-gh-fg-muted">
-                {repo}
-              </header>
-              {items.map((item) => {
-                const marking = markingIds.has(item.id);
-                return (
+          groups.map((group) => (
+            <div key={group.key}>
+              {group.label !== null && (
+                <GroupHeader
+                  label={group.label ?? ''}
+                  count={group.items.length}
+                  collapsed={!!collapsed[group.key]}
+                  onToggle={() => toggle(group.key)}
+                />
+              )}
+              {!collapsed[group.key] &&
+                group.items.map((item, i) => (
                   <div
                     key={item.id}
-                    className="flex items-start gap-2 border-t border-gh-border-muted px-4 py-2 first:border-t-0 hover:bg-gh-canvas-subtle"
+                    style={{
+                      borderBottom:
+                        i === group.items.length - 1
+                          ? 'none'
+                          : '1px solid var(--tg-line)',
+                    }}
                   >
-                    <SubjectIcon type={item.subject.type} />
-                    <a
-                      href={notificationHtmlUrl(item)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="min-w-0 flex-1"
-                    >
-                      <div className="truncate text-xs font-semibold text-gh-fg-default hover:text-gh-accent-emphasis">
-                        {item.subject.title}
-                      </div>
-                      <div className="mt-0.5 text-[10px] text-gh-fg-muted">
-                        {item.reason.replace(/_/g, ' ')} · {relativeTime(item.updated_at)}
-                      </div>
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => void handleMarkRead(item)}
-                      disabled={marking}
-                      title="Mark as read"
-                      className="shrink-0 rounded-md border border-gh-border-default px-1.5 py-0.5 text-[10px] text-gh-fg-muted hover:border-gh-accent-emphasis hover:text-gh-accent-emphasis disabled:opacity-50"
-                    >
-                      {marking ? '…' : '✓'}
-                    </button>
+                    <NotifRow
+                      item={item}
+                      marking={markingIds.has(item.id)}
+                      onMark={(n) => void handleMark(n)}
+                    />
                   </div>
-                );
-              })}
-            </section>
+                ))}
+            </div>
           ))
         )}
       </div>
