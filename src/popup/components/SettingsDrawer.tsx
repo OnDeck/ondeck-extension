@@ -12,26 +12,41 @@ interface Props {
 export function SettingsDrawer({ isOpen, onClose }: Props) {
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
   const [isSaving, setIsSaving] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   // Load settings on mount
   useEffect(() => {
     if (isOpen) {
-      getSettings().then(setSettings);
+      setHasLoaded(false);
+      getSettings()
+        .then((loadedSettings) => {
+          setSettings(loadedSettings);
+          setHasLoaded(true);
+        })
+        .catch((error) => {
+          console.error('Failed to load settings:', error);
+          setHasLoaded(true);
+        });
     }
   }, [isOpen]);
 
-  // Auto-save on change (debounced)
+  // Auto-save on change (debounced) - only after initial load completes
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !hasLoaded) return;
 
     const timeout = setTimeout(async () => {
       setIsSaving(true);
-      await saveSettings(settings);
-      setIsSaving(false);
+      try {
+        await saveSettings(settings);
+      } catch (error) {
+        console.error('Failed to save settings:', error);
+      } finally {
+        setIsSaving(false);
+      }
     }, 500);
 
     return () => clearTimeout(timeout);
-  }, [settings, isOpen]);
+  }, [settings, isOpen, hasLoaded]);
 
   if (!isOpen) return null;
 
@@ -44,9 +59,18 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
       />
 
       {/* Drawer */}
-      <div className="w-80 bg-gh-canvas-default overflow-y-auto border-l border-gh-border-default">
+      <div
+        className="w-80 bg-gh-canvas-default overflow-y-auto border-l border-gh-border-default"
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            onClose();
+          }
+        }}
+      >
         {/* Header */}
         <div className="sticky top-0 z-10 bg-gh-canvas-default border-b border-gh-border-default px-4 py-3 flex items-center justify-between">
+          <div className="w-4" />
+          <h2 className="text-gh-fg-default font-semibold text-sm">Settings</h2>
           <button
             onClick={onClose}
             className="text-gh-fg-muted hover:text-gh-fg-default transition-colors"
@@ -55,8 +79,6 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
               <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"></path>
             </svg>
           </button>
-          <h2 className="text-gh-fg-default font-semibold text-sm">Settings</h2>
-          <div className="w-4" />
         </div>
 
         {/* Content */}
@@ -127,6 +149,12 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
                     {formula === 'actionable' && (
                       <span className="text-gh-fg-muted text-[10px]">Only actionable items</span>
                     )}
+                    {formula === 'reviews-only' && (
+                      <span className="text-gh-fg-muted text-[10px]">Only review requests</span>
+                    )}
+                    {formula === 'custom' && (
+                      <span className="text-gh-fg-muted text-[10px]">Choose which tabs to count</span>
+                    )}
                   </div>
                 </label>
               ))}
@@ -138,7 +166,7 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
                   <label key={tab} className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      checked={settings.badge.customTabs?.includes(tab)}
+                      checked={settings.badge.customTabs?.includes(tab) ?? false}
                       onChange={(e) => {
                         const current = settings.badge.customTabs || [];
                         const updated = e.target.checked
@@ -202,7 +230,7 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
         {/* Save indicator */}
         {isSaving && (
           <div className="fixed bottom-4 right-4 bg-gh-success-emphasis text-white text-xs px-3 py-1 rounded-full">
-            Saved
+            Saving...
           </div>
         )}
       </div>
