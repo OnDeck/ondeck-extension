@@ -1,0 +1,78 @@
+name: Validate PR
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate PR Title and Commits
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate PR title
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PATTERN="^(feat|fix|docs|style|refactor|perf|test|chore)(\(.+\))?: .+"
+
+          if [[ ! "$PR_TITLE" =~ $PATTERN ]]; then
+            echo "❌ PR title does not follow conventional commit format"
+            echo ""
+            echo "Expected format: type(scope): subject"
+            echo ""
+            echo "Valid types: feat, fix, docs, style, refactor, perf, test, chore"
+            echo "Scope is optional: feat: add feature OR feat(api): add feature"
+            echo ""
+            echo "Examples:"
+            echo "  ✅ feat: add changelog workflow"
+            echo "  ✅ fix(ci): update node version"
+            echo "  ✅ docs: update README"
+            echo "  ❌ Add changelog workflow (missing type)"
+            echo "  ❌ feature: add workflow (wrong type name)"
+            echo ""
+            echo "Your PR title: $PR_TITLE"
+            exit 1
+          fi
+
+          echo "✅ PR title is valid: $PR_TITLE"
+
+      - name: Validate commit messages
+        run: |
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          PATTERN="^(feat|fix|docs|style|refactor|perf|test|chore)(\(.+\))?: .+"
+
+          INVALID_COMMITS=""
+
+          while IFS= read -r commit; do
+            SHA=$(echo "$commit" | cut -d' ' -f1)
+            MESSAGE=$(echo "$commit" | cut -d' ' -f2-)
+
+            if [[ ! "$MESSAGE" =~ $PATTERN ]]; then
+              INVALID_COMMITS="$INVALID_COMMITS\n  - $SHA: $MESSAGE"
+            fi
+          done < <(git log --format="%H %s" "$BASE_SHA".."$HEAD_SHA")
+
+          if [[ -n "$INVALID_COMMITS" ]]; then
+            echo "❌ Found commits that don't follow conventional commit format:"
+            echo -e "$INVALID_COMMITS"
+            echo ""
+            echo "Expected format: type(scope): subject"
+            echo ""
+            echo "Valid types: feat, fix, docs, style, refactor, perf, test, chore"
+            echo ""
+            echo "To fix, use interactive rebase:"
+            echo "  git rebase -i $BASE_SHA"
+            echo "Then mark commits as 'reword' and update their messages"
+            echo ""
+            echo "Or amend the last commit:"
+            echo "  git commit --amend -m 'feat: your message'"
+            exit 1
+          fi
+
+          echo "✅ All commit messages are valid"
