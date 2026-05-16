@@ -131,9 +131,7 @@ export async function syncAndUpdateBadge(token: string, login: string): Promise<
     // Update extension badge icon
     const badgeText = badgeCount > 0 ? String(Math.min(badgeCount, 99)) : '';
     await chrome.action.setBadgeText({ text: badgeText });
-    if (badgeCount > 0) {
-      await chrome.action.setBadgeBackgroundColor({ color: BADGE_COLOR_DEFAULT });
-    }
+    await chrome.action.setBadgeBackgroundColor({ color: BADGE_COLOR_DEFAULT });
 
     logger.info({ module: MODULE, message: 'Sync completed' });
   } catch (error) {
