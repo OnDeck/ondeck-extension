@@ -2,10 +2,12 @@ import { setupAlarm, registerAlarmHandler } from './schedulers/alarm';
 import { syncNotifications, syncAndUpdateBadge } from './workers/sync';
 import { getSettings } from '../lib/settings';
 import { getStoredAuth } from '../lib/auth';
+import { logger } from '../shared/logger';
+import { SYNC_ALARM_NAME } from '../shared/constants';
 
 // On extension install/update
 chrome.runtime.onInstalled.addListener(async () => {
-  console.log('[install] Extension installed/updated');
+  logger.info({ module: 'service-worker', message: 'Extension installed/updated' });
 
   const settings = await getSettings();
 
@@ -19,7 +21,7 @@ chrome.runtime.onInstalled.addListener(async () => {
     }
   }
 
-  console.log('[install] Setup complete');
+  logger.info({ module: 'service-worker', message: 'Setup complete' });
 });
 
 // Re-sync on browser startup (service worker restarts).
@@ -36,23 +38,27 @@ registerAlarmHandler();
 
 // When settings change, reschedule alarm or clear badge
 chrome.storage.onChanged.addListener(async (changes, area) => {
-  if (area === 'sync' && changes.settings?.newValue) {
-    const settings = changes.settings.newValue;
-    console.log('[settings] Settings changed:', settings);
+  try {
+    if (area === 'sync' && changes.settings?.newValue) {
+      const settings = changes.settings.newValue;
+      logger.info({ module: 'service-worker', message: 'Settings changed', data: settings });
 
-    if (settings.sync?.enabled) {
-      await setupAlarm(settings.sync.intervalMinutes);
+      if (settings.sync?.enabled) {
+        await setupAlarm(settings.sync.intervalMinutes);
 
-      // Trigger immediate sync if we have auth
-      const auth = await getStoredAuth();
-      if (auth.token && auth.viewer?.login) {
-        await syncAndUpdateBadge(auth.token, auth.viewer.login);
+        // Trigger immediate sync if we have auth
+        const auth = await getStoredAuth();
+        if (auth.token && auth.viewer?.login) {
+          await syncAndUpdateBadge(auth.token, auth.viewer.login);
+        }
+      } else {
+        logger.info({ module: 'service-worker', message: 'Sync disabled, clearing alarm and badge' });
+        await chrome.alarms.clear(SYNC_ALARM_NAME);
+        await chrome.action.setBadgeText({ text: '' });
       }
-    } else {
-      console.log('[settings] Sync disabled, clearing alarm and badge');
-      await chrome.alarms.clear('github-sync');
-      await chrome.action.setBadgeText({ text: '' });
     }
+  } catch (error) {
+    logger.error({ module: 'service-worker', message: 'Error handling storage change', error });
   }
 });
 
