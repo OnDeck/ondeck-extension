@@ -1,5 +1,5 @@
 import { getStoredAuth } from '../../lib/auth';
-import { listNotifications } from '../../lib/github-api';
+import { listNotifications, fetchPullRequestDetails } from '../../lib/github-api';
 import { prioritizeAll } from '../../shared/notifications/prioritizer';
 import {
   NOTIFICATIONS_CACHE_KEY,
@@ -24,12 +24,25 @@ export async function syncNotifications(): Promise<void> {
 
   try {
     const raw = await listNotifications(auth.token, { all: false });
-    const prioritized = prioritizeAll(raw);
+
+    // Filter out merged PRs
+    const mergedPRIds = new Set<string>();
+    for (const notification of raw) {
+      if (notification.subject.type === 'PullRequest' && notification.subject.url) {
+        const details = await fetchPullRequestDetails(auth.token, notification.subject.url);
+        if (details?.merged) {
+          mergedPRIds.add(notification.id);
+        }
+      }
+    }
+
+    const filtered = raw.filter((n) => !mergedPRIds.has(n.id));
+    const prioritized = prioritizeAll(filtered);
 
     const cache: NotificationCache = { items: prioritized, fetchedAt: Date.now() };
     await chrome.storage.local.set({ [NOTIFICATIONS_CACHE_KEY]: cache });
 
-    const unreadCount = raw.filter((n) => n.unread).length;
+    const unreadCount = filtered.filter((n) => n.unread).length;
     const criticalCount = prioritized.filter(
       (n) => n.priority.level === 'critical',
     ).length;
@@ -42,7 +55,7 @@ export async function syncNotifications(): Promise<void> {
 
     logger.info({
       module: MODULE,
-      message: `Synced ${raw.length} notifications (${criticalCount} critical)`,
+      message: `Synced ${filtered.length} notifications (${criticalCount} critical, ${mergedPRIds.size} merged PRs filtered)`,
     });
   } catch (error) {
     logger.error({ module: MODULE, message: 'Sync failed', error });

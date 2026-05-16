@@ -26,6 +26,8 @@ type GroupByMode = GroupBy | 'none';
 function buildFilter(chip: ChipId): NotificationFilter {
   switch (chip) {
     case 'unread':   return { unreadOnly: true };
+    case 'prs':      return { subjectTypes: ['PullRequest'] };
+    case 'issues':   return { subjectTypes: ['Issue'] };
     case 'reviews':  return { reasons: ['review_requested'] };
     case 'mentions': return { reasons: ['mention', 'team_mention'] };
     case 'assigned': return { reasons: ['assign'] };
@@ -41,6 +43,8 @@ function countsByChip(
   return {
     all:      items.length,
     unread:   items.filter((n) => n.unread).length,
+    prs:      items.filter((n) => n.subject.type === 'PullRequest').length,
+    issues:   items.filter((n) => n.subject.type === 'Issue').length,
     reviews:  items.filter((n) => n.reason === 'review_requested').length,
     mentions: items.filter((n) => n.reason === 'mention' || n.reason === 'team_mention').length,
     assigned: items.filter((n) => n.reason === 'assign').length,
@@ -50,7 +54,7 @@ function countsByChip(
 }
 
 export function Notifications({ token, onUnreadCountChange }: Props) {
-  const query = useGitHubQuery(() => listNotifications(token, { all: false }), [token]);
+  const query = useGitHubQuery(() => listNotifications(token, { all: true }), [token]);
 
   const [chip, setChip] = useState<ChipId>('all');
   const [groupBy] = useState<GroupByMode>('priority');
@@ -94,6 +98,10 @@ export function Notifications({ token, onUnreadCountChange }: Props) {
     try {
       await markNotificationRead(token, item.id);
       setLocallyRead((prev) => new Set(prev).add(item.id));
+      // Trigger background sync to update badge
+      chrome.runtime.sendMessage({ type: 'REQUEST_SYNC' }).catch(() => {
+        // Ignore if background script isn't ready
+      });
     } catch {
       // row stays visible; user can retry
     } finally {
