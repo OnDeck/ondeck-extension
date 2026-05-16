@@ -41,7 +41,7 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
   try {
     if (area === 'sync' && changes.settings?.newValue) {
       const settings = changes.settings.newValue;
-      logger.info({ module: 'service-worker', message: 'Settings changed', data: settings });
+      logger.info({ module: 'service-worker', message: 'Settings changed', context: settings });
 
       if (settings.sync?.enabled) {
         await setupAlarm(settings.sync.intervalMinutes);
