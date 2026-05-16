@@ -8,6 +8,7 @@ import { applyFilter } from '../../shared/filters/engine';
 import type { NotificationFilter } from '../../shared/filters/types';
 import { groupNotifications, type GroupBy } from '../../shared/notifications/grouper';
 import { prioritizeAll } from '../../shared/notifications/prioritizer';
+import { useFilterMergedPRs } from '../hooks/useFilterMergedPRs';
 import { useGitHubQuery } from '../hooks/useGitHubQuery';
 import type { ChipId } from './ChipRail';
 import { ChipRail } from './ChipRail';
@@ -57,12 +58,18 @@ export function Notifications({ token, onUnreadCountChange }: Props) {
   const [markingIds, setMarkingIds] = useState<Set<string>>(new Set());
   const [locallyRead, setLocallyRead] = useState<Set<string>>(new Set());
 
+  // Filter out notifications for merged PRs
+  const { filtered: nonMergedNotifs, loading: checkingMerged } = useFilterMergedPRs(
+    token,
+    query.data ?? [],
+  );
+
   const prioritized = useMemo(() => {
-    const raw = (query.data ?? []).filter((n) => !locallyRead.has(n.id));
+    const raw = nonMergedNotifs.filter((n) => !locallyRead.has(n.id));
     const p = prioritizeAll(raw);
     onUnreadCountChange(p.filter((n) => n.unread).length);
     return p;
-  }, [query.data, locallyRead, onUnreadCountChange]);
+  }, [nonMergedNotifs, locallyRead, onUnreadCountChange]);
 
   const counts = useMemo(() => countsByChip(prioritized), [prioritized]);
 
@@ -103,11 +110,16 @@ export function Notifications({ token, onUnreadCountChange }: Props) {
       <ChipRail active={chip} counts={counts} onChange={setChip} />
 
       <div className="tg-scroll" style={{ flex: 1, overflowY: 'auto', background: 'var(--tg-bg1)' }}>
+        {checkingMerged && filtered.length === 0 && (
+          <div style={{ padding: 8, fontSize: 12, color: 'var(--tg-text-muted)', textAlign: 'center' }}>
+            Checking PR status...
+          </div>
+        )}
         {query.status === 'loading' || query.status === 'idle' ? (
           <Spinner />
         ) : query.status === 'error' && query.error ? (
           <ErrorState error={query.error} onRetry={query.refetch} />
-        ) : filtered.length === 0 ? (
+        ) : !checkingMerged && filtered.length === 0 ? (
           <EmptyState />
         ) : (
           groups.map((group) => (

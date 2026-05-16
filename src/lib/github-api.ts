@@ -232,6 +232,57 @@ export async function markNotificationRead(token: string, threadId: string): Pro
 }
 
 /**
+ * PR details returned from the GitHub API.
+ * We only include fields needed to check if a PR is merged/closed.
+ */
+export interface PullRequestDetails {
+  state: 'open' | 'closed';
+  merged: boolean;
+  merged_at: string | null;
+}
+
+/**
+ * Fetch PR details to check if it's merged.
+ * Returns null if the subject URL can't be parsed or the request fails.
+ */
+export async function fetchPullRequestDetails(
+  token: string,
+  subjectUrl: string,
+): Promise<PullRequestDetails | null> {
+  const match = subjectUrl.match(/\/repos\/([^/]+)\/([^/]+)\/pulls\/(\d+)/);
+  if (!match) return null;
+
+  const [, owner, repo, prNumber] = match;
+  try {
+    const res = await githubFetch(`/repos/${owner}/${repo}/pulls/${prNumber}`, token);
+    const data = await res.json() as PullRequestDetails;
+    return {
+      state: data.state,
+      merged: data.merged,
+      merged_at: data.merged_at,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if a notification is for a merged PR.
+ * Returns false for non-PR notifications or if the check fails.
+ */
+export async function isNotificationForMergedPR(
+  token: string,
+  notification: NotificationItem,
+): Promise<boolean> {
+  if (notification.subject.type !== 'PullRequest' || !notification.subject.url) {
+    return false;
+  }
+
+  const details = await fetchPullRequestDetails(token, notification.subject.url);
+  return details?.merged ?? false;
+}
+
+/**
  * Resolve a `notifications.subject.url` (api.github.com form) to a browsable
  * github.com URL. Falls back to the repository URL if the subject URL is null
  * or can't be parsed (e.g. CheckSuite notifications).
