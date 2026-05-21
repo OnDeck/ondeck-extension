@@ -1,5 +1,8 @@
 import { chromium, type BrowserContext, type Page } from '@playwright/test';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export async function launchExtension() {
   const extensionPath = path.join(__dirname, '../../../dist');
@@ -16,12 +19,6 @@ export async function launchExtension() {
 }
 
 export async function getExtensionPage(context: BrowserContext): Promise<Page> {
-  // Wait for extension popup page
-  const pages = context.pages();
-  if (pages.length > 0) {
-    return pages[0];
-  }
-
   // Get extension ID from background page
   let [background] = context.serviceWorkers();
   if (!background) {
@@ -33,6 +30,9 @@ export async function getExtensionPage(context: BrowserContext): Promise<Page> {
   // Open popup
   const popupPage = await context.newPage();
   await popupPage.goto(`chrome-extension://${extensionId}/src/popup/index.html`);
+
+  // Wait for the page to be fully loaded
+  await popupPage.waitForLoadState('domcontentloaded');
 
   return popupPage;
 }

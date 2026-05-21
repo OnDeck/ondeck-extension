@@ -1,19 +1,23 @@
-import { test, expect, type BrowserContext } from '@playwright/test';
+import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { launchExtension, getExtensionPage } from './helpers/extension';
 
 let context: BrowserContext;
+let page: Page;
 
 test.beforeAll(async () => {
   context = await launchExtension();
+  page = await getExtensionPage(context);
 });
 
 test.afterAll(async () => {
   await context.close();
 });
 
+// Ensure tests run serially since they share the same extension instance
+test.describe.configure({ mode: 'serial' });
+
 test.describe('Settings Panel', () => {
   test('opens when settings button is clicked', async () => {
-    const page = await getExtensionPage(context);
 
     // Find and click the settings button (cog icon)
     const settingsButton = page.locator('button').filter({ has: page.locator('svg') }).nth(2);
@@ -29,7 +33,6 @@ test.describe('Settings Panel', () => {
   });
 
   test('closes when close button is clicked', async () => {
-    const page = await getExtensionPage(context);
 
     // Open settings
     const settingsButton = page.locator('button').filter({ has: page.locator('svg') }).nth(2);
@@ -47,7 +50,6 @@ test.describe('Settings Panel', () => {
   });
 
   test('closes when backdrop is clicked', async () => {
-    const page = await getExtensionPage(context);
 
     // Open settings
     const settingsButton = page.locator('button').filter({ has: page.locator('svg') }).nth(2);
@@ -65,7 +67,6 @@ test.describe('Settings Panel', () => {
   });
 
   test('closes when ESC key is pressed', async () => {
-    const page = await getExtensionPage(context);
 
     // Open settings
     const settingsButton = page.locator('button').filter({ has: page.locator('svg') }).nth(2);
@@ -84,7 +85,6 @@ test.describe('Settings Panel', () => {
 
 test.describe('Notification Settings', () => {
   test('toggles notification sound setting and persists', async () => {
-    const page = await getExtensionPage(context);
 
     // Open settings
     const settingsButton = page.locator('button').filter({ has: page.locator('svg') }).nth(2);
@@ -126,7 +126,6 @@ test.describe('Notification Settings', () => {
   });
 
   test('toggles multiple settings independently', async () => {
-    const page = await getExtensionPage(context);
 
     // Open settings
     const settingsButton = page.locator('button').filter({ has: page.locator('svg') }).nth(2);
@@ -169,7 +168,6 @@ test.describe('Notification Settings', () => {
   });
 
   test('displays all notification type toggles', async () => {
-    const page = await getExtensionPage(context);
 
     // Open settings
     const settingsButton = page.locator('button').filter({ has: page.locator('svg') }).nth(2);
@@ -189,7 +187,6 @@ test.describe('Notification Settings', () => {
 
 test.describe('Sign Out Confirmation', () => {
   test('shows confirmation when signing out via avatar', async () => {
-    const page = await getExtensionPage(context);
 
     // Mock the confirm dialog to prevent actual sign out
     await page.evaluate(() => {
@@ -211,7 +208,6 @@ test.describe('Sign Out Confirmation', () => {
   });
 
   test('shows confirmation when signing out via settings button', async () => {
-    const page = await getExtensionPage(context);
 
     // Open settings
     const settingsButton = page.locator('button').filter({ has: page.locator('svg') }).nth(2);
@@ -243,7 +239,6 @@ test.describe('Sign Out Confirmation', () => {
   });
 
   test('closes settings panel after confirming sign out', async () => {
-    const page = await getExtensionPage(context);
 
     // Open settings
     const settingsButton = page.locator('button').filter({ has: page.locator('svg') }).nth(2);
@@ -268,7 +263,6 @@ test.describe('Sign Out Confirmation', () => {
 
 test.describe('Bell Icon Visibility', () => {
   test('shows bell icon when there are unread notifications', async () => {
-    const page = await getExtensionPage(context);
 
     // Wait for notifications to load
     await page.waitForTimeout(2000);
@@ -286,7 +280,6 @@ test.describe('Bell Icon Visibility', () => {
   });
 
   test('bell icon reflects correct unread count', async () => {
-    const page = await getExtensionPage(context);
 
     // Wait for notifications to load
     await page.waitForTimeout(2000);
