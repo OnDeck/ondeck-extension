@@ -1,4 +1,5 @@
 import type { Viewer } from '../../lib/github-api';
+import { BellIcon } from './BellIcon';
 
 interface Props {
   viewer: Viewer;
@@ -8,6 +9,7 @@ interface Props {
   onSearch: () => void;
   onDashboard: () => void;
   dashboardActive: boolean;
+  onSettingsClick: () => void;
 }
 
 function TriageLogo() {
@@ -68,7 +70,19 @@ export function Header({
   onSearch,
   onDashboard,
   dashboardActive,
+  onSettingsClick,
 }: Props) {
+  const handleAvatarSignOut = () => {
+    if (busy) return;
+
+    const confirmed = confirm(
+      'Sign out of GitHub Workflow Assistant? Your personal access token will be removed.'
+    );
+
+    if (confirmed) {
+      onSignOut();
+    }
+  };
   return (
     <header
       style={{
@@ -132,12 +146,18 @@ export function Header({
         </span>
       )}
 
+      {unreadCount > 0 && (
+        <div style={{ marginLeft: 8, display: 'flex', alignItems: 'center' }}>
+          <BellIcon />
+        </div>
+      )}
+
       {/* Viewer avatar */}
       <img
         src={viewer.avatar_url}
         alt={viewer.login}
         title={`@${viewer.login} · click to sign out`}
-        onClick={busy ? undefined : onSignOut}
+        onClick={handleAvatarSignOut}
         style={{
           width: 20,
           height: 20,
@@ -200,7 +220,7 @@ export function Header({
       {/* Settings */}
       <button
         type="button"
-        onClick={() => void 0}
+        onClick={onSettingsClick}
         title="Settings"
         style={{ ...iconBtnBase, color: 'var(--tg-fg2)' }}
         onMouseEnter={(e) => {
