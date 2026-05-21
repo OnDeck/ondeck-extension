@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type CSSProperties } from 'react';
 import type { NotificationSettings } from '../hooks/useNotificationSettings';
 
 interface SettingsPanelProps {
@@ -216,7 +216,7 @@ export function SettingsPanel({
   );
 }
 
-function Section({ title, style }: { title: string; style?: React.CSSProperties }) {
+function Section({ title, style }: { title: string; style?: CSSProperties }) {
   return (
     <div
       style={{

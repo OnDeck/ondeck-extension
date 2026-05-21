@@ -75,7 +75,7 @@ export function Header({
   const handleAvatarSignOut = () => {
     if (busy) return;
 
-    const confirmed = confirm(
+    const confirmed = window.confirm(
       'Sign out of GitHub Workflow Assistant? Your personal access token will be removed.'
     );
 
@@ -220,6 +220,7 @@ export function Header({
       {/* Settings */}
       <button
         type="button"
+        data-testid="settings-button"
         onClick={onSettingsClick}
         title="Settings"
         style={{ ...iconBtnBase, color: 'var(--tg-fg2)' }}

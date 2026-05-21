@@ -12,11 +12,12 @@ const bellPulseStyle = `
 `;
 
 // Animated bell icon for notification badge. Decorative only — semantic meaning provided by adjacent unread count.
-export function BellIcon(): JSX.Element {
+export function BellIcon() {
   return (
     <>
       <style>{bellPulseStyle}</style>
       <svg
+        data-testid="bell-icon"
         aria-hidden="true"
         width="13"
         height="13"

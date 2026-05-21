@@ -7,6 +7,7 @@ import {
   BADGE_COLOR_CRITICAL,
 } from '../../shared/constants';
 import { logger } from '../../shared/logger';
+import type { NewNotificationMessage } from '../../shared/types/notifications';
 
 const MODULE = 'sync-worker';
 
@@ -15,14 +16,6 @@ const NOTIFICATION_IDS_CACHE_KEY = 'last_notification_ids_v1';
 interface NotificationIdCache {
   ids: string[];
   lastSyncAt: number;
-}
-
-interface NewNotificationMessage {
-  type: 'NEW_NOTIFICATIONS';
-  notifications: Array<{
-    id: string;
-    subjectType: string;
-  }>;
 }
 
 export interface NotificationCache {

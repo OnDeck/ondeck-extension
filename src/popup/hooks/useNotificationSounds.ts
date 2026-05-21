@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { NotificationSettings } from './useNotificationSettings';
+import type { NewNotificationMessage } from '../../shared/types/notifications';
 
 function playNotificationSound() {
   try {
@@ -28,16 +29,10 @@ function playNotificationSound() {
       });
     };
   } catch (error) {
+    // Silently fail - notification sounds are non-critical
+    // eslint-disable-next-line no-console
     console.error('Failed to play notification sound:', error);
   }
-}
-
-interface NewNotificationMessage {
-  type: 'NEW_NOTIFICATIONS';
-  notifications: Array<{
-    id: string;
-    subjectType: string;
-  }>;
 }
 
 const SOUND_THROTTLE_MS = 2000;
@@ -48,8 +43,11 @@ export function useNotificationSounds(settings: NotificationSettings | null) {
   useEffect(() => {
     if (!settings) return;
 
-    const handleMessage = (message: any) => {
-      if (message.type !== 'NEW_NOTIFICATIONS') return;
+    const handleMessage = (message: unknown) => {
+      // Type guard: ensure message has correct shape
+      if (!message || typeof message !== 'object') return;
+      if (!('type' in message) || message.type !== 'NEW_NOTIFICATIONS') return;
+      if (!('notifications' in message) || !Array.isArray(message.notifications)) return;
 
       const typedMessage = message as NewNotificationMessage;
 
