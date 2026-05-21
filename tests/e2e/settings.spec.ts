@@ -20,7 +20,7 @@ test.describe('Settings Panel', () => {
   test('opens when settings button is clicked', async () => {
 
     // Find and click the settings button (cog icon)
-    const settingsButton = page.locator('button').filter({ has: page.locator('svg') }).nth(2);
+    const settingsButton = page.locator('[data-testid="settings-button"]');
     await settingsButton.click();
 
     // Settings panel should be visible
@@ -35,7 +35,7 @@ test.describe('Settings Panel', () => {
   test('closes when close button is clicked', async () => {
 
     // Open settings
-    const settingsButton = page.locator('button').filter({ has: page.locator('svg') }).nth(2);
+    const settingsButton = page.locator('[data-testid="settings-button"]');
     await settingsButton.click();
 
     const settingsPanel = page.locator('[role="dialog"][aria-labelledby="settings-title"]');
@@ -52,7 +52,7 @@ test.describe('Settings Panel', () => {
   test('closes when backdrop is clicked', async () => {
 
     // Open settings
-    const settingsButton = page.locator('button').filter({ has: page.locator('svg') }).nth(2);
+    const settingsButton = page.locator('[data-testid="settings-button"]');
     await settingsButton.click();
 
     const settingsPanel = page.locator('[role="dialog"][aria-labelledby="settings-title"]');
@@ -69,7 +69,7 @@ test.describe('Settings Panel', () => {
   test('closes when ESC key is pressed', async () => {
 
     // Open settings
-    const settingsButton = page.locator('button').filter({ has: page.locator('svg') }).nth(2);
+    const settingsButton = page.locator('[data-testid="settings-button"]');
     await settingsButton.click();
 
     const settingsPanel = page.locator('[role="dialog"][aria-labelledby="settings-title"]');
@@ -87,7 +87,7 @@ test.describe('Notification Settings', () => {
   test('toggles notification sound setting and persists', async () => {
 
     // Open settings
-    const settingsButton = page.locator('button').filter({ has: page.locator('svg') }).nth(2);
+    const settingsButton = page.locator('[data-testid="settings-button"]');
     await settingsButton.click();
 
     const settingsPanel = page.locator('[role="dialog"][aria-labelledby="settings-title"]');
@@ -128,7 +128,7 @@ test.describe('Notification Settings', () => {
   test('toggles multiple settings independently', async () => {
 
     // Open settings
-    const settingsButton = page.locator('button').filter({ has: page.locator('svg') }).nth(2);
+    const settingsButton = page.locator('[data-testid="settings-button"]');
     await settingsButton.click();
 
     const settingsPanel = page.locator('[role="dialog"][aria-labelledby="settings-title"]');
@@ -170,7 +170,7 @@ test.describe('Notification Settings', () => {
   test('displays all notification type toggles', async () => {
 
     // Open settings
-    const settingsButton = page.locator('button').filter({ has: page.locator('svg') }).nth(2);
+    const settingsButton = page.locator('[data-testid="settings-button"]');
     await settingsButton.click();
 
     const settingsPanel = page.locator('[role="dialog"][aria-labelledby="settings-title"]');
@@ -193,8 +193,8 @@ test.describe('Sign Out Confirmation', () => {
       window.confirm = () => false;
     });
 
-    // Click on the avatar button (first button in header)
-    const avatarButton = page.locator('header button').first();
+    // Click on the avatar (img element in header)
+    const avatar = page.locator('header img[alt]');
 
     // Set up dialog listener before clicking
     page.once('dialog', async (dialog) => {
@@ -204,13 +204,13 @@ test.describe('Sign Out Confirmation', () => {
       await dialog.dismiss();
     });
 
-    await avatarButton.click();
+    await avatar.click();
   });
 
   test('shows confirmation when signing out via settings button', async () => {
 
     // Open settings
-    const settingsButton = page.locator('button').filter({ has: page.locator('svg') }).nth(2);
+    const settingsButton = page.locator('[data-testid="settings-button"]');
     await settingsButton.click();
 
     const settingsPanel = page.locator('[role="dialog"][aria-labelledby="settings-title"]');
@@ -241,7 +241,7 @@ test.describe('Sign Out Confirmation', () => {
   test('closes settings panel after confirming sign out', async () => {
 
     // Open settings
-    const settingsButton = page.locator('button').filter({ has: page.locator('svg') }).nth(2);
+    const settingsButton = page.locator('[data-testid="settings-button"]');
     await settingsButton.click();
 
     const settingsPanel = page.locator('[role="dialog"][aria-labelledby="settings-title"]');
@@ -268,7 +268,7 @@ test.describe('Bell Icon Visibility', () => {
     await page.waitForTimeout(2000);
 
     // Check if bell icon is visible
-    const bellIcon = page.locator('button').filter({ has: page.locator('svg[width="13"][height="13"]') }).first();
+    const bellIcon = page.locator('[data-testid="bell-icon"]');
 
     // If there are unread notifications, bell should be visible
     const unreadBadge = page.locator('[style*="background: var(--tg-red)"]');

@@ -20,7 +20,7 @@ export default function App() {
   useNotificationSounds(notificationSettings.settings);
 
   const handleSettingsSignOut = () => {
-    const confirmed = confirm(
+    const confirmed = window.confirm(
       'Sign out of GitHub Workflow Assistant? Your personal access token will be removed.'
     );
 

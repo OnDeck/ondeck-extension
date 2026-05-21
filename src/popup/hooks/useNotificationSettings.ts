@@ -1,5 +1,5 @@
-/* eslint-disable no-console */
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { logger } from '../../shared/logger';
 
 const SETTINGS_STORAGE_KEY = 'notification_settings_v1';
 
@@ -57,7 +57,7 @@ export function useNotificationSettings() {
         setLoading(false);
       })
       .catch((error) => {
-        console.error('Failed to load settings:', error);
+        logger.error({ module: 'useNotificationSettings', message: 'Failed to load settings', error });
         setSettings(DEFAULT_SETTINGS);
         setLoading(false);
       });
@@ -80,7 +80,7 @@ export function useNotificationSettings() {
 
     saveTimeoutRef.current = window.setTimeout(() => {
       saveSettings(newSettings).catch((error) => {
-        console.error('Failed to save settings:', error);
+        logger.error({ module: 'useNotificationSettings', message: 'Failed to save settings', error });
       });
       saveTimeoutRef.current = null;
     }, 300);
