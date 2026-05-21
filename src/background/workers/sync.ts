@@ -10,6 +10,21 @@ import { logger } from '../../shared/logger';
 
 const MODULE = 'sync-worker';
 
+const NOTIFICATION_IDS_CACHE_KEY = 'last_notification_ids_v1';
+
+interface NotificationIdCache {
+  ids: string[];
+  lastSyncAt: number;
+}
+
+interface NewNotificationMessage {
+  type: 'NEW_NOTIFICATIONS';
+  notifications: Array<{
+    id: string;
+    subjectType: string;
+  }>;
+}
+
 export interface NotificationCache {
   items: ReturnType<typeof prioritizeAll>;
   fetchedAt: number;
@@ -41,6 +56,40 @@ export async function syncNotifications(): Promise<void> {
 
     const cache: NotificationCache = { items: prioritized, fetchedAt: Date.now() };
     await chrome.storage.local.set({ [NOTIFICATIONS_CACHE_KEY]: cache });
+
+    // Detect new notifications
+    const previousCacheResult = await chrome.storage.local.get(NOTIFICATION_IDS_CACHE_KEY);
+    const previousCache = previousCacheResult[NOTIFICATION_IDS_CACHE_KEY] as NotificationIdCache | undefined;
+    const previousIds = new Set(previousCache?.ids ?? []);
+    const currentIds = filtered.map((n) => n.id);
+
+    // Only send message if we have previous IDs (skip first sync)
+    if (previousCache && previousIds.size > 0) {
+      const newNotifications = filtered.filter((n) => !previousIds.has(n.id));
+
+      if (newNotifications.length > 0) {
+        const message: NewNotificationMessage = {
+          type: 'NEW_NOTIFICATIONS',
+          notifications: newNotifications.map((n) => ({
+            id: n.id,
+            subjectType: n.subject.type,
+          })),
+        };
+
+        // Send message to popup (catch error if popup isn't open)
+        chrome.runtime.sendMessage(message).catch(() => {
+          // Popup might not be open, that's fine
+        });
+      }
+    }
+
+    // Store current IDs for next sync
+    await chrome.storage.local.set({
+      [NOTIFICATION_IDS_CACHE_KEY]: {
+        ids: currentIds,
+        lastSyncAt: Date.now(),
+      } as NotificationIdCache,
+    });
 
     const unreadCount = filtered.filter((n) => n.unread).length;
     const criticalCount = prioritized.filter(
