@@ -1004,6 +1004,355 @@ If any issues are found during testing, document them and fix before considering
 
 ---
 
+## Task 9: Playwright Setup
+
+**Files:**
+- Create: `playwright.config.ts`
+- Create: `tests/e2e/settings.spec.ts`
+- Modify: `package.json`
+
+- [ ] **Step 1: Install Playwright**
+
+```bash
+npm install -D @playwright/test playwright-chromium
+```
+
+- [ ] **Step 2: Create Playwright config for Chrome extension testing**
+
+Create `playwright.config.ts`:
+
+```typescript
+import { defineConfig, devices } from '@playwright/test';
+import path from 'path';
+
+export default defineConfig({
+  testDir: './tests/e2e',
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
+  reporter: 'html',
+  use: {
+    trace: 'on-first-retry',
+  },
+  projects: [
+    {
+      name: 'chromium',
+      use: { 
+        ...devices['Desktop Chrome'],
+        // Extension testing requires headful mode
+        headless: false,
+      },
+    },
+  ],
+});
+```
+
+- [ ] **Step 3: Add test script to package.json**
+
+Add to `package.json` scripts:
+
+```json
+"test:e2e": "playwright test",
+"test:e2e:ui": "playwright test --ui",
+"test:e2e:debug": "playwright test --debug"
+```
+
+- [ ] **Step 4: Create E2E test directory**
+
+```bash
+mkdir -p tests/e2e
+```
+
+- [ ] **Step 5: Commit Playwright setup**
+
+```bash
+git add playwright.config.ts package.json package-lock.json tests/e2e
+git commit -m "test: add Playwright setup for E2E testing"
+```
+
+---
+
+## Task 10: E2E Tests for Settings Features
+
+**Files:**
+- Create: `tests/e2e/settings.spec.ts`
+- Create: `tests/e2e/helpers/extension.ts`
+
+- [ ] **Step 1: Create extension test helper**
+
+Create `tests/e2e/helpers/extension.ts`:
+
+```typescript
+import { chromium, type BrowserContext, type Page } from '@playwright/test';
+import path from 'path';
+
+export async function launchExtension() {
+  const extensionPath = path.join(__dirname, '../../../dist');
+  
+  const context = await chromium.launchPersistentContext('', {
+    headless: false,
+    args: [
+      `--disable-extensions-except=${extensionPath}`,
+      `--load-extension=${extensionPath}`,
+    ],
+  });
+
+  return context;
+}
+
+export async function getExtensionPage(context: BrowserContext): Promise<Page> {
+  // Wait for extension popup page
+  const pages = context.pages();
+  if (pages.length > 0) {
+    return pages[0];
+  }
+  
+  // Get extension ID from background page
+  let [background] = context.serviceWorkers();
+  if (!background) {
+    background = await context.waitForEvent('serviceworker');
+  }
+
+  const extensionId = background.url().split('/')[2];
+  
+  // Open popup
+  const popupPage = await context.newPage();
+  await popupPage.goto(`chrome-extension://${extensionId}/src/popup/index.html`);
+  
+  return popupPage;
+}
+```
+
+- [ ] **Step 2: Create settings panel E2E tests**
+
+Create `tests/e2e/settings.spec.ts`:
+
+```typescript
+import { test, expect } from '@playwright/test';
+import { launchExtension, getExtensionPage } from './helpers/extension';
+
+test.describe('Settings Panel', () => {
+  test('should open and close settings panel via settings button', async () => {
+    const context = await launchExtension();
+    const page = await getExtensionPage(context);
+
+    // Wait for app to load
+    await page.waitForSelector('[title="Settings"]');
+
+    // Click settings button
+    await page.click('[title="Settings"]');
+
+    // Verify settings panel is visible
+    await expect(page.locator('text=Notification Sounds')).toBeVisible();
+
+    // Click X button to close
+    await page.click('button:has-text("×")');
+
+    // Verify settings panel is closed
+    await expect(page.locator('text=Notification Sounds')).not.toBeVisible();
+
+    await context.close();
+  });
+
+  test('should close settings panel via backdrop click', async () => {
+    const context = await launchExtension();
+    const page = await getExtensionPage(context);
+
+    await page.waitForSelector('[title="Settings"]');
+    await page.click('[title="Settings"]');
+
+    await expect(page.locator('text=Notification Sounds')).toBeVisible();
+
+    // Click backdrop (outside panel)
+    await page.click('div[style*="rgba(0, 0, 0, 0.4)"]');
+
+    await expect(page.locator('text=Notification Sounds')).not.toBeVisible();
+
+    await context.close();
+  });
+
+  test('should close settings panel via ESC key', async () => {
+    const context = await launchExtension();
+    const page = await getExtensionPage(context);
+
+    await page.waitForSelector('[title="Settings"]');
+    await page.click('[title="Settings"]');
+
+    await expect(page.locator('text=Notification Sounds')).toBeVisible();
+
+    // Press ESC
+    await page.keyboard.press('Escape');
+
+    await expect(page.locator('text=Notification Sounds')).not.toBeVisible();
+
+    await context.close();
+  });
+});
+
+test.describe('Notification Settings', () => {
+  test('should toggle notification type and persist', async () => {
+    const context = await launchExtension();
+    const page = await getExtensionPage(context);
+
+    await page.waitForSelector('[title="Settings"]');
+    await page.click('[title="Settings"]');
+
+    // Find and click Pull Requests toggle
+    const prToggle = page.locator('label:has-text("Pull Requests") input[type="checkbox"]');
+    await prToggle.check();
+
+    // Verify it's checked
+    await expect(prToggle).toBeChecked();
+
+    // Close settings
+    await page.keyboard.press('Escape');
+
+    // Reopen settings
+    await page.click('[title="Settings"]');
+
+    // Verify toggle is still checked (persisted)
+    await expect(prToggle).toBeChecked();
+
+    // Clean up: uncheck it
+    await prToggle.uncheck();
+
+    await context.close();
+  });
+
+  test('should toggle multiple notification types independently', async () => {
+    const context = await launchExtension();
+    const page = await getExtensionPage(context);
+
+    await page.waitForSelector('[title="Settings"]');
+    await page.click('[title="Settings"]');
+
+    // Toggle multiple types
+    const prToggle = page.locator('label:has-text("Pull Requests") input[type="checkbox"]');
+    const issueToggle = page.locator('label:has-text("Issues") input[type="checkbox"]');
+
+    await prToggle.check();
+    await issueToggle.check();
+
+    await expect(prToggle).toBeChecked();
+    await expect(issueToggle).toBeChecked();
+
+    // Uncheck one
+    await prToggle.uncheck();
+
+    await expect(prToggle).not.toBeChecked();
+    await expect(issueToggle).toBeChecked();
+
+    // Clean up
+    await issueToggle.uncheck();
+
+    await context.close();
+  });
+});
+
+test.describe('Sign Out Confirmation', () => {
+  test('should show confirmation dialog when clicking avatar', async () => {
+    const context = await launchExtension();
+    const page = await getExtensionPage(context);
+
+    // Wait for avatar (user must be signed in)
+    await page.waitForSelector('img[title*="click to sign out"]');
+
+    // Set up dialog handler
+    let dialogShown = false;
+    page.on('dialog', async (dialog) => {
+      dialogShown = true;
+      expect(dialog.message()).toContain('Sign out');
+      expect(dialog.message()).toContain('personal access token');
+      await dialog.dismiss(); // Cancel sign out
+    });
+
+    // Click avatar
+    await page.click('img[title*="click to sign out"]');
+
+    // Verify dialog was shown
+    expect(dialogShown).toBe(true);
+
+    await context.close();
+  });
+
+  test('should show confirmation dialog when clicking Sign Out in settings', async () => {
+    const context = await launchExtension();
+    const page = await getExtensionPage(context);
+
+    await page.waitForSelector('[title="Settings"]');
+    await page.click('[title="Settings"]');
+
+    // Wait for Sign Out button
+    await page.waitForSelector('button:has-text("Sign Out")');
+
+    // Set up dialog handler
+    let dialogShown = false;
+    page.on('dialog', async (dialog) => {
+      dialogShown = true;
+      expect(dialog.message()).toContain('Sign out');
+      await dialog.dismiss();
+    });
+
+    // Click Sign Out button
+    await page.click('button:has-text("Sign Out")');
+
+    expect(dialogShown).toBe(true);
+
+    await context.close();
+  });
+});
+```
+
+- [ ] **Step 3: Create bell icon visibility test**
+
+Add to `tests/e2e/settings.spec.ts`:
+
+```typescript
+test.describe('Bell Icon', () => {
+  test('should show bell icon when there are unread notifications', async () => {
+    const context = await launchExtension();
+    const page = await getExtensionPage(context);
+
+    // Wait for page to load
+    await page.waitForSelector('header');
+
+    // Check if bell icon is present (depends on having unread notifications)
+    const bellIcon = page.locator('svg[style*="bellPulse"]');
+    const unreadBadge = page.locator('span:has-text(/^[0-9]+$/)').first();
+
+    // If there are unread notifications, bell should be visible
+    if (await unreadBadge.isVisible()) {
+      await expect(bellIcon).toBeVisible();
+    } else {
+      // No unread notifications, bell should not be visible
+      await expect(bellIcon).not.toBeVisible();
+    }
+
+    await context.close();
+  });
+});
+```
+
+- [ ] **Step 4: Run tests to verify they work**
+
+```bash
+npm run test:e2e
+```
+
+Expected: Tests should run and pass (may need to be signed in to extension)
+
+Note: Some tests require being signed in with a GitHub token. You may need to manually sign in before running tests.
+
+- [ ] **Step 5: Commit E2E tests**
+
+```bash
+git add tests/e2e/
+git commit -m "test: add E2E tests for settings panel and notifications"
+```
+
+---
+
 ## Success Criteria
 
 - [ ] Settings panel opens/closes via settings button, ESC, and backdrop
@@ -1014,3 +1363,5 @@ If any issues are found during testing, document them and fix before considering
 - [ ] Sounds throttle correctly (max once per 2 seconds)
 - [ ] No console errors during normal operation
 - [ ] All commits follow conventional commit format
+- [ ] All E2E tests pass
+- [ ] Playwright setup is complete and documented
