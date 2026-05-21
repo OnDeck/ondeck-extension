@@ -30,6 +30,19 @@ export function applyFilter(
       const repoMatch = item.repository.full_name.toLowerCase().includes(q);
       if (!titleMatch && !repoMatch) return false;
     }
+    if (filter.dateRange) {
+      const updatedAt = new Date(item.updated_at);
+      if (filter.dateRange.from && updatedAt < filter.dateRange.from) {
+        return false;
+      }
+      if (filter.dateRange.to) {
+        const toEndOfDay = new Date(filter.dateRange.to);
+        toEndOfDay.setHours(23, 59, 59, 999);
+        if (updatedAt > toEndOfDay) {
+          return false;
+        }
+      }
+    }
     return true;
   });
 }

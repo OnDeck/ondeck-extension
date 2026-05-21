@@ -8,4 +8,8 @@ export interface NotificationFilter {
   subjectTypes?: NotificationSubjectType[];
   unreadOnly?: boolean;
   search?: string;
+  dateRange?: {
+    from?: Date;
+    to?: Date;
+  };
 }

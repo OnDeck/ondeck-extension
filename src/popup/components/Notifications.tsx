@@ -4,7 +4,7 @@ import {
   markNotificationRead,
   type NotificationItem,
 } from '../../lib/github-api';
-import { applyFilter } from '../../shared/filters/engine';
+import { applyFilter, extractRepositories } from '../../shared/filters/engine';
 import type { NotificationFilter } from '../../shared/filters/types';
 import { groupNotifications, type GroupBy } from '../../shared/notifications/grouper';
 import { prioritizeAll } from '../../shared/notifications/prioritizer';
@@ -12,6 +12,7 @@ import { useFilterMergedPRs } from '../hooks/useFilterMergedPRs';
 import { useGitHubQuery } from '../hooks/useGitHubQuery';
 import type { ChipId } from './ChipRail';
 import { ChipRail } from './ChipRail';
+import { FilterPanel } from './FilterPanel';
 import { GroupHeader } from './GroupHeader';
 import { NotifRow } from './NotifRow';
 import { EmptyState, ErrorState, Spinner } from './States';
@@ -23,18 +24,38 @@ interface Props {
 
 type GroupByMode = GroupBy | 'none';
 
-function buildFilter(chip: ChipId): NotificationFilter {
+function buildFilter(
+  chip: ChipId,
+  repos: string[],
+  dateFrom: string,
+  dateTo: string,
+): NotificationFilter {
+  const base: NotificationFilter = {};
+
+  // Chip filter
   switch (chip) {
-    case 'unread':   return { unreadOnly: true };
-    case 'prs':      return { subjectTypes: ['PullRequest'] };
-    case 'issues':   return { subjectTypes: ['Issue'] };
-    case 'reviews':  return { reasons: ['review_requested'] };
-    case 'mentions': return { reasons: ['mention', 'team_mention'] };
-    case 'assigned': return { reasons: ['assign'] };
-    case 'ci':       return { reasons: ['ci_activity'] };
-    case 'security': return { reasons: ['security_alert'] };
-    default:         return {};
+    case 'unread':   base.unreadOnly = true; break;
+    case 'prs':      base.subjectTypes = ['PullRequest']; break;
+    case 'issues':   base.subjectTypes = ['Issue']; break;
+    case 'reviews':  base.reasons = ['review_requested']; break;
+    case 'mentions': base.reasons = ['mention', 'team_mention']; break;
+    case 'assigned': base.reasons = ['assign']; break;
+    case 'ci':       base.reasons = ['ci_activity']; break;
+    case 'security': base.reasons = ['security_alert']; break;
   }
+
+  // Advanced filters
+  if (repos.length > 0) {
+    base.repositories = repos;
+  }
+  if (dateFrom || dateTo) {
+    base.dateRange = {
+      from: dateFrom ? new Date(dateFrom) : undefined,
+      to: dateTo ? new Date(dateTo) : undefined,
+    };
+  }
+
+  return base;
 }
 
 function countsByChip(
@@ -61,6 +82,10 @@ export function Notifications({ token, onUnreadCountChange }: Props) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [markingIds, setMarkingIds] = useState<Set<string>>(new Set());
   const [locallyRead, setLocallyRead] = useState<Set<string>>(new Set());
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   // Filter out notifications for merged PRs
   const { filtered: nonMergedNotifs, loading: checkingMerged } = useFilterMergedPRs(
@@ -77,9 +102,11 @@ export function Notifications({ token, onUnreadCountChange }: Props) {
 
   const counts = useMemo(() => countsByChip(prioritized), [prioritized]);
 
+  const allRepositories = useMemo(() => extractRepositories(prioritized), [prioritized]);
+
   const filtered = useMemo(
-    () => applyFilter(prioritized, buildFilter(chip)),
-    [prioritized, chip],
+    () => applyFilter(prioritized, buildFilter(chip, selectedRepos, dateFrom, dateTo)),
+    [prioritized, chip, selectedRepos, dateFrom, dateTo],
   );
 
   const groups = useMemo(
@@ -92,6 +119,14 @@ export function Notifications({ token, onUnreadCountChange }: Props) {
 
   const toggle = (key: string) =>
     setCollapsed((c) => ({ ...c, [key]: !c[key] }));
+
+  const handleResetFilters = () => {
+    setSelectedRepos([]);
+    setDateFrom('');
+    setDateTo('');
+  };
+
+  const activeFilterCount = selectedRepos.length + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
 
   const handleMark = async (item: NotificationItem) => {
     setMarkingIds((prev) => new Set(prev).add(item.id));
@@ -115,7 +150,52 @@ export function Notifications({ token, onUnreadCountChange }: Props) {
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <ChipRail active={chip} counts={counts} onChange={setChip} />
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          borderBottom: '1px solid var(--tg-line)',
+          background: 'var(--tg-bg1)',
+        }}
+      >
+        <div style={{ flex: 1 }}>
+          <ChipRail active={chip} counts={counts} onChange={setChip} />
+        </div>
+        <button
+          type="button"
+          data-testid="filter-button"
+          onClick={() => setFilterPanelOpen(true)}
+          title="Advanced filters"
+          style={{
+            padding: '6px 12px',
+            margin: '6px 8px',
+            border: '1px solid var(--tg-line)',
+            borderRadius: 4,
+            background: activeFilterCount > 0 ? 'var(--tg-accent-soft)' : 'transparent',
+            color: activeFilterCount > 0 ? 'var(--tg-accent)' : 'var(--tg-fg2)',
+            fontSize: 11,
+            fontFamily: 'var(--tg-sans)',
+            cursor: 'pointer',
+            fontWeight: 500,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 14 14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          >
+            <path d="M1 2h12M3 7h8M5 12h4" />
+          </svg>
+          {activeFilterCount > 0 && <span>({activeFilterCount})</span>}
+        </button>
+      </div>
 
       <div className="tg-scroll" style={{ flex: 1, overflowY: 'auto', background: 'var(--tg-bg1)' }}>
         {checkingMerged && filtered.length === 0 && (
@@ -162,6 +242,21 @@ export function Notifications({ token, onUnreadCountChange }: Props) {
           ))
         )}
       </div>
+
+      <FilterPanel
+        open={filterPanelOpen}
+        onClose={() => setFilterPanelOpen(false)}
+        repositories={allRepositories}
+        selectedRepos={selectedRepos}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onRepoChange={setSelectedRepos}
+        onDateChange={(from, to) => {
+          setDateFrom(from);
+          setDateTo(to);
+        }}
+        onReset={handleResetFilters}
+      />
     </div>
   );
 }
