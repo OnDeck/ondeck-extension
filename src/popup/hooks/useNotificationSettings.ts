@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 const SETTINGS_STORAGE_KEY = 'notification_settings_v1';
@@ -60,6 +61,15 @@ export function useNotificationSettings() {
         setSettings(DEFAULT_SETTINGS);
         setLoading(false);
       });
+  }, []);
+
+  // Cleanup pending save on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current !== null) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, []);
 
   // Debounced save function

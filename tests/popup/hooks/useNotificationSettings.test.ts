@@ -30,6 +30,11 @@ global.chrome = {
   },
 } as unknown as typeof chrome;
 
+// NOTE: Hook integration tests (debouncing, callback dependencies, state management)
+// require @testing-library/react which is not currently installed.
+// These tests cover the storage layer; hook behavior should be verified manually
+// or after installing @testing-library/react.
+
 describe('notification settings storage', () => {
   beforeEach(() => {
     // Clear mock storage and call history
