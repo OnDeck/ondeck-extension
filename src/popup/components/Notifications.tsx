@@ -21,6 +21,7 @@ import { EmptyState, ErrorState, Spinner } from './States';
 interface Props {
   token: string;
   onUnreadCountChange: (n: number) => void;
+  searchQuery?: string;
 }
 
 type GroupByMode = GroupBy | 'none';
@@ -35,6 +36,7 @@ function buildFilter(
 
   // Chip filter
   switch (chip) {
+    case 'all':      base.subjectTypes = ['PullRequest', 'Issue']; break;
     case 'unread':   base.unreadOnly = true; break;
     case 'prs':      base.subjectTypes = ['PullRequest']; break;
     case 'issues':   base.subjectTypes = ['Issue']; break;
@@ -63,7 +65,7 @@ function countsByChip(
   items: ReturnType<typeof prioritizeAll>,
 ): Partial<Record<ChipId, number>> {
   return {
-    all:      items.length,
+    all:      items.filter((n) => n.subject.type === 'PullRequest' || n.subject.type === 'Issue').length,
     unread:   items.filter((n) => n.unread).length,
     prs:      items.filter((n) => n.subject.type === 'PullRequest').length,
     issues:   items.filter((n) => n.subject.type === 'Issue').length,
@@ -75,7 +77,7 @@ function countsByChip(
   };
 }
 
-export function Notifications({ token, onUnreadCountChange }: Props) {
+export function Notifications({ token, onUnreadCountChange, searchQuery = '' }: Props) {
   const query = useGitHubQuery(() => listNotifications(token, { all: true }), [token]);
 
   const [chip, setChip] = useState<ChipId>('all');
@@ -98,6 +100,7 @@ export function Notifications({ token, onUnreadCountChange }: Props) {
   const { closedPRs } = useClosedPRDetection(token, nonMergedNotifs);
 
   const prioritized = useMemo(() => {
+    // Filter out locally read notifications (keep closed items to show with tag)
     const raw = nonMergedNotifs.filter((n) => !locallyRead.has(n.id));
     const p = prioritizeAll(raw);
     onUnreadCountChange(p.filter((n) => n.unread).length);
@@ -108,10 +111,19 @@ export function Notifications({ token, onUnreadCountChange }: Props) {
 
   const allRepositories = useMemo(() => extractRepositories(prioritized), [prioritized]);
 
-  const filtered = useMemo(
-    () => applyFilter(prioritized, buildFilter(chip, selectedRepos, dateFrom, dateTo)),
-    [prioritized, chip, selectedRepos, dateFrom, dateTo],
-  );
+  const filtered = useMemo(() => {
+    const filterResult = applyFilter(prioritized, buildFilter(chip, selectedRepos, dateFrom, dateTo));
+
+    if (!searchQuery.trim()) {
+      return filterResult;
+    }
+
+    const lowerQuery = searchQuery.toLowerCase();
+    return filterResult.filter((n) =>
+      n.subject.title.toLowerCase().includes(lowerQuery) ||
+      n.repository.full_name.toLowerCase().includes(lowerQuery)
+    );
+  }, [prioritized, chip, selectedRepos, dateFrom, dateTo, searchQuery]);
 
   const groups = useMemo(
     () =>

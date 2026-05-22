@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { Header } from './components/Header';
 import { Notifications } from './components/Notifications';
 import { PopupFooter } from './components/PopupFooter';
+import { SearchOverlay } from './components/SearchOverlay';
 import { SettingsPanel } from './components/SettingsPanel';
 import { SignIn } from './components/SignIn';
 import { useAuth } from './hooks/useAuth';
@@ -15,11 +16,26 @@ export default function App() {
   const [dashboardActive, setDashboardActive] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const notificationSettings = useNotificationSettings();
   const tabVisibility = useTabVisibility();
 
   // Enable notification sounds
   useNotificationSounds(notificationSettings.settings);
+
+  // Keyboard shortcut for search (Cmd+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleSettingsSignOut = () => {
     const confirmed = window.confirm(
@@ -73,7 +89,7 @@ export default function App() {
         unreadCount={unreadCount}
         onSignOut={() => void auth.signOut()}
         busy={auth.busy}
-        onSearch={() => void 0}
+        onSearch={() => setSearchOpen(true)}
         onDashboard={() => setDashboardActive((v) => !v)}
         dashboardActive={dashboardActive}
         onSettingsClick={() => setSettingsOpen(true)}
@@ -83,11 +99,24 @@ export default function App() {
         {dashboardActive ? (
           <Dashboard token={token} login={login} />
         ) : (
-          <Notifications token={token} onUnreadCountChange={setUnreadCount} />
+          <Notifications
+            token={token}
+            onUnreadCountChange={setUnreadCount}
+            searchQuery={searchQuery}
+          />
         )}
       </div>
 
       <PopupFooter selectedCount={0} />
+
+      <SearchOverlay
+        isOpen={searchOpen}
+        onClose={() => {
+          setSearchOpen(false);
+          setSearchQuery('');
+        }}
+        onSearch={setSearchQuery}
+      />
 
       <SettingsPanel
         open={settingsOpen}

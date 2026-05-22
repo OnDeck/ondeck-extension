@@ -15,10 +15,13 @@ interface Props {
 
 function OnDeckLogo() {
   return (
-    <svg width="11" height="11" viewBox="0 0 14 14" fill="currentColor">
-      <rect x="1" y="2" width="12" height="2.4" rx="0.6" />
-      <rect x="5.8" y="4.4" width="2.4" height="7.6" rx="0.6" />
-    </svg>
+    <img
+      src="/icons/icon32.png"
+      alt="OnDeck"
+      width="16"
+      height="16"
+      style={{ display: 'block' }}
+    />
   );
 }
 
@@ -100,58 +103,18 @@ export function Header({
       {/* Brand mark */}
       <div
         style={{
-          width: 22,
-          height: 22,
+          width: 24,
+          height: 24,
           borderRadius: 5,
-          background: 'linear-gradient(180deg, #1d2128 0%, #11141a 100%)',
-          border: '1px solid var(--tg-line-strong)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: 'var(--tg-fg0)',
           marginRight: 8,
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
           flexShrink: 0,
         }}
       >
         <OnDeckLogo />
       </div>
-
-      <span
-        style={{
-          fontSize: 13,
-          fontWeight: 600,
-          color: 'var(--tg-fg0)',
-          letterSpacing: -0.2,
-          fontFamily: 'var(--tg-sans)',
-          marginRight: 6,
-        }}
-      >
-        OnDeck
-      </span>
-
-      {unreadCount > 0 && (
-        <span
-          style={{
-            padding: '1.5px 6px',
-            borderRadius: 4,
-            background: 'var(--tg-bg3)',
-            color: 'var(--tg-fg2)',
-            fontSize: 10.5,
-            fontFamily: 'var(--tg-mono)',
-            fontWeight: 500,
-            lineHeight: 1,
-          }}
-        >
-          {unreadCount}
-        </span>
-      )}
-
-      {unreadCount > 0 && (
-        <div style={{ marginLeft: 8, display: 'flex', alignItems: 'center' }}>
-          <BellIcon />
-        </div>
-      )}
 
       {/* Viewer avatar */}
       <img
@@ -171,6 +134,23 @@ export function Header({
           flexShrink: 0,
         }}
       />
+
+      {unreadCount > 0 && (
+        <span
+          style={{
+            padding: '1.5px 6px',
+            borderRadius: 4,
+            background: 'var(--tg-bg3)',
+            color: 'var(--tg-fg2)',
+            fontSize: 10.5,
+            fontFamily: 'var(--tg-mono)',
+            fontWeight: 500,
+            lineHeight: 1,
+          }}
+        >
+          {unreadCount}
+        </span>
+      )}
 
       <div style={{ flex: 1 }} />
 
