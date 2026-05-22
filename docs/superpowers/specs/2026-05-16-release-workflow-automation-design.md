@@ -183,7 +183,7 @@ All notable changes to this project will be documented in this file.
 ## [0.1.0] - 2026-05-15
 
 ### Features
-- initial release with notification triage
+- initial release with notification management
 ```
 
 **Section ordering:**

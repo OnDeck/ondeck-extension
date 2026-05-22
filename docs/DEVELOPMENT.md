@@ -124,7 +124,7 @@ github-chrome/
 │   │   ├── components/        # All UI components
 │   │   └── hooks/             # useAuth, useGitHubQuery
 │   └── styles/
-│       └── globals.css        # Triage design tokens + Tailwind directives
+│       └── globals.css        # OnDeck design tokens + Tailwind directives
 ├── tests/                     # Vitest unit tests
 ├── docs/                      # This file, screenshots
 ├── .github/workflows/ci.yml   # Lint → Typecheck → Test → Build
