@@ -1,5 +1,6 @@
 import type { TabId } from '../tabs';
 import { cn } from '../lib/cn';
+import { useTabVisibility } from '../hooks/useTabVisibility';
 
 interface Tab {
   id: TabId;
@@ -20,12 +21,27 @@ interface Props {
 }
 
 export function TabBar({ active, onChange }: Props) {
+  const { settings, loading } = useTabVisibility();
+
+  if (loading || !settings) {
+    // Show skeleton while loading
+    return (
+      <nav
+        role="tablist"
+        className="flex border-b border-gh-border-default bg-gh-canvas-default"
+        style={{ height: 33 }}
+      />
+    );
+  }
+
+  const visibleTabs = TABS.filter((tab) => settings.visible[tab.id]);
+
   return (
     <nav
       role="tablist"
       className="flex border-b border-gh-border-default bg-gh-canvas-default"
     >
-      {TABS.map((tab) => {
+      {visibleTabs.map((tab) => {
         const isActive = tab.id === active;
         return (
           <button
