@@ -4,21 +4,12 @@ import { compactRelativeTime } from '../../shared/utils/compactRelativeTime';
 import { notifDisplayMeta } from '../../shared/utils/notifDisplay';
 import { notificationHtmlUrl } from '../../lib/github-api';
 
-function priorityBarColor(level: PrioritizedNotification['priority']['level']): string {
-  switch (level) {
-    case 'critical': return 'var(--tg-critical)';
-    case 'important': return 'var(--tg-important)';
-    case 'normal': return 'var(--tg-accent)';
-    default: return 'var(--tg-fg3)';
-  }
+function priorityBarColor(): string {
+  return 'var(--tg-accent)';
 }
 
-function unreadDotColor(level: PrioritizedNotification['priority']['level']): string {
-  switch (level) {
-    case 'critical': return 'var(--tg-critical)';
-    case 'important': return 'var(--tg-important)';
-    default: return 'var(--tg-accent)';
-  }
+function unreadDotColor(): string {
+  return 'var(--tg-accent)';
 }
 
 interface MarkReadBtnProps {
@@ -72,7 +63,7 @@ interface Props {
 export function NotifRow({ item, marking, onMark, showRepo = true, isClosed = false }: Props) {
   const display = notifDisplayMeta(item);
   const ago = compactRelativeTime(item.updated_at);
-  const dim = !item.unread && item.priority.level === 'muted';
+  const dim = false;
   const url = notificationHtmlUrl(item);
   const prNum = item.subject.url?.match(/\/(\d+)$/)?.[1];
 
@@ -102,8 +93,7 @@ export function NotifRow({ item, marking, onMark, showRepo = true, isClosed = fa
           marginRight: 10,
           marginTop: 3,
           marginBottom: 3,
-          background: priorityBarColor(item.priority.level),
-          opacity: item.priority.level === 'muted' ? 0.3 : 1,
+          background: priorityBarColor(),
           borderRadius: 1,
           flexShrink: 0,
         }}
@@ -126,10 +116,7 @@ export function NotifRow({ item, marking, onMark, showRepo = true, isClosed = fa
               width: 5,
               height: 5,
               borderRadius: 3,
-              background: unreadDotColor(item.priority.level),
-              boxShadow: item.priority.level === 'critical'
-                ? '0 0 0 2px var(--tg-critical-soft)'
-                : 'none',
+              background: unreadDotColor(),
             }}
           />
         )}

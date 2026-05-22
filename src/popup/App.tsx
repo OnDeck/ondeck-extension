@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Dashboard } from './components/Dashboard';
 import { Header } from './components/Header';
 import { Notifications } from './components/Notifications';
 import { PopupFooter } from './components/PopupFooter';
@@ -7,19 +6,20 @@ import { SearchOverlay } from './components/SearchOverlay';
 import { SettingsPanel } from './components/SettingsPanel';
 import { SignIn } from './components/SignIn';
 import { useAuth } from './hooks/useAuth';
+import { useFilterSettings } from './hooks/useFilterSettings';
 import { useNotificationSettings } from './hooks/useNotificationSettings';
 import { useNotificationSounds } from './hooks/useNotificationSounds';
 import { useTabVisibility } from './hooks/useTabVisibility';
 
 export default function App() {
   const auth = useAuth();
-  const [dashboardActive, setDashboardActive] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const notificationSettings = useNotificationSettings();
   const tabVisibility = useTabVisibility();
+  const filterSettings = useFilterSettings();
 
   // Enable notification sounds
   useNotificationSounds(notificationSettings.settings);
@@ -72,7 +72,6 @@ export default function App() {
   }
 
   const token = auth.token ?? '';
-  const login = auth.viewer.login;
 
   return (
     <div
@@ -90,21 +89,16 @@ export default function App() {
         onSignOut={() => void auth.signOut()}
         busy={auth.busy}
         onSearch={() => setSearchOpen(true)}
-        onDashboard={() => setDashboardActive((v) => !v)}
-        dashboardActive={dashboardActive}
         onSettingsClick={() => setSettingsOpen(true)}
       />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        {dashboardActive ? (
-          <Dashboard token={token} login={login} />
-        ) : (
-          <Notifications
-            token={token}
-            onUnreadCountChange={setUnreadCount}
-            searchQuery={searchQuery}
-          />
-        )}
+        <Notifications
+          token={token}
+          onUnreadCountChange={setUnreadCount}
+          searchQuery={searchQuery}
+          hideClosed={filterSettings.hideClosed}
+        />
       </div>
 
       <PopupFooter selectedCount={0} />
@@ -126,6 +120,7 @@ export default function App() {
         onUpdateSound={notificationSettings.updateSound}
         onSignOut={handleSettingsSignOut}
         tabVisibility={tabVisibility}
+        filterSettings={filterSettings}
       />
     </div>
   );
