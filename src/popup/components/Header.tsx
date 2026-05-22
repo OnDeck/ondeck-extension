@@ -1,6 +1,4 @@
-import { useState } from 'react';
 import type { Viewer } from '../../lib/github-api';
-import { BellIcon } from './BellIcon';
 
 interface Props {
   viewer: Viewer;
@@ -8,8 +6,6 @@ interface Props {
   onSignOut: () => void;
   busy: boolean;
   onSearch: () => void;
-  onDashboard: () => void;
-  dashboardActive: boolean;
   onSettingsClick: () => void;
 }
 
@@ -30,16 +26,6 @@ function SearchIcon() {
     <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
       <circle cx="6" cy="6" r="4" />
       <path d="M9 9l3.5 3.5" />
-    </svg>
-  );
-}
-
-function ChartIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="1.5" y="9" width="2.5" height="3.5" rx="0.5" />
-      <rect x="5.75" y="5.5" width="2.5" height="7" rx="0.5" />
-      <rect x="10" y="2" width="2.5" height="10.5" rx="0.5" />
     </svg>
   );
 }
@@ -72,8 +58,6 @@ export function Header({
   onSignOut,
   busy,
   onSearch,
-  onDashboard,
-  dashboardActive,
   onSettingsClick,
 }: Props) {
   const handleAvatarSignOut = () => {
@@ -172,32 +156,6 @@ export function Header({
         <SearchIcon />
       </button>
 
-      {/* Dashboard toggle */}
-      <button
-        type="button"
-        onClick={onDashboard}
-        title="Dashboard"
-        style={{
-          ...iconBtnBase,
-          color: dashboardActive ? 'var(--tg-accent)' : 'var(--tg-fg2)',
-          background: dashboardActive ? 'var(--tg-accent-soft)' : 'transparent',
-        }}
-        onMouseEnter={(e) => {
-          if (!dashboardActive) {
-            (e.currentTarget as HTMLElement).style.color = 'var(--tg-fg0)';
-            (e.currentTarget as HTMLElement).style.background = 'var(--tg-bg3)';
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!dashboardActive) {
-            (e.currentTarget as HTMLElement).style.color = 'var(--tg-fg2)';
-            (e.currentTarget as HTMLElement).style.background = 'transparent';
-          }
-        }}
-      >
-        <ChartIcon />
-      </button>
-
       {/* Settings */}
       <button
         type="button"
@@ -217,11 +175,6 @@ export function Header({
       >
         <CogIcon />
       </button>
-
-      <SettingsDrawer
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-      />
     </header>
   );
 }

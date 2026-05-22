@@ -13,13 +13,10 @@ export interface NotificationGroup {
   items: PrioritizedNotification[];
 }
 
-const PRIORITY_ORDER: PriorityLevel[] = ['critical', 'important', 'normal', 'muted'];
+const PRIORITY_ORDER: PriorityLevel[] = ['normal'];
 
 const PRIORITY_LABELS: Record<PriorityLevel, string> = {
-  critical: 'Critical',
-  important: 'Important',
   normal: 'Normal',
-  muted: 'Low priority',
 };
 
 export function groupNotifications(

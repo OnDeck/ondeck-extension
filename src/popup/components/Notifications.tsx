@@ -22,6 +22,7 @@ interface Props {
   token: string;
   onUnreadCountChange: (n: number) => void;
   searchQuery?: string;
+  hideClosed?: boolean;
 }
 
 type GroupByMode = GroupBy | 'none';
@@ -77,11 +78,11 @@ function countsByChip(
   };
 }
 
-export function Notifications({ token, onUnreadCountChange, searchQuery = '' }: Props) {
+export function Notifications({ token, onUnreadCountChange, searchQuery = '', hideClosed = false }: Props) {
   const query = useGitHubQuery(() => listNotifications(token, { all: true }), [token]);
 
   const [chip, setChip] = useState<ChipId>('all');
-  const [groupBy] = useState<GroupByMode>('priority');
+  const [groupBy] = useState<GroupByMode>('none');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [markingIds, setMarkingIds] = useState<Set<string>>(new Set());
   const [locallyRead, setLocallyRead] = useState<Set<string>>(new Set());
@@ -100,12 +101,16 @@ export function Notifications({ token, onUnreadCountChange, searchQuery = '' }: 
   const { closedPRs } = useClosedPRDetection(token, nonMergedNotifs);
 
   const prioritized = useMemo(() => {
-    // Filter out locally read notifications (keep closed items to show with tag)
-    const raw = nonMergedNotifs.filter((n) => !locallyRead.has(n.id));
+    // Filter out locally read notifications and optionally closed items
+    const raw = nonMergedNotifs.filter((n) => {
+      if (locallyRead.has(n.id)) return false;
+      if (hideClosed && closedPRs.has(n.id)) return false;
+      return true;
+    });
     const p = prioritizeAll(raw);
     onUnreadCountChange(p.filter((n) => n.unread).length);
     return p;
-  }, [nonMergedNotifs, locallyRead, onUnreadCountChange]);
+  }, [nonMergedNotifs, locallyRead, closedPRs, hideClosed, onUnreadCountChange]);
 
   const counts = useMemo(() => countsByChip(prioritized), [prioritized]);
 
@@ -153,6 +158,10 @@ export function Notifications({ token, onUnreadCountChange, searchQuery = '' }: 
       chrome.runtime.sendMessage({ type: 'REQUEST_SYNC' }).catch(() => {
         // Ignore if background script isn't ready
       });
+      // Refetch notifications after a short delay to get updated unread status
+      setTimeout(() => {
+        query.refetch();
+      }, 500);
     } catch {
       // row stays visible; user can retry
     } finally {

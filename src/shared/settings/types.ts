@@ -27,9 +27,10 @@ export interface UserSettings {
     tabsToShow: TabId[]; // which tabs show counts in TabBar
   };
 
-  // Filters (for future use)
+  // Filters
   filters: {
     includeDraftPrs: boolean;
+    hideClosed: boolean;
     hiddenRepos: string[]; // e.g., ['owner/repo-name']
     priorityLabels: string[]; // e.g., ['urgent', 'p0', 'blocking']
   };

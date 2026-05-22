@@ -1,13 +1,20 @@
 import { getStoredAuth } from '../../lib/auth';
-import { listNotifications, fetchPullRequestDetails } from '../../lib/github-api';
+import {
+  listNotifications,
+  fetchPullRequestDetails,
+  searchAssignedPrs,
+  searchReviewRequested,
+  searchMentions,
+} from '../../lib/github-api';
 import { prioritizeAll } from '../../shared/notifications/prioritizer';
 import {
   NOTIFICATIONS_CACHE_KEY,
   BADGE_COLOR_DEFAULT,
-  BADGE_COLOR_CRITICAL,
 } from '../../shared/constants';
 import { logger } from '../../shared/logger';
 import type { NewNotificationMessage } from '../../shared/types/notifications';
+import type { CountsCache, UserSettings } from '../../shared/settings/types';
+import { getSettings } from '../../lib/settings';
 
 const MODULE = 'sync-worker';
 
@@ -85,19 +92,16 @@ export async function syncNotifications(): Promise<void> {
     });
 
     const unreadCount = filtered.filter((n) => n.unread).length;
-    const criticalCount = prioritized.filter(
-      (n) => n.priority.level === 'critical',
-    ).length;
 
     const badgeText = unreadCount > 0 ? String(Math.min(unreadCount, 99)) : '';
-    const badgeColor = criticalCount > 0 ? BADGE_COLOR_CRITICAL : BADGE_COLOR_DEFAULT;
+    const badgeColor = BADGE_COLOR_DEFAULT;
 
     await chrome.action.setBadgeText({ text: badgeText });
     await chrome.action.setBadgeBackgroundColor({ color: badgeColor });
 
     logger.info({
       module: MODULE,
-      message: `Synced ${filtered.length} notifications (${criticalCount} critical, ${mergedPRIds.size} merged PRs filtered)`,
+      message: `Synced ${filtered.length} notifications (${mergedPRIds.size} merged PRs filtered)`,
     });
   } catch (error) {
     logger.error({ module: MODULE, message: 'Sync failed', error });

@@ -14,6 +14,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   },
   filters: {
     includeDraftPrs: false,
+    hideClosed: false,
     hiddenRepos: [],
     priorityLabels: ['urgent', 'blocking', 'priority', 'p0', 'p1', 'hotfix'],
   },
