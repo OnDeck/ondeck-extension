@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import {
   isNotificationForClosedPR,
+  isNotificationForClosedIssue,
   type NotificationItem,
 } from '../../lib/github-api';
 
 /**
- * Detects notifications for closed (non-merged) PRs.
- * Caches PR state checks to avoid redundant API calls.
+ * Detects notifications for closed PRs and issues.
+ * Caches state checks to avoid redundant API calls.
  */
 export function useClosedPRDetection(
   token: string,
@@ -20,11 +21,14 @@ export function useClosedPRDetection(
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const prNotifications = notifications.filter(
-      (n) => n.subject.type === 'PullRequest' && n.subject.url && !checkedIds.has(n.id),
+    const itemsToCheck = notifications.filter(
+      (n) =>
+        (n.subject.type === 'PullRequest' || n.subject.type === 'Issue') &&
+        n.subject.url &&
+        !checkedIds.has(n.id),
     );
 
-    if (prNotifications.length === 0) {
+    if (itemsToCheck.length === 0) {
       setLoading(false);
       return;
     }
@@ -32,8 +36,11 @@ export function useClosedPRDetection(
     setLoading(true);
 
     Promise.all(
-      prNotifications.map(async (notification) => {
-        const isClosed = await isNotificationForClosedPR(token, notification);
+      itemsToCheck.map(async (notification) => {
+        const isClosed =
+          notification.subject.type === 'PullRequest'
+            ? await isNotificationForClosedPR(token, notification)
+            : await isNotificationForClosedIssue(token, notification);
         return { id: notification.id, isClosed };
       }),
     )
@@ -54,7 +61,7 @@ export function useClosedPRDetection(
       .catch(() => {
         // If batch check fails, mark as checked anyway to avoid retry loop
         const newCheckedIds = new Set(checkedIds);
-        prNotifications.forEach((n) => newCheckedIds.add(n.id));
+        itemsToCheck.forEach((n) => newCheckedIds.add(n.id));
         setCheckedIds(newCheckedIds);
       })
       .finally(() => {

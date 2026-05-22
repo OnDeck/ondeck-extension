@@ -299,6 +299,54 @@ export async function isNotificationForClosedPR(
 }
 
 /**
+ * Issue details returned from the GitHub API.
+ */
+export interface IssueDetails {
+  state: 'open' | 'closed';
+  closed_at: string | null;
+}
+
+/**
+ * Fetch issue details to check if it's closed.
+ * Returns null if the subject URL can't be parsed or the request fails.
+ */
+export async function fetchIssueDetails(
+  token: string,
+  subjectUrl: string,
+): Promise<IssueDetails | null> {
+  const match = subjectUrl.match(/\/repos\/([^/]+)\/([^/]+)\/issues\/(\d+)/);
+  if (!match) return null;
+
+  const [, owner, repo, issueNumber] = match;
+  try {
+    const res = await githubFetch(`/repos/${owner}/${repo}/issues/${issueNumber}`, token);
+    const data = await res.json() as IssueDetails;
+    return {
+      state: data.state,
+      closed_at: data.closed_at,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if a notification is for a closed issue.
+ * Returns false for non-issue notifications or if the check fails.
+ */
+export async function isNotificationForClosedIssue(
+  token: string,
+  notification: NotificationItem,
+): Promise<boolean> {
+  if (notification.subject.type !== 'Issue' || !notification.subject.url) {
+    return false;
+  }
+
+  const details = await fetchIssueDetails(token, notification.subject.url);
+  return details?.state === 'closed';
+}
+
+/**
  * Resolve a `notifications.subject.url` (api.github.com form) to a browsable
  * github.com URL. Falls back to the repository URL if the subject URL is null
  * or can't be parsed (e.g. CheckSuite notifications).
