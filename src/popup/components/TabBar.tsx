@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { TabId } from '../tabs';
 import { cn } from '../lib/cn';
-import { getSettings } from '../../lib/settings';
-import type { CountsCache, UserSettings } from '../../shared/settings/types';
+import { useTabVisibility } from '../hooks/useTabVisibility';
 
 interface Tab {
   id: TabId;
@@ -31,77 +30,27 @@ const mapCountsToState = (cached: CountsCache): Record<TabId, number> => ({
 });
 
 export function TabBar({ active, onChange }: Props) {
-  const [counts, setCounts] = useState<Record<TabId, number>>({
-    dashboard: 0,
-    prs: 0,
-    mentions: 0,
-    reviews: 0,
-    notifications: 0,
-  });
-  const [showCounts, setShowCounts] = useState(false);
-  const [tabsToShow, setTabsToShow] = useState<TabId[]>([
-    'dashboard',
-    'prs',
-    'mentions',
-    'reviews',
-    'notifications',
-  ]);
+  const { settings, loading } = useTabVisibility();
 
-  useEffect(() => {
-    // Load initial counts and settings
-    const loadData = async () => {
-      try {
-        const [storageCounts, settings] = await Promise.all([
-          chrome.storage.local.get('counts'),
-          getSettings(),
-        ]);
+  if (loading || !settings) {
+    // Show skeleton while loading
+    return (
+      <nav
+        role="tablist"
+        className="flex border-b border-gh-border-default bg-gh-canvas-default"
+        style={{ height: 33 }}
+      />
+    );
+  }
 
-        const cached = storageCounts.counts as CountsCache | undefined;
-        if (cached) {
-          setCounts(mapCountsToState(cached));
-        }
-
-        setShowCounts(settings.display.showTabCounts);
-        setTabsToShow(settings.display.tabsToShow);
-      } catch (error) {
-        console.error('Failed to load TabBar data:', error);
-      }
-    };
-
-    loadData();
-
-    // Listen for storage changes
-    const handleStorageChange = (
-      changes: { [key: string]: chrome.storage.StorageChange },
-      areaName: string
-    ) => {
-      if (areaName === 'local' && changes.counts?.newValue) {
-        const cached = changes.counts.newValue as CountsCache;
-        setCounts(mapCountsToState(cached));
-      }
-
-      if (areaName === 'sync' && changes.settings?.newValue) {
-        const newSettings = changes.settings.newValue as UserSettings | undefined;
-        if (newSettings?.display) {
-          setShowCounts(newSettings.display.showTabCounts);
-          setTabsToShow(newSettings.display.tabsToShow);
-        }
-      }
-    };
-
-    chrome.storage.onChanged.addListener(handleStorageChange);
-
-    return () => {
-      chrome.storage.onChanged.removeListener(handleStorageChange);
-    };
-  }, []);
+  const visibleTabs = TABS.filter((tab) => settings.visible[tab.id]);
 
   return (
     <nav
       role="tablist"
       className="flex border-b border-gh-border-default bg-gh-canvas-default"
     >
-      {TABS.map((tab) => {
+      {visibleTabs.map((tab) => {
         const isActive = tab.id === active;
         const count = counts[tab.id];
         const shouldShowBadge = showCounts && count > 0 && tabsToShow.includes(tab.id);

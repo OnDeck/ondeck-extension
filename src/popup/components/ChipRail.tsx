@@ -1,4 +1,4 @@
-export type ChipId = 'all' | 'unread' | 'reviews' | 'mentions' | 'assigned' | 'ci' | 'security';
+export type ChipId = 'all' | 'unread' | 'prs' | 'issues' | 'reviews' | 'mentions' | 'assigned' | 'ci' | 'security';
 
 export interface ChipFilter {
   id: ChipId;
@@ -8,6 +8,8 @@ export interface ChipFilter {
 export const CHIP_FILTERS: ChipFilter[] = [
   { id: 'all',      label: 'Inbox'    },
   { id: 'unread',   label: 'Unread'   },
+  { id: 'prs',      label: 'PRs'      },
+  { id: 'issues',   label: 'Issues'   },
   { id: 'reviews',  label: 'Reviews'  },
   { id: 'mentions', label: 'Mentions' },
   { id: 'assigned', label: 'Assigned' },

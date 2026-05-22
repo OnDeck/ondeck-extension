@@ -1,11 +1,5 @@
 import { getStoredAuth } from '../../lib/auth';
-import {
-  listNotifications,
-  searchAssignedPrs,
-  searchMentions,
-  searchReviewRequested,
-} from '../../lib/github-api';
-import { getSettings } from '../../lib/settings';
+import { listNotifications, fetchPullRequestDetails } from '../../lib/github-api';
 import { prioritizeAll } from '../../shared/notifications/prioritizer';
 import {
   NOTIFICATIONS_CACHE_KEY,
@@ -13,9 +7,16 @@ import {
   BADGE_COLOR_CRITICAL,
 } from '../../shared/constants';
 import { logger } from '../../shared/logger';
-import type { UserSettings, CountsCache } from '../../shared/settings/types';
+import type { NewNotificationMessage } from '../../shared/types/notifications';
 
 const MODULE = 'sync-worker';
+
+const NOTIFICATION_IDS_CACHE_KEY = 'last_notification_ids_v1';
+
+interface NotificationIdCache {
+  ids: string[];
+  lastSyncAt: number;
+}
 
 export interface NotificationCache {
   items: ReturnType<typeof prioritizeAll>;
@@ -31,12 +32,59 @@ export async function syncNotifications(): Promise<void> {
 
   try {
     const raw = await listNotifications(auth.token, { all: false });
-    const prioritized = prioritizeAll(raw);
+
+    // Filter out merged PRs
+    const mergedPRIds = new Set<string>();
+    for (const notification of raw) {
+      if (notification.subject.type === 'PullRequest' && notification.subject.url) {
+        const details = await fetchPullRequestDetails(auth.token, notification.subject.url);
+        if (details?.merged) {
+          mergedPRIds.add(notification.id);
+        }
+      }
+    }
+
+    const filtered = raw.filter((n) => !mergedPRIds.has(n.id));
+    const prioritized = prioritizeAll(filtered);
 
     const cache: NotificationCache = { items: prioritized, fetchedAt: Date.now() };
     await chrome.storage.local.set({ [NOTIFICATIONS_CACHE_KEY]: cache });
 
-    const unreadCount = raw.filter((n) => n.unread).length;
+    // Detect new notifications
+    const previousCacheResult = await chrome.storage.local.get(NOTIFICATION_IDS_CACHE_KEY);
+    const previousCache = previousCacheResult[NOTIFICATION_IDS_CACHE_KEY] as NotificationIdCache | undefined;
+    const previousIds = new Set(previousCache?.ids ?? []);
+    const currentIds = filtered.map((n) => n.id);
+
+    // Only send message if we have previous IDs (skip first sync)
+    if (previousCache && previousIds.size > 0) {
+      const newNotifications = filtered.filter((n) => !previousIds.has(n.id));
+
+      if (newNotifications.length > 0) {
+        const message: NewNotificationMessage = {
+          type: 'NEW_NOTIFICATIONS',
+          notifications: newNotifications.map((n) => ({
+            id: n.id,
+            subjectType: n.subject.type,
+          })),
+        };
+
+        // Send message to popup (catch error if popup isn't open)
+        chrome.runtime.sendMessage(message).catch(() => {
+          // Popup might not be open, that's fine
+        });
+      }
+    }
+
+    // Store current IDs for next sync
+    await chrome.storage.local.set({
+      [NOTIFICATION_IDS_CACHE_KEY]: {
+        ids: currentIds,
+        lastSyncAt: Date.now(),
+      } as NotificationIdCache,
+    });
+
+    const unreadCount = filtered.filter((n) => n.unread).length;
     const criticalCount = prioritized.filter(
       (n) => n.priority.level === 'critical',
     ).length;
@@ -49,7 +97,7 @@ export async function syncNotifications(): Promise<void> {
 
     logger.info({
       module: MODULE,
-      message: `Synced ${raw.length} notifications (${criticalCount} critical)`,
+      message: `Synced ${filtered.length} notifications (${criticalCount} critical, ${mergedPRIds.size} merged PRs filtered)`,
     });
   } catch (error) {
     logger.error({ module: MODULE, message: 'Sync failed', error });

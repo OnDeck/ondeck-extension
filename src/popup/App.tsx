@@ -3,13 +3,34 @@ import { Dashboard } from './components/Dashboard';
 import { Header } from './components/Header';
 import { Notifications } from './components/Notifications';
 import { PopupFooter } from './components/PopupFooter';
+import { SettingsPanel } from './components/SettingsPanel';
 import { SignIn } from './components/SignIn';
 import { useAuth } from './hooks/useAuth';
+import { useNotificationSettings } from './hooks/useNotificationSettings';
+import { useNotificationSounds } from './hooks/useNotificationSounds';
+import { useTabVisibility } from './hooks/useTabVisibility';
 
 export default function App() {
   const auth = useAuth();
   const [dashboardActive, setDashboardActive] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const notificationSettings = useNotificationSettings();
+  const tabVisibility = useTabVisibility();
+
+  // Enable notification sounds
+  useNotificationSounds(notificationSettings.settings);
+
+  const handleSettingsSignOut = () => {
+    const confirmed = window.confirm(
+      'Sign out of GitHub Workflow Assistant? Your personal access token will be removed.'
+    );
+
+    if (confirmed) {
+      void auth.signOut();
+      setSettingsOpen(false);
+    }
+  };
 
   if (auth.status === 'loading') {
     return (
@@ -55,6 +76,7 @@ export default function App() {
         onSearch={() => void 0}
         onDashboard={() => setDashboardActive((v) => !v)}
         dashboardActive={dashboardActive}
+        onSettingsClick={() => setSettingsOpen(true)}
       />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -66,6 +88,16 @@ export default function App() {
       </div>
 
       <PopupFooter selectedCount={0} />
+
+      <SettingsPanel
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        settings={notificationSettings.settings}
+        loading={notificationSettings.loading}
+        onUpdateSound={notificationSettings.updateSound}
+        onSignOut={handleSettingsSignOut}
+        tabVisibility={tabVisibility}
+      />
     </div>
   );
 }
