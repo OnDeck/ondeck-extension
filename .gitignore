@@ -13,3 +13,4 @@ vite.config.d.ts
 .idea
 *.log
 .superpowers
+.claude

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Viewer } from '../../lib/github-api';
 import { BellIcon } from './BellIcon';
 
@@ -223,6 +224,7 @@ export function Header({
         data-testid="settings-button"
         onClick={onSettingsClick}
         title="Settings"
+        aria-label="Settings"
         style={{ ...iconBtnBase, color: 'var(--tg-fg2)' }}
         onMouseEnter={(e) => {
           (e.currentTarget as HTMLElement).style.color = 'var(--tg-fg0)';
@@ -235,6 +237,11 @@ export function Header({
       >
         <CogIcon />
       </button>
+
+      <SettingsDrawer
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </header>
   );
 }

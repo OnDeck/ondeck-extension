@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { TabId } from '../tabs';
 import { cn } from '../lib/cn';
 import { useTabVisibility } from '../hooks/useTabVisibility';
@@ -19,6 +20,14 @@ interface Props {
   active: TabId;
   onChange: (id: TabId) => void;
 }
+
+const mapCountsToState = (cached: CountsCache): Record<TabId, number> => ({
+  dashboard: 0,
+  prs: cached.prs || 0,
+  mentions: cached.mentions || 0,
+  reviews: cached.reviews || 0,
+  notifications: cached.notifications || 0,
+});
 
 export function TabBar({ active, onChange }: Props) {
   const { settings, loading } = useTabVisibility();
@@ -43,6 +52,9 @@ export function TabBar({ active, onChange }: Props) {
     >
       {visibleTabs.map((tab) => {
         const isActive = tab.id === active;
+        const count = counts[tab.id];
+        const shouldShowBadge = showCounts && count > 0 && tabsToShow.includes(tab.id);
+
         return (
           <button
             key={tab.id}
@@ -57,7 +69,21 @@ export function TabBar({ active, onChange }: Props) {
                 : 'border-transparent text-gh-fg-muted hover:text-gh-fg-default',
             )}
           >
-            {tab.label}
+            <span className="flex items-center justify-center gap-1">
+              {tab.label}
+              {shouldShowBadge && (
+                <span
+                  className={cn(
+                    'inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none min-w-[18px]',
+                    isActive
+                      ? 'bg-gh-accent-emphasis text-white'
+                      : 'bg-gh-neutral-muted text-gh-fg-muted',
+                  )}
+                >
+                  {count}
+                </span>
+              )}
+            </span>
           </button>
         );
       })}
