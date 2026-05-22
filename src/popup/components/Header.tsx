@@ -13,7 +13,7 @@ interface Props {
   onSettingsClick: () => void;
 }
 
-function TriageLogo() {
+function OnDeckLogo() {
   return (
     <svg width="11" height="11" viewBox="0 0 14 14" fill="currentColor">
       <rect x="1" y="2" width="12" height="2.4" rx="0.6" />
@@ -114,7 +114,7 @@ export function Header({
           flexShrink: 0,
         }}
       >
-        <TriageLogo />
+        <OnDeckLogo />
       </div>
 
       <span
@@ -127,7 +127,7 @@ export function Header({
           marginRight: 6,
         }}
       >
-        Triage
+        OnDeck
       </span>
 
       {unreadCount > 0 && (
