@@ -66,9 +66,10 @@ interface Props {
   marking: boolean;
   onMark: (item: NotificationItem) => void;
   showRepo?: boolean;
+  isClosed?: boolean;
 }
 
-export function NotifRow({ item, marking, onMark, showRepo = true }: Props) {
+export function NotifRow({ item, marking, onMark, showRepo = true, isClosed = false }: Props) {
   const display = notifDisplayMeta(item);
   const ago = compactRelativeTime(item.updated_at);
   const dim = !item.unread && item.priority.level === 'muted';
@@ -211,6 +212,23 @@ export function NotifRow({ item, marking, onMark, showRepo = true }: Props) {
 
           {prNum && (
             <span style={{ color: 'var(--tg-fg3)', flexShrink: 0 }}>#{prNum}</span>
+          )}
+
+          {isClosed && (
+            <span
+              style={{
+                fontSize: 9,
+                padding: '2px 4px',
+                borderRadius: 3,
+                background: 'var(--tg-bg3)',
+                color: 'var(--tg-fg3)',
+                fontFamily: 'var(--tg-mono)',
+                fontWeight: 600,
+                letterSpacing: 0.3,
+              }}
+            >
+              CLOSED
+            </span>
           )}
 
           <span style={{ marginLeft: 'auto', color: 'var(--tg-fg3)', flexShrink: 0 }}>

@@ -283,6 +283,22 @@ export async function isNotificationForMergedPR(
 }
 
 /**
+ * Check if a notification is for a closed PR (merged or closed without merge).
+ * Returns false for non-PR notifications or if the check fails.
+ */
+export async function isNotificationForClosedPR(
+  token: string,
+  notification: NotificationItem,
+): Promise<boolean> {
+  if (notification.subject.type !== 'PullRequest' || !notification.subject.url) {
+    return false;
+  }
+
+  const details = await fetchPullRequestDetails(token, notification.subject.url);
+  return details?.state === 'closed';
+}
+
+/**
  * Resolve a `notifications.subject.url` (api.github.com form) to a browsable
  * github.com URL. Falls back to the repository URL if the subject URL is null
  * or can't be parsed (e.g. CheckSuite notifications).

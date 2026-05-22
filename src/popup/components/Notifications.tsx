@@ -8,6 +8,7 @@ import { applyFilter, extractRepositories } from '../../shared/filters/engine';
 import type { NotificationFilter } from '../../shared/filters/types';
 import { groupNotifications, type GroupBy } from '../../shared/notifications/grouper';
 import { prioritizeAll } from '../../shared/notifications/prioritizer';
+import { useClosedPRDetection } from '../hooks/useClosedPRDetection';
 import { useFilterMergedPRs } from '../hooks/useFilterMergedPRs';
 import { useGitHubQuery } from '../hooks/useGitHubQuery';
 import type { ChipId } from './ChipRail';
@@ -92,6 +93,9 @@ export function Notifications({ token, onUnreadCountChange }: Props) {
     token,
     query.data ?? [],
   );
+
+  // Detect closed (non-merged) PRs
+  const { closedPRs } = useClosedPRDetection(token, nonMergedNotifs);
 
   const prioritized = useMemo(() => {
     const raw = nonMergedNotifs.filter((n) => !locallyRead.has(n.id));
@@ -235,6 +239,7 @@ export function Notifications({ token, onUnreadCountChange }: Props) {
                       item={item}
                       marking={markingIds.has(item.id)}
                       onMark={(n) => void handleMark(n)}
+                      isClosed={closedPRs.has(item.id)}
                     />
                   </div>
                 ))}
