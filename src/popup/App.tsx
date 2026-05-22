@@ -8,6 +8,7 @@ import { SignIn } from './components/SignIn';
 import { useAuth } from './hooks/useAuth';
 import { useNotificationSettings } from './hooks/useNotificationSettings';
 import { useNotificationSounds } from './hooks/useNotificationSounds';
+import { useTabVisibility } from './hooks/useTabVisibility';
 
 export default function App() {
   const auth = useAuth();
@@ -15,6 +16,7 @@ export default function App() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const notificationSettings = useNotificationSettings();
+  const tabVisibility = useTabVisibility();
 
   // Enable notification sounds
   useNotificationSounds(notificationSettings.settings);
@@ -94,6 +96,7 @@ export default function App() {
         loading={notificationSettings.loading}
         onUpdateSound={notificationSettings.updateSound}
         onSignOut={handleSettingsSignOut}
+        tabVisibility={tabVisibility}
       />
     </div>
   );

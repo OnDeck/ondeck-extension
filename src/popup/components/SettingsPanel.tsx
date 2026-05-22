@@ -1,5 +1,15 @@
 import { useEffect, useRef, type CSSProperties } from 'react';
 import type { NotificationSettings } from '../hooks/useNotificationSettings';
+import type { TabId } from '../tabs';
+import type { TabVisibilitySettings } from '../hooks/useTabVisibility';
+
+const TAB_LABELS: Record<TabId, string> = {
+  dashboard: 'Home',
+  prs: 'PRs',
+  mentions: 'Mentions',
+  reviews: 'Reviews',
+  notifications: 'Inbox',
+};
 
 interface SettingsPanelProps {
   open: boolean;
@@ -8,6 +18,11 @@ interface SettingsPanelProps {
   loading: boolean;
   onUpdateSound: (type: keyof NotificationSettings['soundEnabled'], enabled: boolean) => void;
   onSignOut: () => void;
+  tabVisibility: {
+    settings: TabVisibilitySettings | null;
+    loading: boolean;
+    toggleTab: (tabId: TabId, visible: boolean) => void;
+  };
 }
 
 export function SettingsPanel({
@@ -17,6 +32,7 @@ export function SettingsPanel({
   loading,
   onUpdateSound,
   onSignOut,
+  tabVisibility,
 }: SettingsPanelProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -186,6 +202,25 @@ export function SettingsPanel({
                     onChange={(checked) => onUpdateSound('Commit', checked)}
                   />
                 </>
+              )}
+
+              {/* Visible Tabs Section */}
+              <Section title="Visible Tabs" style={{ marginTop: 24 }} />
+              {tabVisibility.loading ? (
+                <div style={{ color: 'var(--tg-fg3)', fontSize: 12 }}>Loading...</div>
+              ) : (
+                tabVisibility.settings && (
+                  <>
+                    {(Object.keys(TAB_LABELS) as TabId[]).map((tabId) => (
+                      <ToggleRow
+                        key={tabId}
+                        label={TAB_LABELS[tabId]}
+                        checked={tabVisibility.settings!.visible[tabId]}
+                        onChange={(checked) => tabVisibility.toggleTab(tabId, checked)}
+                      />
+                    ))}
+                  </>
+                )
               )}
 
               {/* Account Section */}
