@@ -34,12 +34,24 @@ export function useFilterMergedPRs(
     Promise.all(
       prNotifications.map(async (notification) => {
         const details = await fetchPullRequestDetails(token, notification.subject.url!);
-        return { id: notification.id, merged: details?.merged ?? false };
+        return {
+          id: notification.id,
+          title: notification.subject.title,
+          merged: details?.merged ?? false,
+          state: details?.state,
+        };
       }),
     )
       .then((results) => {
         const newMergedIds = new Set(mergedPRIds);
         const newCheckedIds = new Set(checkedIds);
+
+        console.log('🔍 PR merge check results:', results.map(r => ({
+          title: r.title.slice(0, 50),
+          state: r.state,
+          merged: r.merged,
+          willFilter: r.merged,
+        })));
 
         results.forEach(({ id, merged }) => {
           newCheckedIds.add(id);
@@ -47,6 +59,8 @@ export function useFilterMergedPRs(
             newMergedIds.add(id);
           }
         });
+
+        console.log(`✂️  Filtered ${newMergedIds.size} merged PRs`);
 
         setMergedPRIds(newMergedIds);
         setCheckedIds(newCheckedIds);
