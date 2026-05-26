@@ -89,6 +89,7 @@ export default function App() {
         onSignOut={() => void auth.signOut()}
         busy={auth.busy}
         onSearch={() => setSearchOpen(true)}
+        onRefresh={() => window.location.reload()}
         onSettingsClick={() => setSettingsOpen(true)}
       />
 
