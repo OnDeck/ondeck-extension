@@ -39,38 +39,30 @@ function buildFilter(
   switch (chip) {
     case 'all':
       base.subjectTypes = ['PullRequest', 'Issue'];
-      base.unreadOnly = true;
       break;
     case 'unread':
       base.unreadOnly = true;
       break;
     case 'prs':
       base.subjectTypes = ['PullRequest'];
-      base.unreadOnly = true;
       break;
     case 'issues':
       base.subjectTypes = ['Issue'];
-      base.unreadOnly = true;
       break;
     case 'reviews':
       base.reasons = ['review_requested'];
-      base.unreadOnly = true;
       break;
     case 'mentions':
       base.reasons = ['mention', 'team_mention'];
-      base.unreadOnly = true;
       break;
     case 'assigned':
       base.reasons = ['assign'];
-      base.unreadOnly = true;
       break;
     case 'ci':
       base.reasons = ['ci_activity'];
-      base.unreadOnly = true;
       break;
     case 'security':
       base.reasons = ['security_alert'];
-      base.unreadOnly = true;
       break;
   }
 
