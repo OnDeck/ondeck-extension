@@ -37,15 +37,41 @@ function buildFilter(
 
   // Chip filter
   switch (chip) {
-    case 'all':      base.subjectTypes = ['PullRequest', 'Issue']; break;
-    case 'unread':   base.unreadOnly = true; break;
-    case 'prs':      base.subjectTypes = ['PullRequest']; break;
-    case 'issues':   base.subjectTypes = ['Issue']; break;
-    case 'reviews':  base.reasons = ['review_requested']; break;
-    case 'mentions': base.reasons = ['mention', 'team_mention']; break;
-    case 'assigned': base.reasons = ['assign']; break;
-    case 'ci':       base.reasons = ['ci_activity']; break;
-    case 'security': base.reasons = ['security_alert']; break;
+    case 'all':
+      base.subjectTypes = ['PullRequest', 'Issue'];
+      base.unreadOnly = true;
+      break;
+    case 'unread':
+      base.unreadOnly = true;
+      break;
+    case 'prs':
+      base.subjectTypes = ['PullRequest'];
+      base.unreadOnly = true;
+      break;
+    case 'issues':
+      base.subjectTypes = ['Issue'];
+      base.unreadOnly = true;
+      break;
+    case 'reviews':
+      base.reasons = ['review_requested'];
+      base.unreadOnly = true;
+      break;
+    case 'mentions':
+      base.reasons = ['mention', 'team_mention'];
+      base.unreadOnly = true;
+      break;
+    case 'assigned':
+      base.reasons = ['assign'];
+      base.unreadOnly = true;
+      break;
+    case 'ci':
+      base.reasons = ['ci_activity'];
+      base.unreadOnly = true;
+      break;
+    case 'security':
+      base.reasons = ['security_alert'];
+      base.unreadOnly = true;
+      break;
   }
 
   // Advanced filters
@@ -79,7 +105,15 @@ function countsByChip(
 }
 
 export function Notifications({ token, onUnreadCountChange, searchQuery = '', hideClosed = false }: Props) {
-  const query = useGitHubQuery(() => listNotifications(token, { all: true }), [token]);
+  // Fetch notifications updated in the last 30 days to avoid showing very old ones
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const since = thirtyDaysAgo.toISOString();
+
+  const query = useGitHubQuery(
+    () => listNotifications(token, { all: false, since }),
+    [token]
+  );
 
   const [chip, setChip] = useState<ChipId>('all');
   const [groupBy] = useState<GroupByMode>('none');

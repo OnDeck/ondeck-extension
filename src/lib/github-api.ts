@@ -217,12 +217,18 @@ export interface NotificationItem {
 
 export async function listNotifications(
   token: string,
-  options: { all?: boolean } = {},
+  options: { all?: boolean; since?: string } = {},
 ): Promise<NotificationItem[]> {
   const params = new URLSearchParams({
     all: options.all ? 'true' : 'false',
     per_page: '50',
   });
+
+  // Add 'since' parameter to fetch notifications updated after a specific date
+  if (options.since) {
+    params.append('since', options.since);
+  }
+
   const res = await githubFetch(`/notifications?${params.toString()}`, token);
   return (await res.json()) as NotificationItem[];
 }
