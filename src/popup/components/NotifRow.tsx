@@ -67,6 +67,17 @@ export function NotifRow({ item, marking, onMark, showRepo = true, isClosed = fa
   const url = notificationHtmlUrl(item);
   const prNum = item.subject.url?.match(/\/(\d+)$/)?.[1];
 
+  // DEBUG: Log timestamp details on mount
+  if (item.subject.title.includes('closed') || ago === '10d') {
+    console.log('🕐 Time debug:', {
+      title: item.subject.title.slice(0, 50),
+      updated_at: item.updated_at,
+      parsed: new Date(item.updated_at).toISOString(),
+      ago: ago,
+      now: new Date().toISOString(),
+    });
+  }
+
   return (
     <a
       href={url}
