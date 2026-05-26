@@ -234,7 +234,14 @@ export async function listNotifications(
 }
 
 export async function markNotificationRead(token: string, threadId: string): Promise<void> {
-  await githubFetch(`/notifications/threads/${threadId}`, token, { method: 'PATCH' });
+  console.log('🔔 API: Marking notification as read:', threadId);
+  try {
+    await githubFetch(`/notifications/threads/${threadId}`, token, { method: 'PATCH' });
+    console.log('🔔 API: Successfully marked as read');
+  } catch (error) {
+    console.error('🔔 API: Failed to mark as read:', error);
+    throw error;
+  }
 }
 
 /**

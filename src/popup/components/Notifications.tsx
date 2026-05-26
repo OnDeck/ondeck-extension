@@ -193,19 +193,33 @@ export function Notifications({ token, onUnreadCountChange, searchQuery = '', hi
   const activeFilterCount = selectedRepos.length + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
 
   const handleMark = async (item: NotificationItem) => {
+    console.log('📝 Marking as read:', {
+      id: item.id,
+      title: item.subject.title.slice(0, 50),
+    });
+
     setMarkingIds((prev) => new Set(prev).add(item.id));
     try {
       await markNotificationRead(token, item.id);
+      console.log('✅ Successfully marked as read:', item.id);
+
       setLocallyRead((prev) => new Set(prev).add(item.id));
+
       // Trigger background sync to update badge
       chrome.runtime.sendMessage({ type: 'REQUEST_SYNC' }).catch(() => {
         // Ignore if background script isn't ready
       });
+
       // Refetch notifications after a short delay to get updated unread status
       setTimeout(() => {
+        console.log('🔄 Refetching notifications...');
         query.refetch();
       }, 500);
-    } catch {
+    } catch (error) {
+      console.error('❌ Failed to mark as read:', {
+        id: item.id,
+        error: error instanceof Error ? error.message : error,
+      });
       // row stays visible; user can retry
     } finally {
       setMarkingIds((prev) => {
