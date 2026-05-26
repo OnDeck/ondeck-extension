@@ -111,7 +111,24 @@ export function Notifications({ token, onUnreadCountChange, searchQuery = '', hi
   const since = thirtyDaysAgo.toISOString();
 
   const query = useGitHubQuery(
-    () => listNotifications(token, { all: false, since }),
+    async () => {
+      const notifs = await listNotifications(token, { all: false, since });
+      console.log('📬 Fetched notifications:', {
+        total: notifs.length,
+        oldest: notifs[notifs.length - 1]?.updated_at,
+        newest: notifs[0]?.updated_at,
+        since: since,
+      });
+      if (notifs.length > 0) {
+        console.table(notifs.slice(0, 10).map(n => ({
+          reason: n.reason,
+          title: n.subject.title.slice(0, 50),
+          updated: new Date(n.updated_at).toLocaleDateString(),
+          daysAgo: Math.floor((Date.now() - new Date(n.updated_at).getTime()) / (1000 * 60 * 60 * 24)),
+        })));
+      }
+      return notifs;
+    },
     [token]
   );
 
