@@ -9,7 +9,8 @@ import type { NotificationFilter } from '../../shared/filters/types';
 import { groupNotifications, type GroupBy } from '../../shared/notifications/grouper';
 import { prioritizeAll } from '../../shared/notifications/prioritizer';
 import { useClosedPRDetection } from '../hooks/useClosedPRDetection';
-import { useFilterMergedPRs } from '../hooks/useFilterMergedPRs';
+// TEMPORARY: Disabled for debugging
+// import { useFilterMergedPRs } from '../hooks/useFilterMergedPRs';
 import { useGitHubQuery } from '../hooks/useGitHubQuery';
 import type { ChipId } from './ChipRail';
 import { ChipRail } from './ChipRail';
@@ -97,23 +98,20 @@ function countsByChip(
 }
 
 export function Notifications({ token, onUnreadCountChange, searchQuery = '', hideClosed = false }: Props) {
-  // Fetch notifications updated in the last 30 days to avoid showing very old ones
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const since = thirtyDaysAgo.toISOString();
-
+  // TEMPORARY: Fetch ALL notifications with NO filters for debugging
   const query = useGitHubQuery(
     async () => {
-      const notifs = await listNotifications(token, { all: false, since });
-      console.log('📬 Fetched notifications:', {
+      const notifs = await listNotifications(token, { all: false }); // Remove 'since' filter
+      console.log('📬 Fetched ALL notifications (no filters):', {
         total: notifs.length,
         oldest: notifs[notifs.length - 1]?.updated_at,
         newest: notifs[0]?.updated_at,
-        since: since,
       });
       if (notifs.length > 0) {
-        console.table(notifs.slice(0, 10).map(n => ({
+        console.table(notifs.slice(0, 20).map(n => ({
+          unread: n.unread,
           reason: n.reason,
+          type: n.subject.type,
           title: n.subject.title.slice(0, 50),
           updated: new Date(n.updated_at).toLocaleDateString(),
           daysAgo: Math.floor((Date.now() - new Date(n.updated_at).getTime()) / (1000 * 60 * 60 * 24)),
@@ -134,11 +132,13 @@ export function Notifications({ token, onUnreadCountChange, searchQuery = '', hi
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  // Filter out notifications for merged PRs
-  const { filtered: nonMergedNotifs, loading: checkingMerged } = useFilterMergedPRs(
-    token,
-    query.data ?? [],
-  );
+  // TEMPORARY: Disable merged PR filtering for debugging
+  // const { filtered: nonMergedNotifs, loading: checkingMerged } = useFilterMergedPRs(
+  //   token,
+  //   query.data ?? [],
+  // );
+  const nonMergedNotifs = query.data ?? []; // Use raw data
+  const checkingMerged = false;
 
   // Detect closed (non-merged) PRs
   const { closedPRs } = useClosedPRDetection(token, nonMergedNotifs);
