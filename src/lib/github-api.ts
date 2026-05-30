@@ -221,7 +221,7 @@ export async function listNotifications(
 ): Promise<NotificationItem[]> {
   const params = new URLSearchParams({
     all: options.all ? 'true' : 'false',
-    per_page: '50',
+    per_page: '100',
   });
 
   // Add 'since' parameter to fetch notifications updated after a specific date
@@ -229,19 +229,38 @@ export async function listNotifications(
     params.append('since', options.since);
   }
 
-  const res = await githubFetch(`/notifications?${params.toString()}`, token);
-  return (await res.json()) as NotificationItem[];
+  const allNotifications: NotificationItem[] = [];
+  let url: string | null = `/notifications?${params.toString()}`;
+  let pageCount = 0;
+  const maxPages = 10; // Safety limit to prevent infinite loops
+
+  while (url && pageCount < maxPages) {
+    pageCount++;
+    const res = await githubFetch(url, token);
+    const notifications = (await res.json()) as NotificationItem[];
+    allNotifications.push(...notifications);
+
+    // Check for next page in Link header
+    const linkHeader = res.headers.get('link');
+    if (linkHeader) {
+      const nextMatch = linkHeader.match(/<([^>]+)>;\s*rel="next"/);
+      if (nextMatch) {
+        // Extract path from full URL (remove base URL)
+        const nextUrl = nextMatch[1];
+        url = nextUrl.replace(GITHUB_API_BASE, '');
+      } else {
+        url = null;
+      }
+    } else {
+      url = null;
+    }
+  }
+
+  return allNotifications;
 }
 
 export async function markNotificationRead(token: string, threadId: string): Promise<void> {
-  console.log('🔔 API: Marking notification as read:', threadId);
-  try {
-    await githubFetch(`/notifications/threads/${threadId}`, token, { method: 'PATCH' });
-    console.log('🔔 API: Successfully marked as read');
-  } catch (error) {
-    console.error('🔔 API: Failed to mark as read:', error);
-    throw error;
-  }
+  await githubFetch(`/notifications/threads/${threadId}`, token, { method: 'PATCH' });
 }
 
 /**

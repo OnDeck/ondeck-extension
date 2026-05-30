@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   listNotifications,
   markNotificationRead,
@@ -8,9 +8,8 @@ import { applyFilter, extractRepositories } from '../../shared/filters/engine';
 import type { NotificationFilter } from '../../shared/filters/types';
 import { groupNotifications, type GroupBy } from '../../shared/notifications/grouper';
 import { prioritizeAll } from '../../shared/notifications/prioritizer';
-import { useClosedPRDetection } from '../hooks/useClosedPRDetection';
-// TEMPORARY: Disabled for debugging
-// import { useFilterMergedPRs } from '../hooks/useFilterMergedPRs';
+import { usePRStatus } from '../hooks/usePRStatus';
+import { useNotificationContext } from '../hooks/useNotificationContext';
 import { useGitHubQuery } from '../hooks/useGitHubQuery';
 import type { ChipId } from './ChipRail';
 import { ChipRail } from './ChipRail';
@@ -22,8 +21,10 @@ import { EmptyState, ErrorState, Spinner } from './States';
 interface Props {
   token: string;
   onUnreadCountChange: (n: number) => void;
+  searchOpen?: boolean;
   searchQuery?: string;
-  hideClosed?: boolean;
+  onSearchChange?: (query: string) => void;
+  onSearchClose?: () => void;
 }
 
 type GroupByMode = GroupBy | 'none';
@@ -97,63 +98,49 @@ function countsByChip(
   };
 }
 
-export function Notifications({ token, onUnreadCountChange, searchQuery = '', hideClosed = false }: Props) {
-  // TEMPORARY: Fetch ALL notifications with NO filters for debugging
+export function Notifications({
+  token,
+  onUnreadCountChange,
+  searchOpen = false,
+  searchQuery = '',
+  onSearchChange,
+  onSearchClose,
+}: Props) {
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (searchOpen) {
+      searchInputRef.current?.focus();
+    }
+  }, [searchOpen]);
+
   const query = useGitHubQuery(
-    async () => {
-      const notifs = await listNotifications(token, { all: false }); // Remove 'since' filter
-      console.log('📬 Fetched ALL notifications (no filters):', {
-        total: notifs.length,
-        oldest: notifs[notifs.length - 1]?.updated_at,
-        newest: notifs[0]?.updated_at,
-      });
-      if (notifs.length > 0) {
-        console.table(notifs.slice(0, 20).map(n => ({
-          unread: n.unread,
-          reason: n.reason,
-          type: n.subject.type,
-          title: n.subject.title.slice(0, 50),
-          updated: new Date(n.updated_at).toLocaleDateString(),
-          daysAgo: Math.floor((Date.now() - new Date(n.updated_at).getTime()) / (1000 * 60 * 60 * 24)),
-        })));
-      }
-      return notifs;
-    },
-    [token]
+    () => listNotifications(token, { all: false }),
+    [token],
   );
 
   const [chip, setChip] = useState<ChipId>('all');
   const [groupBy] = useState<GroupByMode>('none');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [markingIds, setMarkingIds] = useState<Set<string>>(new Set());
-  const [locallyRead, setLocallyRead] = useState<Set<string>>(new Set());
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  // TEMPORARY: Disable merged PR filtering for debugging
-  // const { filtered: nonMergedNotifs, loading: checkingMerged } = useFilterMergedPRs(
-  //   token,
-  //   query.data ?? [],
-  // );
-  const nonMergedNotifs = query.data ?? []; // Use raw data
-  const checkingMerged = false;
+  const notifications = query.data ?? [];
 
-  // Detect closed (non-merged) PRs
-  const { closedPRs } = useClosedPRDetection(token, nonMergedNotifs);
+  // Detect PR/Issue status (merged, closed)
+  const { statusMap } = usePRStatus(token, notifications);
+
+  // Fetch enhanced context (review states, actors, etc.)
+  const { contextMap } = useNotificationContext(token, notifications);
 
   const prioritized = useMemo(() => {
-    // Filter out locally read notifications and optionally closed items
-    const raw = nonMergedNotifs.filter((n) => {
-      if (locallyRead.has(n.id)) return false;
-      if (hideClosed && closedPRs.has(n.id)) return false;
-      return true;
-    });
-    const p = prioritizeAll(raw);
+    const p = prioritizeAll(notifications);
     onUnreadCountChange(p.filter((n) => n.unread).length);
     return p;
-  }, [nonMergedNotifs, locallyRead, closedPRs, hideClosed, onUnreadCountChange]);
+  }, [notifications, onUnreadCountChange]);
 
   const counts = useMemo(() => countsByChip(prioritized), [prioritized]);
 
@@ -193,17 +180,9 @@ export function Notifications({ token, onUnreadCountChange, searchQuery = '', hi
   const activeFilterCount = selectedRepos.length + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
 
   const handleMark = async (item: NotificationItem) => {
-    console.log('📝 Marking as read:', {
-      id: item.id,
-      title: item.subject.title.slice(0, 50),
-    });
-
     setMarkingIds((prev) => new Set(prev).add(item.id));
     try {
       await markNotificationRead(token, item.id);
-      console.log('✅ Successfully marked as read:', item.id);
-
-      setLocallyRead((prev) => new Set(prev).add(item.id));
 
       // Trigger background sync to update badge
       chrome.runtime.sendMessage({ type: 'REQUEST_SYNC' }).catch(() => {
@@ -212,14 +191,9 @@ export function Notifications({ token, onUnreadCountChange, searchQuery = '', hi
 
       // Refetch notifications after a short delay to get updated unread status
       setTimeout(() => {
-        console.log('🔄 Refetching notifications...');
         query.refetch();
       }, 500);
-    } catch (error) {
-      console.error('❌ Failed to mark as read:', {
-        id: item.id,
-        error: error instanceof Error ? error.message : error,
-      });
+    } catch {
       // row stays visible; user can retry
     } finally {
       setMarkingIds((prev) => {
@@ -279,17 +253,64 @@ export function Notifications({ token, onUnreadCountChange, searchQuery = '', hi
         </button>
       </div>
 
+      {searchOpen && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '8px 10px',
+            borderBottom: '1px solid var(--tg-line)',
+            background: 'var(--tg-bg1)',
+          }}
+        >
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => onSearchChange?.(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') onSearchClose?.();
+            }}
+            placeholder="Search notifications…"
+            style={{
+              flex: 1,
+              padding: '6px 10px',
+              fontSize: 13,
+              fontFamily: 'var(--tg-sans)',
+              color: 'var(--tg-fg0)',
+              background: 'var(--tg-bg0)',
+              border: '1px solid var(--tg-line)',
+              borderRadius: 4,
+              outline: 'none',
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => onSearchClose?.()}
+            title="Close search · Esc"
+            style={{
+              padding: '6px 10px',
+              border: '1px solid var(--tg-line)',
+              borderRadius: 4,
+              background: 'transparent',
+              color: 'var(--tg-fg2)',
+              fontSize: 11,
+              fontFamily: 'var(--tg-sans)',
+              cursor: 'pointer',
+            }}
+          >
+            Esc
+          </button>
+        </div>
+      )}
+
       <div className="tg-scroll" style={{ flex: 1, overflowY: 'auto', background: 'var(--tg-bg1)' }}>
-        {checkingMerged && filtered.length === 0 && (
-          <div style={{ padding: 8, fontSize: 12, color: 'var(--tg-text-muted)', textAlign: 'center' }}>
-            Checking PR status...
-          </div>
-        )}
         {query.status === 'loading' || query.status === 'idle' ? (
           <Spinner />
         ) : query.status === 'error' && query.error ? (
           <ErrorState error={query.error} onRetry={query.refetch} />
-        ) : !checkingMerged && filtered.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <EmptyState />
         ) : (
           groups.map((group) => (
@@ -317,7 +338,10 @@ export function Notifications({ token, onUnreadCountChange, searchQuery = '', hi
                       item={item}
                       marking={markingIds.has(item.id)}
                       onMark={(n) => void handleMark(n)}
-                      isClosed={closedPRs.has(item.id)}
+                      isMerged={statusMap.merged.has(item.id)}
+                      isClosed={statusMap.closed.has(item.id)}
+                      isIssueClosed={statusMap.closedIssues.has(item.id)}
+                      context={contextMap.get(item.id)}
                     />
                   </div>
                 ))}
