@@ -1,0 +1,48 @@
+name: Update Website Changelog
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+
+jobs:
+  dispatch:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate changelog data
+        id: changelog
+        run: |
+          CHANGELOG_JSON=$(node scripts/summarize-changes.js | grep -v "📝" | tail -n 1)
+          echo "data=$CHANGELOG_JSON" >> $GITHUB_OUTPUT
+
+      - name: Dispatch to website repo
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.CHANGELOG_BOT_TOKEN }}
+          repository: OnDeck/ondeck-site
+          event-type: changelog_update
+          client-payload: ${{ steps.changelog.outputs.data }}
+
+      - name: Output summary
+        run: |
+          echo "### Website Update Dispatched 📤" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Changelog update has been sent to the website repository." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Payload:**" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo '${{ steps.changelog.outputs.data }}' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

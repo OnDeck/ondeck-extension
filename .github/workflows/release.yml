@@ -1,0 +1,85 @@
+name: Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run version bump
+        id: version
+        run: |
+          node scripts/version-bump.js
+          echo "NEW_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog summary
+        id: summary
+        run: |
+          CHANGELOG_JSON=$(node scripts/summarize-changes.js | tail -n 1 | sed 's/::set-output name=changelog_json:://')
+          echo "CHANGELOG_JSON<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG_JSON" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Generate CHANGELOG.md
+        run: |
+          npx conventional-changelog -p angular -i CHANGELOG.md -s -r 0
+
+      - name: Commit version bump and changelog
+        run: |
+          git add package.json public/manifest.json CHANGELOG.md
+          git commit -m "chore(release): v${{ steps.version.outputs.NEW_VERSION }} [skip ci]"
+
+      - name: Create git tag
+        run: |
+          git tag -a "v${{ steps.version.outputs.NEW_VERSION }}" -m "Release v${{ steps.version.outputs.NEW_VERSION }}"
+
+      - name: Push changes and tag
+        run: |
+          git push origin main
+          git push origin "v${{ steps.version.outputs.NEW_VERSION }}"
+
+      - name: Save changelog data as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: changelog-data
+          path: |
+            package.json
+          retention-days: 1
+
+      - name: Output summary
+        run: |
+          echo "### Release Summary 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** v${{ steps.version.outputs.NEW_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag:** Created and pushed" >> $GITHUB_STEP_SUMMARY
+          echo "- **CHANGELOG.md:** Updated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Next: Website changelog will be updated automatically." >> $GITHUB_STEP_SUMMARY
