@@ -1,7 +1,6 @@
 import { getStoredAuth } from '../../lib/auth';
 import {
   listNotifications,
-  fetchPullRequestDetails,
   searchAssignedPrs,
   searchReviewRequested,
   searchMentions,
@@ -39,20 +38,7 @@ export async function syncNotifications(): Promise<void> {
 
   try {
     const raw = await listNotifications(auth.token, { all: false });
-
-    // Filter out merged PRs
-    const mergedPRIds = new Set<string>();
-    for (const notification of raw) {
-      if (notification.subject.type === 'PullRequest' && notification.subject.url) {
-        const details = await fetchPullRequestDetails(auth.token, notification.subject.url);
-        if (details?.merged) {
-          mergedPRIds.add(notification.id);
-        }
-      }
-    }
-
-    const filtered = raw.filter((n) => !mergedPRIds.has(n.id));
-    const prioritized = prioritizeAll(filtered);
+    const prioritized = prioritizeAll(raw);
 
     const cache: NotificationCache = { items: prioritized, fetchedAt: Date.now() };
     await chrome.storage.local.set({ [NOTIFICATIONS_CACHE_KEY]: cache });
@@ -61,11 +47,11 @@ export async function syncNotifications(): Promise<void> {
     const previousCacheResult = await chrome.storage.local.get(NOTIFICATION_IDS_CACHE_KEY);
     const previousCache = previousCacheResult[NOTIFICATION_IDS_CACHE_KEY] as NotificationIdCache | undefined;
     const previousIds = new Set(previousCache?.ids ?? []);
-    const currentIds = filtered.map((n) => n.id);
+    const currentIds = raw.map((n) => n.id);
 
     // Only send message if we have previous IDs (skip first sync)
     if (previousCache && previousIds.size > 0) {
-      const newNotifications = filtered.filter((n) => !previousIds.has(n.id));
+      const newNotifications = raw.filter((n) => !previousIds.has(n.id));
 
       if (newNotifications.length > 0) {
         const message: NewNotificationMessage = {
@@ -91,7 +77,7 @@ export async function syncNotifications(): Promise<void> {
       } as NotificationIdCache,
     });
 
-    const unreadCount = filtered.filter((n) => n.unread).length;
+    const unreadCount = raw.filter((n) => n.unread).length;
 
     const badgeText = unreadCount > 0 ? String(Math.min(unreadCount, 99)) : '';
     const badgeColor = BADGE_COLOR_DEFAULT;
@@ -101,7 +87,7 @@ export async function syncNotifications(): Promise<void> {
 
     logger.info({
       module: MODULE,
-      message: `Synced ${filtered.length} notifications (${mergedPRIds.size} merged PRs filtered)`,
+      message: `Synced ${raw.length} notifications`,
     });
   } catch (error) {
     logger.error({ module: MODULE, message: 'Sync failed', error });

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Header } from './components/Header';
 import { Notifications } from './components/Notifications';
 import { PopupFooter } from './components/PopupFooter';
-import { SearchOverlay } from './components/SearchOverlay';
 import { SettingsPanel } from './components/SettingsPanel';
 import { SignIn } from './components/SignIn';
 import { useAuth } from './hooks/useAuth';
@@ -36,6 +35,11 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  const closeSearch = () => {
+    setSearchOpen(false);
+    setSearchQuery('');
+  };
 
   const handleSettingsSignOut = () => {
     const confirmed = window.confirm(
@@ -89,6 +93,7 @@ export default function App() {
         onSignOut={() => void auth.signOut()}
         busy={auth.busy}
         onSearch={() => setSearchOpen(true)}
+        onRefresh={() => window.location.reload()}
         onSettingsClick={() => setSettingsOpen(true)}
       />
 
@@ -96,21 +101,14 @@ export default function App() {
         <Notifications
           token={token}
           onUnreadCountChange={setUnreadCount}
+          searchOpen={searchOpen}
           searchQuery={searchQuery}
-          hideClosed={filterSettings.hideClosed}
+          onSearchChange={setSearchQuery}
+          onSearchClose={closeSearch}
         />
       </div>
 
       <PopupFooter selectedCount={0} />
-
-      <SearchOverlay
-        isOpen={searchOpen}
-        onClose={() => {
-          setSearchOpen(false);
-          setSearchQuery('');
-        }}
-        onSearch={setSearchQuery}
-      />
 
       <SettingsPanel
         open={settingsOpen}

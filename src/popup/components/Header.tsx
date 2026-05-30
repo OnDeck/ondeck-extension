@@ -6,6 +6,7 @@ interface Props {
   onSignOut: () => void;
   busy: boolean;
   onSearch: () => void;
+  onRefresh: () => void;
   onSettingsClick: () => void;
 }
 
@@ -26,6 +27,15 @@ function SearchIcon() {
     <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
       <circle cx="6" cy="6" r="4" />
       <path d="M9 9l3.5 3.5" />
+    </svg>
+  );
+}
+
+function RefreshIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 4.5C11.2 2.7 9.4 1.5 7.3 1.5c-2.8 0-5 2.2-5 5M2 9.5C2.8 11.3 4.6 12.5 6.7 12.5c2.8 0 5-2.2 5-5" />
+      <path d="M2 4.5V1M2 4.5H5.5M12 9.5V13M12 9.5H8.5" />
     </svg>
   );
 }
@@ -58,6 +68,7 @@ export function Header({
   onSignOut,
   busy,
   onSearch,
+  onRefresh,
   onSettingsClick,
 }: Props) {
   const handleAvatarSignOut = () => {
@@ -137,6 +148,24 @@ export function Header({
       )}
 
       <div style={{ flex: 1 }} />
+
+      {/* Refresh */}
+      <button
+        type="button"
+        onClick={onRefresh}
+        title="Refresh notifications"
+        style={{ ...iconBtnBase, color: 'var(--tg-fg2)' }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLElement).style.color = 'var(--tg-fg0)';
+          (e.currentTarget as HTMLElement).style.background = 'var(--tg-bg3)';
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLElement).style.color = 'var(--tg-fg2)';
+          (e.currentTarget as HTMLElement).style.background = 'transparent';
+        }}
+      >
+        <RefreshIcon />
+      </button>
 
       {/* Search */}
       <button

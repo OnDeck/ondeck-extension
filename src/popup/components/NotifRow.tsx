@@ -1,8 +1,16 @@
 import type { NotificationItem } from '../../lib/github-api';
 import type { PrioritizedNotification } from '../../shared/notifications/grouper';
+import type { NotificationContext } from '../../lib/notification-context';
 import { compactRelativeTime } from '../../shared/utils/compactRelativeTime';
 import { notifDisplayMeta } from '../../shared/utils/notifDisplay';
 import { notificationHtmlUrl } from '../../lib/github-api';
+import {
+  GitPullRequestIcon,
+  GitPullRequestClosedIcon,
+  GitMergeIcon,
+  IssueOpenedIcon,
+  IssueClosedIcon,
+} from './GitHubIcons';
 
 function priorityBarColor(): string {
   return 'var(--tg-accent)';
@@ -57,15 +65,58 @@ interface Props {
   marking: boolean;
   onMark: (item: NotificationItem) => void;
   showRepo?: boolean;
+  isMerged?: boolean;
   isClosed?: boolean;
+  isIssueClosed?: boolean;
+  context?: NotificationContext;
 }
 
-export function NotifRow({ item, marking, onMark, showRepo = true, isClosed = false }: Props) {
+function getStatusIcon(
+  subjectType: string,
+  isMerged: boolean,
+  isClosed: boolean,
+  isIssueClosed: boolean,
+) {
+  if (subjectType === 'PullRequest') {
+    if (isMerged) {
+      return { icon: GitMergeIcon, color: '#8250df' }; // Purple for merged
+    }
+    if (isClosed) {
+      return { icon: GitPullRequestClosedIcon, color: '#d1242f' }; // Red for closed
+    }
+    return { icon: GitPullRequestIcon, color: '#1a7f37' }; // Green for open
+  }
+
+  if (subjectType === 'Issue') {
+    if (isIssueClosed) {
+      return { icon: IssueClosedIcon, color: '#8250df' }; // Purple for closed
+    }
+    return { icon: IssueOpenedIcon, color: '#1a7f37' }; // Green for open
+  }
+
+  return null;
+}
+
+export function NotifRow({
+  item,
+  marking,
+  onMark,
+  showRepo = true,
+  isMerged = false,
+  isClosed = false,
+  isIssueClosed = false,
+  context,
+}: Props) {
   const display = notifDisplayMeta(item);
   const ago = compactRelativeTime(item.updated_at);
   const dim = false;
   const url = notificationHtmlUrl(item);
   const prNum = item.subject.url?.match(/\/(\d+)$/)?.[1];
+  const statusIcon = getStatusIcon(item.subject.type, isMerged, isClosed, isIssueClosed);
+
+  // Use enhanced context if available, otherwise fall back to priority reason
+  const reasonText = context?.primaryReason ?? item.priority.reason;
+  const actor = context?.actor;
 
   return (
     <a
@@ -122,46 +173,31 @@ export function NotifRow({ item, marking, onMark, showRepo = true, isClosed = fa
         )}
       </div>
 
-      {/* Avatar */}
+      {/* Type Icon */}
       <div
         style={{
           width: 22,
           height: 22,
-          borderRadius: 11,
-          background: display.avatarColor,
-          color: '#fff',
-          fontSize: 9,
-          fontWeight: 600,
-          letterSpacing: 0.3,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
           marginLeft: 6,
           marginTop: 1,
-          boxShadow: 'inset 0 0 0 0.5px rgba(255,255,255,0.15), 0 1px 2px rgba(0,0,0,0.25)',
-          fontFamily: 'var(--tg-mono)',
         }}
       >
-        {display.avatarInit}
-      </div>
-
-      {/* Content */}
-      <div style={{ flex: 1, minWidth: 0, marginLeft: 9 }}>
-        {/* Meta line: TypeGlyph · repo · #pr · ago */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 5,
-            fontSize: 11,
-            color: 'var(--tg-fg2)',
-            fontFamily: 'var(--tg-mono)',
-            marginBottom: 3,
-            lineHeight: 1,
-          }}
-        >
-          {/* Type glyph */}
+        {statusIcon ? (
+          <span
+            style={{
+              color: statusIcon.color,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <statusIcon.icon size={16} />
+          </span>
+        ) : (
           <span
             style={{
               fontSize: 9.5,
@@ -176,12 +212,28 @@ export function NotifRow({ item, marking, onMark, showRepo = true, isClosed = fa
               display: 'inline-flex',
               alignItems: 'center',
               height: 14,
-              flexShrink: 0,
             }}
           >
             {display.typeCode}
           </span>
+        )}
+      </div>
 
+      {/* Content */}
+      <div style={{ flex: 1, minWidth: 0, marginLeft: 9 }}>
+        {/* Meta line: repo · #pr · ago */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            fontSize: 11,
+            color: 'var(--tg-fg2)',
+            fontFamily: 'var(--tg-mono)',
+            marginBottom: 3,
+            lineHeight: 1,
+          }}
+        >
           {showRepo && (
             <span
               style={{
@@ -240,7 +292,7 @@ export function NotifRow({ item, marking, onMark, showRepo = true, isClosed = fa
           {item.subject.title}
         </div>
 
-        {/* Tertiary: priority reason */}
+        {/* Tertiary: enhanced reason with actor */}
         <div
           style={{
             marginTop: 3,
@@ -251,9 +303,48 @@ export function NotifRow({ item, marking, onMark, showRepo = true, isClosed = fa
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
+            display: 'flex',
+            gap: 4,
+            alignItems: 'center',
           }}
         >
-          {item.priority.reason}
+          <span>{reasonText}</span>
+          {actor && (
+            <>
+              <span style={{ color: 'var(--tg-line)' }}>·</span>
+              <span style={{ color: 'var(--tg-fg2)', fontWeight: 500 }}>@{actor}</span>
+            </>
+          )}
+          {context?.reviewState && (
+            <span
+              style={{
+                marginLeft: 2,
+                padding: '1px 4px',
+                borderRadius: 3,
+                fontSize: 9,
+                fontWeight: 600,
+                letterSpacing: 0.3,
+                background:
+                  context.reviewState === 'APPROVED'
+                    ? 'rgba(26, 127, 55, 0.15)'
+                    : context.reviewState === 'CHANGES_REQUESTED'
+                    ? 'rgba(209, 36, 47, 0.15)'
+                    : 'rgba(101, 109, 118, 0.15)',
+                color:
+                  context.reviewState === 'APPROVED'
+                    ? '#1a7f37'
+                    : context.reviewState === 'CHANGES_REQUESTED'
+                    ? '#d1242f'
+                    : '#656d76',
+              }}
+            >
+              {context.reviewState === 'APPROVED'
+                ? '✓'
+                : context.reviewState === 'CHANGES_REQUESTED'
+                ? '✗'
+                : '💬'}
+            </span>
+          )}
         </div>
       </div>
 
