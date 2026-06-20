@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "GitHub Workflow Assistant",
+  "name": "OnDeck",
   "version": "0.1.0",
-  "description": "At-a-glance view of your GitHub workflow: assigned PRs, mentions, reviews, and notifications.",
+  "description": "OnDeck — an at-a-glance view of your GitHub workflow: assigned PRs, mentions, reviews, and notifications.",
   "permissions": ["storage", "identity", "notifications", "alarms"],
   "host_permissions": [
     "https://github.com/*",
@@ -10,7 +10,7 @@
   ],
   "action": {
     "default_popup": "src/popup/index.html",
-    "default_title": "GitHub Workflow Assistant",
+    "default_title": "OnDeck",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
@@ -24,7 +24,7 @@
         "default": "Ctrl+Shift+L",
         "mac": "Command+Shift+L"
       },
-      "description": "Open GitHub Workflow Assistant"
+      "description": "Open OnDeck"
     }
   },
   "icons": {

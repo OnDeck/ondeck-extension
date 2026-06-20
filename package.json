@@ -1,9 +1,9 @@
 {
-  "name": "github-chrome",
+  "name": "ondeck-extension",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Chrome extension for an at-a-glance view of your GitHub workflow",
+  "description": "OnDeck — Chrome extension for an at-a-glance view of your GitHub workflow",
   "scripts": {
     "dev": "vite build --watch --mode development",
     "build": "tsc -b && vite build",
