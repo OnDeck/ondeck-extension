@@ -8,13 +8,14 @@ import {
 function makeItem(
   reason: NotificationItem['reason'],
   id = '1',
+  updatedAt = new Date().toISOString(),
   unread = true,
 ): NotificationItem {
   return {
     id,
     unread,
     reason,
-    updated_at: new Date().toISOString(),
+    updated_at: updatedAt,
     last_read_at: null,
     subject: {
       title: `Test notification ${id}`,
@@ -32,74 +33,50 @@ function makeItem(
 }
 
 describe('prioritizeNotification', () => {
-  it('assigns critical to review_requested', () => {
-    const result = prioritizeNotification(makeItem('review_requested'));
-    expect(result.level).toBe('critical');
-    expect(result.score).toBeGreaterThanOrEqual(90);
-  });
-
-  it('assigns critical to security_alert', () => {
-    const result = prioritizeNotification(makeItem('security_alert'));
-    expect(result.level).toBe('critical');
-  });
-
-  it('assigns important to assign', () => {
-    const result = prioritizeNotification(makeItem('assign'));
-    expect(result.level).toBe('important');
-  });
-
-  it('assigns important to mention', () => {
-    const result = prioritizeNotification(makeItem('mention'));
-    expect(result.level).toBe('important');
-  });
-
-  it('assigns important to team_mention', () => {
-    const result = prioritizeNotification(makeItem('team_mention'));
-    expect(result.level).toBe('important');
-  });
-
-  it('assigns normal to ci_activity', () => {
-    const result = prioritizeNotification(makeItem('ci_activity'));
+  // The priority system was removed (see "remove priority system and add
+  // settings controls"); every notification now resolves to a single
+  // 'normal' level with a zero score, and ordering is driven by recency.
+  it.each([
+    'review_requested',
+    'security_alert',
+    'assign',
+    'mention',
+    'team_mention',
+    'ci_activity',
+    'comment',
+    'subscribed',
+    'push',
+  ] as const)('assigns the normal level to %s', (reason) => {
+    const result = prioritizeNotification(makeItem(reason));
     expect(result.level).toBe('normal');
-  });
-
-  it('assigns normal to comment', () => {
-    const result = prioritizeNotification(makeItem('comment'));
-    expect(result.level).toBe('normal');
-  });
-
-  it('assigns muted to subscribed', () => {
-    const result = prioritizeNotification(makeItem('subscribed'));
-    expect(result.level).toBe('muted');
-  });
-
-  it('assigns muted to push', () => {
-    const result = prioritizeNotification(makeItem('push'));
-    expect(result.level).toBe('muted');
+    expect(result.score).toBe(0);
   });
 
   it('includes a human-readable reason string', () => {
     const result = prioritizeNotification(makeItem('review_requested'));
     expect(result.reason).toBe('Review requested');
   });
+
+  it('falls back to a de-underscored label for unknown reasons', () => {
+    const item = makeItem('something_new' as NotificationItem['reason']);
+    expect(prioritizeNotification(item).reason).toBe('something new');
+  });
 });
 
 describe('prioritizeAll', () => {
-  it('sorts by descending score', () => {
+  it('sorts by most recently updated first', () => {
     const items = [
-      makeItem('subscribed', '1'),
-      makeItem('review_requested', '2'),
-      makeItem('comment', '3'),
+      makeItem('subscribed', '1', '2024-01-01T00:00:00Z'),
+      makeItem('review_requested', '2', '2024-01-03T00:00:00Z'),
+      makeItem('comment', '3', '2024-01-02T00:00:00Z'),
     ];
     const result = prioritizeAll(items);
-    expect(result[0].id).toBe('2');
-    expect(result[1].id).toBe('3');
-    expect(result[2].id).toBe('1');
+    expect(result.map((r) => r.id)).toEqual(['2', '3', '1']);
   });
 
-  it('attaches priority to each item', () => {
+  it('attaches a priority result to each item', () => {
     const [item] = prioritizeAll([makeItem('mention')]);
-    expect(item.priority.level).toBe('important');
+    expect(item.priority.level).toBe('normal');
     expect(typeof item.priority.score).toBe('number');
   });
 });
