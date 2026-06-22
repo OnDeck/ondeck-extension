@@ -43,7 +43,7 @@ export default function App() {
 
   const handleSettingsSignOut = () => {
     const confirmed = window.confirm(
-      'Sign out of GitHub Workflow Assistant? Your personal access token will be removed.'
+      'Sign out of OnDeck? Your personal access token will be removed.'
     );
 
     if (confirmed) {

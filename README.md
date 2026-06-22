@@ -1,8 +1,11 @@
-# github-chrome
+# OnDeck
 
 A lightweight Chrome extension that gives developers an at-a-glance view of
 their GitHub workflow — assigned PRs, mentions, reviews, and notifications —
 without leaving their current browser context.
+
+The companion landing page lives at
+[OnDeck/ondeck-site](https://github.com/OnDeck/ondeck-site).
 
 The popup is 400×600, dark-themed using GitHub's Primer color tokens, and
 keeps everything one click away from the address bar.
@@ -90,8 +93,8 @@ and sign in with a token. About 5 minutes.
 ### 1. Install dependencies
 
 ```bash
-git clone https://github.com/Dillan-03/github-chrome.git
-cd github-chrome
+git clone https://github.com/OnDeck/ondeck-extension.git
+cd ondeck-extension
 npm install
 ```
 
@@ -120,7 +123,7 @@ as an unpacked extension.
 2. Toggle **Developer mode** on (top-right corner).
 3. Click **Load unpacked** and select the `dist/` folder you just built.
 4. The extension should now appear in the list as
-   "GitHub Workflow Assistant". Pin it from the puzzle-piece menu in
+   "OnDeck". Pin it from the puzzle-piece menu in
    the Chrome toolbar so the popup is one click away.
 
 If you change `public/manifest.json` or anything in `public/icons/`,
@@ -132,7 +135,7 @@ only need to refresh the extension card.
 ### 4. Create a GitHub Personal Access Token
 
 1. Go to [github.com/settings/tokens/new](https://github.com/settings/tokens/new).
-2. Give the token a memorable note (e.g. "github-chrome popup").
+2. Give the token a memorable note (e.g. "OnDeck popup").
 3. Pick an expiration (90 days is reasonable; the popup will tell you
    when it expires).
 4. Tick these scopes:
@@ -207,7 +210,7 @@ falls back to PAT-only sign-in.
 ## Project layout
 
 ```
-github-chrome/
+ondeck-extension/
 ├── public/
 │   ├── manifest.json              # Manifest V3
 │   └── icons/                     # 16 / 48 / 128 px extension icons
