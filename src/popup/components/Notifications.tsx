@@ -119,6 +119,24 @@ export function Notifications({
     [token],
   );
 
+  // Live-refresh the list when the background worker reports new
+  // notifications, so an open popup stays current without a manual refresh.
+  const { refetch } = query;
+  useEffect(() => {
+    const handleMessage = (message: unknown) => {
+      if (
+        typeof message === 'object' &&
+        message !== null &&
+        (message as Record<string, unknown>)['type'] === 'NEW_NOTIFICATIONS'
+      ) {
+        refetch();
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(handleMessage);
+    return () => chrome.runtime.onMessage.removeListener(handleMessage);
+  }, [refetch]);
+
   const [chip, setChip] = useState<ChipId>('all');
   const [groupBy] = useState<GroupByMode>('none');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
