@@ -1,3 +1,5 @@
+import { logger } from '../shared/logger';
+
 export const GITHUB_API_BASE = 'https://api.github.com';
 
 export interface Viewer {
@@ -32,8 +34,11 @@ async function githubFetch(
         Accept: 'application/vnd.github+json',
         Authorization: `Bearer ${token}`,
         'X-GitHub-Api-Version': '2022-11-28',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        Pragma: 'no-cache',
         ...(init.headers ?? {}),
       },
+      cache: 'no-store',
     });
   } catch (err) {
     throw new GitHubApiError(
@@ -240,6 +245,16 @@ export async function listNotifications(
     const notifications = (await res.json()) as NotificationItem[];
     allNotifications.push(...notifications);
 
+    logger.debug({
+      module: 'github-api',
+      message: `Fetched notifications page ${pageCount}`,
+      context: {
+        count: notifications.length,
+        newest: notifications[0]?.updated_at,
+        oldest: notifications[notifications.length - 1]?.updated_at,
+      },
+    });
+
     // Check for next page in Link header
     const linkHeader = res.headers.get('link');
     if (linkHeader) {
@@ -255,6 +270,15 @@ export async function listNotifications(
       url = null;
     }
   }
+
+  logger.debug({
+    module: 'github-api',
+    message: `Total notifications fetched: ${allNotifications.length}`,
+    context: {
+      newest: allNotifications[0]?.updated_at,
+      oldest: allNotifications[allNotifications.length - 1]?.updated_at,
+    },
+  });
 
   return allNotifications;
 }

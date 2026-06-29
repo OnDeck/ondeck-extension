@@ -8,8 +8,6 @@ import { applyFilter, extractRepositories } from '../../shared/filters/engine';
 import type { NotificationFilter } from '../../shared/filters/types';
 import { groupNotifications, type GroupBy } from '../../shared/notifications/grouper';
 import { prioritizeAll } from '../../shared/notifications/prioritizer';
-import { usePRStatus } from '../hooks/usePRStatus';
-import { useNotificationContext } from '../hooks/useNotificationContext';
 import { useGitHubQuery } from '../hooks/useGitHubQuery';
 import type { ChipId } from './ChipRail';
 import { ChipRail } from './ChipRail';
@@ -37,34 +35,26 @@ function buildFilter(
 ): NotificationFilter {
   const base: NotificationFilter = {};
 
-  // Chip filter
+  // Chip filter - GitHub defaults only
   switch (chip) {
     case 'all':
-      base.subjectTypes = ['PullRequest', 'Issue'];
+      // Inbox - all notifications
       break;
     case 'unread':
       base.unreadOnly = true;
       break;
-    case 'prs':
-      base.subjectTypes = ['PullRequest'];
-      break;
-    case 'issues':
-      base.subjectTypes = ['Issue'];
-      break;
-    case 'reviews':
-      base.reasons = ['review_requested'];
+    case 'participating':
+      // Notifications where you're directly involved
+      base.reasons = ['author', 'assign', 'mention', 'team_mention', 'review_requested', 'comment', 'state_change'];
       break;
     case 'mentions':
       base.reasons = ['mention', 'team_mention'];
       break;
+    case 'reviews':
+      base.reasons = ['review_requested'];
+      break;
     case 'assigned':
       base.reasons = ['assign'];
-      break;
-    case 'ci':
-      base.reasons = ['ci_activity'];
-      break;
-    case 'security':
-      base.reasons = ['security_alert'];
       break;
   }
 
@@ -85,16 +75,15 @@ function buildFilter(
 function countsByChip(
   items: ReturnType<typeof prioritizeAll>,
 ): Partial<Record<ChipId, number>> {
+  const participatingReasons = ['author', 'assign', 'mention', 'team_mention', 'review_requested', 'comment', 'state_change'];
+
   return {
-    all:      items.filter((n) => n.subject.type === 'PullRequest' || n.subject.type === 'Issue').length,
-    unread:   items.filter((n) => n.unread).length,
-    prs:      items.filter((n) => n.subject.type === 'PullRequest').length,
-    issues:   items.filter((n) => n.subject.type === 'Issue').length,
-    reviews:  items.filter((n) => n.reason === 'review_requested').length,
-    mentions: items.filter((n) => n.reason === 'mention' || n.reason === 'team_mention').length,
-    assigned: items.filter((n) => n.reason === 'assign').length,
-    ci:       items.filter((n) => n.reason === 'ci_activity').length,
-    security: items.filter((n) => n.reason === 'security_alert').length,
+    all:           items.length,
+    unread:        items.filter((n) => n.unread).length,
+    participating: items.filter((n) => participatingReasons.includes(n.reason)).length,
+    mentions:      items.filter((n) => n.reason === 'mention' || n.reason === 'team_mention').length,
+    reviews:       items.filter((n) => n.reason === 'review_requested').length,
+    assigned:      items.filter((n) => n.reason === 'assign').length,
   };
 }
 
@@ -115,7 +104,7 @@ export function Notifications({
   }, [searchOpen]);
 
   const query = useGitHubQuery(
-    () => listNotifications(token, { all: false }),
+    () => listNotifications(token, { all: true }),
     [token],
   );
 
@@ -137,6 +126,18 @@ export function Notifications({
     return () => chrome.runtime.onMessage.removeListener(handleMessage);
   }, [refetch]);
 
+  // Refetch when settings change
+  useEffect(() => {
+    const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }, area: string) => {
+      if (area === 'sync' && changes.settings) {
+        refetch();
+      }
+    };
+
+    chrome.storage.onChanged.addListener(handleStorageChange);
+    return () => chrome.storage.onChanged.removeListener(handleStorageChange);
+  }, [refetch]);
+
   const [chip, setChip] = useState<ChipId>('all');
   const [groupBy] = useState<GroupByMode>('none');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -148,11 +149,12 @@ export function Notifications({
 
   const notifications = query.data ?? [];
 
-  // Detect PR/Issue status (merged, closed)
-  const { statusMap } = usePRStatus(token, notifications);
-
-  // Fetch enhanced context (review states, actors, etc.)
-  const { contextMap } = useNotificationContext(token, notifications);
+  // DISABLED: These hooks make hundreds of API calls and are very slow
+  // TODO: Make these optional via settings or fetch only for visible notifications
+  // const { statusMap } = usePRStatus(token, notifications);
+  // const { contextMap } = useNotificationContext(token, notifications);
+  const statusMap = { merged: new Set(), closed: new Set(), closedIssues: new Set() };
+  const contextMap = new Map();
 
   const prioritized = useMemo(() => {
     const p = prioritizeAll(notifications);

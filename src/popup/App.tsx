@@ -5,6 +5,7 @@ import { PopupFooter } from './components/PopupFooter';
 import { SettingsPanel } from './components/SettingsPanel';
 import { SignIn } from './components/SignIn';
 import { useAuth } from './hooks/useAuth';
+import { useDesktopNotificationSettings } from './hooks/useDesktopNotificationSettings';
 import { useFilterSettings } from './hooks/useFilterSettings';
 import { useNotificationSettings } from './hooks/useNotificationSettings';
 import { useNotificationSounds } from './hooks/useNotificationSounds';
@@ -17,6 +18,7 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const notificationSettings = useNotificationSettings();
+  const desktopNotifications = useDesktopNotificationSettings();
   const tabVisibility = useTabVisibility();
   const filterSettings = useFilterSettings();
 
@@ -119,6 +121,7 @@ export default function App() {
         onSignOut={handleSettingsSignOut}
         tabVisibility={tabVisibility}
         filterSettings={filterSettings}
+        desktopNotifications={desktopNotifications}
       />
     </div>
   );

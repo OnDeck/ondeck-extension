@@ -32,6 +32,10 @@ export async function getSettings(): Promise<UserSettings> {
       ...DEFAULT_SETTINGS.filters,
       ...stored.filters,
     },
+    notifications: {
+      ...DEFAULT_SETTINGS.notifications,
+      ...stored.notifications,
+    },
   };
 }
 

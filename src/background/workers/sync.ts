@@ -6,6 +6,7 @@ import {
   searchMentions,
 } from '../../lib/github-api';
 import { prioritizeAll } from '../../shared/notifications/prioritizer';
+import { showDesktopNotifications } from './desktop-notifications';
 import {
   NOTIFICATIONS_CACHE_KEY,
   BADGE_COLOR_DEFAULT,
@@ -66,6 +67,10 @@ export async function syncNotifications(): Promise<void> {
         chrome.runtime.sendMessage(message).catch(() => {
           // Popup might not be open, that's fine
         });
+
+        // Surface OS-level desktop notifications when the user has opted in.
+        const settings = await getSettings();
+        await showDesktopNotifications(newNotifications, settings.notifications);
       }
     }
 

@@ -2,6 +2,7 @@ import { useEffect, useRef, type CSSProperties } from 'react';
 import type { NotificationSettings } from '../hooks/useNotificationSettings';
 import type { TabId } from '../tabs';
 import type { TabVisibilitySettings } from '../hooks/useTabVisibility';
+import type { NotificationReasonFilter, UserSettings } from '../../shared/settings/types';
 
 const TAB_LABELS: Record<TabId, string> = {
   dashboard: 'Home',
@@ -9,6 +10,14 @@ const TAB_LABELS: Record<TabId, string> = {
   mentions: 'Mentions',
   reviews: 'Reviews',
   notifications: 'Inbox',
+};
+
+const REASON_LABELS: Record<NotificationReasonFilter, string> = {
+  assign: 'Assigned to you',
+  mention: 'Mentions',
+  review_requested: 'Review requests',
+  team_mention: 'Team mentions',
+  security_alert: 'Security alerts',
 };
 
 interface SettingsPanelProps {
@@ -30,6 +39,13 @@ interface SettingsPanelProps {
     toggleHideClosed: (value: boolean) => void;
     updateSyncInterval: (interval: 5 | 15 | 30 | 60) => void;
   };
+  desktopNotifications: {
+    settings: UserSettings['notifications'] | null;
+    loading: boolean;
+    updateEnabled: (enabled: boolean) => void;
+    updateSound: (sound: boolean) => void;
+    toggleReason: (reason: NotificationReasonFilter, enabled: boolean) => void;
+  };
 }
 
 export function SettingsPanel({
@@ -41,6 +57,7 @@ export function SettingsPanel({
   onSignOut,
   tabVisibility,
   filterSettings,
+  desktopNotifications,
 }: SettingsPanelProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -210,6 +227,36 @@ export function SettingsPanel({
                     onChange={(checked) => onUpdateSound('Commit', checked)}
                   />
                 </>
+              )}
+
+              {/* Desktop Notifications Section */}
+              <Section title="Desktop Notifications" style={{ marginTop: 24 }} />
+              {desktopNotifications.loading ? (
+                <div style={{ color: 'var(--tg-fg3)', fontSize: 12 }}>Loading...</div>
+              ) : (
+                desktopNotifications.settings && (
+                  <>
+                    <ToggleRow
+                      label="Enable desktop notifications"
+                      checked={desktopNotifications.settings.enabled}
+                      onChange={(checked) => desktopNotifications.updateEnabled(checked)}
+                    />
+                    <ToggleRow
+                      label="Play sound"
+                      checked={desktopNotifications.settings.sound}
+                      onChange={(checked) => desktopNotifications.updateSound(checked)}
+                    />
+                    {desktopNotifications.settings.enabled &&
+                      (Object.keys(REASON_LABELS) as NotificationReasonFilter[]).map((reason) => (
+                        <ToggleRow
+                          key={reason}
+                          label={REASON_LABELS[reason]}
+                          checked={desktopNotifications.settings!.reasons.includes(reason)}
+                          onChange={(checked) => desktopNotifications.toggleReason(reason, checked)}
+                        />
+                      ))}
+                  </>
+                )
               )}
 
               {/* Visible Tabs Section */}
