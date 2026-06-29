@@ -283,6 +283,45 @@ export async function listNotifications(
   return allNotifications;
 }
 
+export interface NotificationsPage {
+  items: NotificationItem[];
+  /** Relative path of the next page (e.g. "/notifications?page=2"), or null. */
+  nextUrl: string | null;
+}
+
+/**
+ * Fetch a single page of notifications and expose the `rel="next"` cursor from
+ * the Link header. Pass `pageUrl` (a value previously returned as `nextUrl`) to
+ * fetch the following page. Lets callers paginate lazily instead of pulling the
+ * whole list up front.
+ */
+export async function listNotificationsPage(
+  token: string,
+  options: { all?: boolean; since?: string; pageUrl?: string } = {},
+): Promise<NotificationsPage> {
+  let url = options.pageUrl;
+  if (!url) {
+    const params = new URLSearchParams({
+      all: options.all ? 'true' : 'false',
+      per_page: '100',
+    });
+    if (options.since) params.append('since', options.since);
+    url = `/notifications?${params.toString()}`;
+  }
+
+  const res = await githubFetch(url, token);
+  const items = (await res.json()) as NotificationItem[];
+
+  let nextUrl: string | null = null;
+  const linkHeader = res.headers.get('link');
+  if (linkHeader) {
+    const nextMatch = linkHeader.match(/<([^>]+)>;\s*rel="next"/);
+    if (nextMatch) nextUrl = nextMatch[1].replace(GITHUB_API_BASE, '');
+  }
+
+  return { items, nextUrl };
+}
+
 export async function markNotificationRead(token: string, threadId: string): Promise<void> {
   await githubFetch(`/notifications/threads/${threadId}`, token, { method: 'PATCH' });
 }

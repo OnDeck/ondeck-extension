@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  listNotifications,
   markNotificationRead,
   type NotificationItem,
 } from '../../lib/github-api';
@@ -8,7 +7,7 @@ import { applyFilter, extractRepositories } from '../../shared/filters/engine';
 import type { NotificationFilter } from '../../shared/filters/types';
 import { groupNotifications, type GroupBy } from '../../shared/notifications/grouper';
 import { prioritizeAll } from '../../shared/notifications/prioritizer';
-import { useGitHubQuery } from '../hooks/useGitHubQuery';
+import { useNotificationsFeed } from '../hooks/useNotificationsFeed';
 import type { ChipId } from './ChipRail';
 import { ChipRail } from './ChipRail';
 import { FilterPanel } from './FilterPanel';
@@ -103,14 +102,15 @@ export function Notifications({
     }
   }, [searchOpen]);
 
-  const query = useGitHubQuery(
-    () => listNotifications(token, { all: true }),
-    [token],
-  );
+  // Fetch only the most-recent page on open. Notifications come back
+  // newest-first, and each extra page is a sequential round-trip — pulling all
+  // ~10 pages was the dominant cause of slow popup open. Older pages load on
+  // demand via the "Load more" button below.
+  const feed = useNotificationsFeed(token, true);
 
   // Live-refresh the list when the background worker reports new
   // notifications, so an open popup stays current without a manual refresh.
-  const { refetch } = query;
+  const { refetch } = feed;
   useEffect(() => {
     const handleMessage = (message: unknown) => {
       if (
@@ -147,7 +147,7 @@ export function Notifications({
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  const notifications = query.data ?? [];
+  const notifications = feed.items;
 
   // DISABLED: These hooks make hundreds of API calls and are very slow
   // TODO: Make these optional via settings or fetch only for visible notifications
@@ -211,7 +211,7 @@ export function Notifications({
 
       // Refetch notifications after a short delay to get updated unread status
       setTimeout(() => {
-        query.refetch();
+        feed.refetch();
       }, 500);
     } catch {
       // row stays visible; user can retry
@@ -326,47 +326,69 @@ export function Notifications({
       )}
 
       <div className="tg-scroll" style={{ flex: 1, overflowY: 'auto', background: 'var(--tg-bg1)' }}>
-        {query.status === 'loading' || query.status === 'idle' ? (
+        {feed.status === 'loading' || feed.status === 'idle' ? (
           <Spinner />
-        ) : query.status === 'error' && query.error ? (
-          <ErrorState error={query.error} onRetry={query.refetch} />
+        ) : feed.status === 'error' && feed.error ? (
+          <ErrorState error={feed.error} onRetry={feed.refetch} />
         ) : filtered.length === 0 ? (
           <EmptyState />
         ) : (
-          groups.map((group) => (
-            <div key={group.key}>
-              {group.label !== null && (
-                <GroupHeader
-                  label={group.label ?? ''}
-                  count={group.items.length}
-                  collapsed={!!collapsed[group.key]}
-                  onToggle={() => toggle(group.key)}
-                />
-              )}
-              {!collapsed[group.key] &&
-                group.items.map((item, i) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      borderBottom:
-                        i === group.items.length - 1
-                          ? 'none'
-                          : '1px solid var(--tg-line)',
-                    }}
-                  >
-                    <NotifRow
-                      item={item}
-                      marking={markingIds.has(item.id)}
-                      onMark={(n) => void handleMark(n)}
-                      isMerged={statusMap.merged.has(item.id)}
-                      isClosed={statusMap.closed.has(item.id)}
-                      isIssueClosed={statusMap.closedIssues.has(item.id)}
-                      context={contextMap.get(item.id)}
-                    />
-                  </div>
-                ))}
-            </div>
-          ))
+          <>
+            {groups.map((group) => (
+              <div key={group.key}>
+                {group.label !== null && (
+                  <GroupHeader
+                    label={group.label ?? ''}
+                    count={group.items.length}
+                    collapsed={!!collapsed[group.key]}
+                    onToggle={() => toggle(group.key)}
+                  />
+                )}
+                {!collapsed[group.key] &&
+                  group.items.map((item, i) => (
+                    <div
+                      key={item.id}
+                      style={{
+                        borderBottom:
+                          i === group.items.length - 1
+                            ? 'none'
+                            : '1px solid var(--tg-line)',
+                      }}
+                    >
+                      <NotifRow
+                        item={item}
+                        marking={markingIds.has(item.id)}
+                        onMark={(n) => void handleMark(n)}
+                        isMerged={statusMap.merged.has(item.id)}
+                        isClosed={statusMap.closed.has(item.id)}
+                        isIssueClosed={statusMap.closedIssues.has(item.id)}
+                        context={contextMap.get(item.id)}
+                      />
+                    </div>
+                  ))}
+              </div>
+            ))}
+            {feed.hasMore && (
+              <button
+                type="button"
+                onClick={() => void feed.loadMore()}
+                disabled={feed.loadingMore}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  border: 'none',
+                  borderTop: '1px solid var(--tg-line)',
+                  background: 'transparent',
+                  color: 'var(--tg-fg2)',
+                  fontSize: 12,
+                  fontFamily: 'var(--tg-sans)',
+                  cursor: feed.loadingMore ? 'default' : 'pointer',
+                }}
+              >
+                {feed.loadingMore ? 'Loading…' : 'Load more'}
+              </button>
+            )}
+          </>
         )}
       </div>
 
