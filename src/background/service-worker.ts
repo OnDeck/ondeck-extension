@@ -1,5 +1,5 @@
 import { setupAlarm, registerAlarmHandler } from './schedulers/alarm';
-import { syncNotifications, syncAndUpdateBadge } from './workers/sync';
+import { syncNotifications, syncAll } from './workers/sync';
 import { getSettings } from '../lib/settings';
 import { getStoredAuth } from '../lib/auth';
 import { logger } from '../shared/logger';
@@ -14,10 +14,10 @@ chrome.runtime.onInstalled.addListener(async () => {
   if (settings.sync.enabled) {
     await setupAlarm(settings.sync.intervalMinutes);
 
-    // Run initial sync immediately if token exists
+    // Run initial sync immediately if token exists (full reconcile).
     const auth = await getStoredAuth();
     if (auth.token && auth.viewer?.login) {
-      await syncAndUpdateBadge(auth.token, auth.viewer.login);
+      await syncAll(auth.token, auth.viewer.login, { full: true });
     }
   }
 
@@ -30,7 +30,8 @@ chrome.runtime.onStartup.addListener(async () => {
 
   if (settings.sync.enabled) {
     await setupAlarm(settings.sync.intervalMinutes);
-    void syncNotifications();
+    // Full reconcile on startup so threads read elsewhere are pruned.
+    void syncNotifications({ full: true });
   }
 });
 
@@ -46,10 +47,10 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
       if (settings.sync?.enabled) {
         await setupAlarm(settings.sync.intervalMinutes);
 
-        // Trigger immediate sync if we have auth
+        // Trigger immediate sync if we have auth (full reconcile).
         const auth = await getStoredAuth();
         if (auth.token && auth.viewer?.login) {
-          await syncAndUpdateBadge(auth.token, auth.viewer.login);
+          await syncAll(auth.token, auth.viewer.login, { full: true });
         }
       } else {
         logger.info({ module: 'service-worker', message: 'Sync disabled, clearing alarm and badge' });
@@ -62,14 +63,15 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
   }
 });
 
-// Popup requests a fresh sync so it always opens with current data.
+// Popup requests a fresh sync (e.g. after marking a thread read). Full
+// reconcile so the read thread is pruned from the cached set and badge.
 chrome.runtime.onMessage.addListener((message: unknown) => {
   if (
     typeof message === 'object' &&
     message !== null &&
     (message as Record<string, unknown>)['type'] === 'REQUEST_SYNC'
   ) {
-    void syncNotifications();
+    void syncNotifications({ full: true });
   }
 });
 
