@@ -1,6 +1,6 @@
 import { SYNC_ALARM_NAME } from '../../shared/constants';
 import { logger } from '../../shared/logger';
-import { syncAndUpdateBadge } from '../workers/sync';
+import { syncAll } from '../workers/sync';
 import { getStoredAuth } from '../../lib/auth';
 
 const MODULE = 'alarm-scheduler';
@@ -27,7 +27,8 @@ export function registerAlarmHandler(): void {
 
       if (auth.token && auth.viewer?.login) {
         logger.info({ module: MODULE, message: `Running sync for user: ${auth.viewer.login}` });
-        await syncAndUpdateBadge(auth.token, auth.viewer.login);
+        // Incremental notification sync + badge refresh (one inbox fetch).
+        await syncAll(auth.token, auth.viewer.login);
       } else {
         logger.info({ module: MODULE, message: 'No auth token found, skipping sync' });
       }

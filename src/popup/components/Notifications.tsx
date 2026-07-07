@@ -8,6 +8,11 @@ import { applyFilter, extractRepositories } from '../../shared/filters/engine';
 import type { NotificationFilter } from '../../shared/filters/types';
 import { groupNotifications, type GroupBy } from '../../shared/notifications/grouper';
 import { prioritizeAll } from '../../shared/notifications/prioritizer';
+import {
+  mergeNotificationsById,
+  latestUpdatedAt,
+  sinceFrom,
+} from '../../shared/notifications/merge';
 import { usePRStatus } from '../hooks/usePRStatus';
 import { useNotificationContext } from '../hooks/useNotificationContext';
 import { useGitHubQuery } from '../hooks/useGitHubQuery';
@@ -119,23 +124,17 @@ export function Notifications({
     [token],
   );
 
-  // Live-refresh the list when the background worker reports new
-  // notifications, so an open popup stays current without a manual refresh.
-  const { refetch } = query;
-  useEffect(() => {
-    const handleMessage = (message: unknown) => {
-      if (
-        typeof message === 'object' &&
-        message !== null &&
-        (message as Record<string, unknown>)['type'] === 'NEW_NOTIFICATIONS'
-      ) {
-        refetch();
-      }
-    };
+  // Notifications shown = the base query result with any live deltas merged on
+  // top. `deltaItems` tracks the base result until a NEW_NOTIFICATIONS message
+  // brings in newer threads.
+  const [deltaItems, setDeltaItems] = useState<NotificationItem[] | null>(null);
 
-    chrome.runtime.onMessage.addListener(handleMessage);
-    return () => chrome.runtime.onMessage.removeListener(handleMessage);
-  }, [refetch]);
+  // Adopt each base-query (re)load — mount, token change, manual refresh, or
+  // the post-mark-as-read refetch — as the fresh baseline.
+  const { data: queryData } = query;
+  useEffect(() => {
+    if (queryData) setDeltaItems(queryData);
+  }, [queryData]);
 
   const [chip, setChip] = useState<ChipId>('all');
   const [groupBy] = useState<GroupByMode>('none');
@@ -146,7 +145,41 @@ export function Notifications({
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  const notifications = query.data ?? [];
+  const notifications = deltaItems ?? query.data ?? [];
+
+  // Mirror the current list in a ref so the message handler can compute the
+  // `since` cursor without re-subscribing whenever the data changes.
+  const notificationsRef = useRef<NotificationItem[]>([]);
+  notificationsRef.current = notifications;
+
+  // Live-refresh when the background worker reports new notifications: fetch
+  // only threads updated since our newest known item and merge them in, rather
+  // than re-pulling the whole list.
+  useEffect(() => {
+    const handleMessage = (message: unknown) => {
+      if (
+        typeof message !== 'object' ||
+        message === null ||
+        (message as Record<string, unknown>)['type'] !== 'NEW_NOTIFICATIONS'
+      ) {
+        return;
+      }
+
+      const cursor = latestUpdatedAt(notificationsRef.current);
+      const since = cursor === null ? undefined : sinceFrom(cursor);
+      listNotifications(token, { all: false, since })
+        .then((fresh) => {
+          if (fresh.length === 0) return;
+          setDeltaItems((prev) => mergeNotificationsById(prev ?? [], fresh));
+        })
+        .catch(() => {
+          // Best-effort; the next full fetch reconciles.
+        });
+    };
+
+    chrome.runtime.onMessage.addListener(handleMessage);
+    return () => chrome.runtime.onMessage.removeListener(handleMessage);
+  }, [token]);
 
   // Detect PR/Issue status (merged, closed)
   const { statusMap } = usePRStatus(token, notifications);
