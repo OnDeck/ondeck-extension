@@ -14,3 +14,7 @@ vite.config.d.ts
 *.log
 .superpowers
 .claude
+
+# Playwright output
+playwright-report/
+test-results/

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { isOAuthConfigured } from '../../lib/auth';
 import type { UseAuth } from '../hooks/useAuth';
 
 const TOKEN_URL =
@@ -44,17 +43,6 @@ export function SignIn({ auth }: Props) {
         Review requests, mentions and assignments in one popup, with a desktop alert when something
         needs you.
       </p>
-
-      {isOAuthConfigured() && (
-        <button
-          type="button"
-          disabled={auth.busy}
-          onClick={() => void auth.signInWithOAuth()}
-          className="mt-5 h-9 rounded-md bg-[var(--tg-accent)] text-[12.5px] font-semibold text-white hover:brightness-110 disabled:opacity-60"
-        >
-          {auth.busy ? 'Connecting…' : 'Sign in with GitHub'}
-        </button>
-      )}
 
       <form
         className="mt-6"
