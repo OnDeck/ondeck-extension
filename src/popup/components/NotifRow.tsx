@@ -12,14 +12,6 @@ import {
   IssueClosedIcon,
 } from './GitHubIcons';
 
-function priorityBarColor(): string {
-  return 'var(--tg-accent)';
-}
-
-function unreadDotColor(): string {
-  return 'var(--tg-accent)';
-}
-
 interface MarkReadBtnProps {
   marking: boolean;
   onMark: () => void;
@@ -32,28 +24,8 @@ function MarkReadBtn({ marking, onMark }: MarkReadBtnProps) {
       onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMark(); }}
       disabled={marking}
       title="Mark as read"
-      style={{
-        flexShrink: 0,
-        padding: '3px 7px',
-        borderRadius: 4,
-        border: '1px solid var(--tg-line)',
-        background: 'transparent',
-        color: 'var(--tg-fg3)',
-        fontFamily: 'var(--tg-mono)',
-        fontSize: 10,
-        cursor: marking ? 'default' : 'pointer',
-        opacity: marking ? 0.5 : 1,
-        transition: 'border-color 80ms, color 80ms',
-        alignSelf: 'center',
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = 'var(--tg-accent-border)';
-        (e.currentTarget as HTMLElement).style.color = 'var(--tg-accent)';
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = 'var(--tg-line)';
-        (e.currentTarget as HTMLElement).style.color = 'var(--tg-fg3)';
-      }}
+      className={`shrink-0 px-[7px] py-[3px] rounded border border-[var(--tg-line)] bg-transparent text-[var(--tg-fg3)] text-[10px] self-center transition-[border-color,color] duration-[80ms] hover:border-[var(--tg-accent-border)] hover:text-[var(--tg-accent)] ${marking ? 'cursor-default opacity-50' : 'cursor-pointer opacity-100'}`}
+      style={{ fontFamily: 'var(--tg-mono)' }}
     >
       {marking ? '…' : '✓'}
     </button>
@@ -123,96 +95,28 @@ export function NotifRow({
       href={url}
       target="_blank"
       rel="noreferrer"
-      style={{
-        display: 'flex',
-        padding: '10px 10px 10px 0',
-        cursor: 'pointer',
-        background: 'transparent',
-        position: 'relative',
-        opacity: dim ? 0.55 : 1,
-        textDecoration: 'none',
-        transition: 'background 80ms',
-      }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--tg-bg2)'; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+      className={`flex py-2.5 pr-2.5 cursor-pointer bg-transparent relative no-underline transition-colors duration-[80ms] hover:bg-[var(--tg-bg2)] ${dim ? 'opacity-55' : 'opacity-100'}`}
     >
       {/* Priority bar */}
-      <div
-        style={{
-          width: 2,
-          alignSelf: 'stretch',
-          marginRight: 10,
-          marginTop: 3,
-          marginBottom: 3,
-          background: priorityBarColor(),
-          borderRadius: 1,
-          flexShrink: 0,
-        }}
-      />
+      <div className="w-0.5 self-stretch mr-2.5 mt-[3px] mb-[3px] bg-[var(--tg-accent)] rounded-sm shrink-0" />
 
       {/* Unread dot */}
-      <div
-        style={{
-          width: 8,
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'center',
-          paddingTop: 5,
-          flexShrink: 0,
-        }}
-      >
+      <div className="w-2 flex items-start justify-center pt-[5px] shrink-0">
         {item.unread && (
-          <div
-            style={{
-              width: 5,
-              height: 5,
-              borderRadius: 3,
-              background: unreadDotColor(),
-            }}
-          />
+          <div className="w-[5px] h-[5px] rounded-full bg-[var(--tg-accent)]" />
         )}
       </div>
 
       {/* Type Icon */}
-      <div
-        style={{
-          width: 22,
-          height: 22,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-          marginLeft: 6,
-          marginTop: 1,
-        }}
-      >
+      <div className="w-[22px] h-[22px] flex items-center justify-center shrink-0 ml-[6px] mt-[1px]">
         {statusIcon ? (
-          <span
-            style={{
-              color: statusIcon.color,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
+          <span className="flex items-center justify-center" style={{ color: statusIcon.color }}>
             <statusIcon.icon size={16} />
           </span>
         ) : (
           <span
-            style={{
-              fontSize: 9.5,
-              fontWeight: 600,
-              letterSpacing: 0.4,
-              color: display.typeColor,
-              padding: '2px 5px',
-              borderRadius: 3,
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid var(--tg-line)',
-              lineHeight: 1,
-              display: 'inline-flex',
-              alignItems: 'center',
-              height: 14,
-            }}
+            className="text-[9.5px] font-semibold tracking-[0.4px] px-[5px] py-[2px] rounded border border-[var(--tg-line)] leading-none inline-flex items-center h-[14px]"
+            style={{ color: display.typeColor, background: 'rgba(255,255,255,0.04)' }}
           >
             {display.typeCode}
           </span>
@@ -220,110 +124,53 @@ export function NotifRow({
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, minWidth: 0, marginLeft: 9 }}>
+      <div className="flex-1 min-w-0 ml-[9px]">
         {/* Meta line: repo · #pr · ago */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 5,
-            fontSize: 11,
-            color: 'var(--tg-fg2)',
-            fontFamily: 'var(--tg-mono)',
-            marginBottom: 3,
-            lineHeight: 1,
-          }}
-        >
+        <div className="flex items-center gap-[5px] text-[11px] text-[var(--tg-fg2)] mb-[3px] leading-none" style={{ fontFamily: 'var(--tg-mono)' }}>
           {showRepo && (
-            <span
-              style={{
-                color: 'var(--tg-fg1)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                minWidth: 0,
-                maxWidth: 140,
-              }}
-            >
+            <span className="text-[var(--tg-fg1)] overflow-hidden text-ellipsis whitespace-nowrap min-w-0 max-w-[140px]">
               {item.repository.full_name}
             </span>
           )}
 
           {prNum && (
-            <span style={{ color: 'var(--tg-fg3)', flexShrink: 0 }}>#{prNum}</span>
+            <span className="text-[var(--tg-fg3)] shrink-0">#{prNum}</span>
           )}
 
           {isClosed && (
             <span
-              style={{
-                fontSize: 9,
-                padding: '2px 4px',
-                borderRadius: 3,
-                background: 'rgba(248, 81, 73, 0.15)',
-                color: '#f85149',
-                fontFamily: 'var(--tg-mono)',
-                fontWeight: 600,
-                letterSpacing: 0.3,
-              }}
+              className="text-[9px] px-1 py-[2px] rounded font-semibold tracking-[0.3px]"
+              style={{ fontFamily: 'var(--tg-mono)', background: 'rgba(248, 81, 73, 0.15)', color: '#f85149' }}
             >
               CLOSED
             </span>
           )}
 
-          <span style={{ marginLeft: 'auto', color: 'var(--tg-fg3)', flexShrink: 0 }}>
+          <span className="ml-auto text-[var(--tg-fg3)] shrink-0">
             {ago}
           </span>
         </div>
 
         {/* Title */}
         <div
-          style={{
-            fontSize: 12.5,
-            color: item.unread ? 'var(--tg-fg0)' : 'var(--tg-fg1)',
-            fontWeight: item.unread ? 500 : 400,
-            lineHeight: 1.35,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            letterSpacing: -0.1,
-          }}
+          className={`text-[12.5px] leading-[1.35] overflow-hidden tracking-[-0.1px] line-clamp-2 ${item.unread ? 'text-[var(--tg-fg0)] font-medium' : 'text-[var(--tg-fg1)] font-normal'}`}
         >
           {item.subject.title}
         </div>
 
         {/* Tertiary: enhanced reason with actor */}
-        <div
-          style={{
-            marginTop: 3,
-            fontSize: 11,
-            color: 'var(--tg-fg3)',
-            fontFamily: 'var(--tg-mono)',
-            lineHeight: 1,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            display: 'flex',
-            gap: 4,
-            alignItems: 'center',
-          }}
-        >
+        <div className="mt-[3px] text-[11px] text-[var(--tg-fg3)] leading-none whitespace-nowrap overflow-hidden text-ellipsis flex gap-1 items-center" style={{ fontFamily: 'var(--tg-mono)' }}>
           <span>{reasonText}</span>
           {actor && (
             <>
-              <span style={{ color: 'var(--tg-line)' }}>·</span>
-              <span style={{ color: 'var(--tg-fg2)', fontWeight: 500 }}>@{actor}</span>
+              <span className="text-[var(--tg-line)]">·</span>
+              <span className="text-[var(--tg-fg2)] font-medium">@{actor}</span>
             </>
           )}
           {context?.reviewState && (
             <span
+              className="ml-[2px] px-1 py-[1px] rounded text-[9px] font-semibold tracking-[0.3px]"
               style={{
-                marginLeft: 2,
-                padding: '1px 4px',
-                borderRadius: 3,
-                fontSize: 9,
-                fontWeight: 600,
-                letterSpacing: 0.3,
                 background:
                   context.reviewState === 'APPROVED'
                     ? 'rgba(26, 127, 55, 0.15)'
@@ -349,7 +196,7 @@ export function NotifRow({
       </div>
 
       {/* Mark-read button */}
-      <div style={{ marginLeft: 8, alignSelf: 'center' }}>
+      <div className="ml-2 self-center">
         <MarkReadBtn marking={marking} onMark={() => onMark(item)} />
       </div>
     </a>

@@ -1,4 +1,4 @@
-export type ChipId = 'all' | 'unread' | 'prs' | 'issues' | 'reviews' | 'mentions' | 'assigned' | 'ci' | 'security';
+export type ChipId = 'all' | 'unread' | 'participating' | 'mentions' | 'reviews' | 'assigned';
 
 export interface ChipFilter {
   id: ChipId;
@@ -6,15 +6,12 @@ export interface ChipFilter {
 }
 
 export const CHIP_FILTERS: ChipFilter[] = [
-  { id: 'all',      label: 'Inbox'    },
-  { id: 'unread',   label: 'Unread'   },
-  { id: 'prs',      label: 'PRs'      },
-  { id: 'issues',   label: 'Issues'   },
-  { id: 'reviews',  label: 'Reviews'  },
-  { id: 'mentions', label: 'Mentions' },
-  { id: 'assigned', label: 'Assigned' },
-  { id: 'ci',       label: 'CI'       },
-  { id: 'security', label: 'Security' },
+  { id: 'all',           label: 'Inbox'         },
+  { id: 'unread',        label: 'Unread'        },
+  { id: 'participating', label: 'Participating' },
+  { id: 'mentions',      label: 'Mentions'      },
+  { id: 'reviews',       label: 'Reviews'       },
+  { id: 'assigned',      label: 'Assigned'      },
 ];
 
 interface Props {
@@ -26,15 +23,10 @@ interface Props {
 export function ChipRail({ active, counts, onChange }: Props) {
   return (
     <div
+      className="flex gap-1 px-3 py-[7px] border-b border-[var(--tg-line)] bg-[var(--tg-bg1)] overflow-x-auto shrink-0"
       style={{
-        display: 'flex',
-        gap: 4,
-        padding: '7px 12px',
-        borderBottom: '1px solid var(--tg-line)',
-        background: 'var(--tg-bg1)',
-        overflowX: 'auto',
-        flexShrink: 0,
-        scrollbarWidth: 'none',
+        scrollbarWidth: 'thin', // Show scrollbar so users know it's scrollable
+        scrollbarColor: 'var(--tg-line) transparent',
       }}
     >
       {CHIP_FILTERS.map((f) => {
@@ -45,35 +37,18 @@ export function ChipRail({ active, counts, onChange }: Props) {
             key={f.id}
             type="button"
             onClick={() => onChange(f.id)}
-            style={{
-              height: 26,
-              padding: '0 9px',
-              borderRadius: 5,
-              border: `1px solid ${on ? 'var(--tg-accent-border)' : 'var(--tg-line)'}`,
-              background: on ? 'var(--tg-accent-soft)' : 'transparent',
-              color: on ? 'var(--tg-accent)' : 'var(--tg-fg1)',
-              fontSize: 11.5,
-              fontWeight: 500,
-              fontFamily: 'var(--tg-sans)',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
-              letterSpacing: -0.1,
-              transition: 'background 80ms, border-color 80ms, color 80ms',
-            }}
+            className={`h-[26px] px-[9px] rounded-[5px] border font-medium text-[11.5px] cursor-pointer inline-flex items-center gap-[5px] whitespace-nowrap shrink-0 tracking-[-0.1px] transition-[background,border-color,color] duration-[80ms] ${
+              on
+                ? 'border-[var(--tg-accent-border)] bg-[var(--tg-accent-soft)] text-[var(--tg-accent)]'
+                : 'border-[var(--tg-line)] bg-transparent text-[var(--tg-fg1)]'
+            }`}
+            style={{ fontFamily: 'var(--tg-sans)' }}
           >
             <span>{f.label}</span>
             {count !== undefined && count > 0 && (
               <span
-                style={{
-                  fontFamily: 'var(--tg-mono)',
-                  fontSize: 10,
-                  color: on ? 'var(--tg-accent)' : 'var(--tg-fg3)',
-                  opacity: 0.9,
-                }}
+                className={`text-[10px] opacity-90 ${on ? 'text-[var(--tg-accent)]' : 'text-[var(--tg-fg3)]'}`}
+                style={{ fontFamily: 'var(--tg-mono)' }}
               >
                 {count}
               </span>
