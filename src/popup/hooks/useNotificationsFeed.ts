@@ -28,7 +28,7 @@ export interface NotificationsFeed {
    * plain refresh re-reads the first page so read-elsewhere state is picked up.
    */
   refresh: (options?: { delta?: boolean }) => void;
-  setUnread: (id: string, unread: boolean) => void;
+  setUnread: (ids: string | string[], unread: boolean) => void;
 }
 
 function appendUnique(base: NotificationItem[], extra: NotificationItem[]): NotificationItem[] {
@@ -148,8 +148,9 @@ export function useNotificationsFeed(token: string, all = true): NotificationsFe
     [token, all],
   );
 
-  const setUnread = useCallback((id: string, unread: boolean) => {
-    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, unread } : n)));
+  const setUnread = useCallback((ids: string | string[], unread: boolean) => {
+    const targets = new Set(Array.isArray(ids) ? ids : [ids]);
+    setItems((prev) => prev.map((n) => (targets.has(n.id) ? { ...n, unread } : n)));
   }, []);
 
   // Paint the worker's cached inbox first so the popup opens instantly, then

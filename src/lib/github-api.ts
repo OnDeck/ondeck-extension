@@ -348,6 +348,28 @@ export async function markNotificationRead(token: string, threadId: string): Pro
   await githubFetch(`/notifications/threads/${threadId}`, token, { method: 'PATCH' });
 }
 
+/** Marks every notification updated at or before `lastReadAt` as read (202/205). */
+export async function markAllNotificationsRead(token: string, lastReadAt: string): Promise<void> {
+  await githubFetch('/notifications', token, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ last_read_at: lastReadAt, read: true }),
+  });
+}
+
+/** Repo-scoped version of `markAllNotificationsRead`; `repoFullName` is "owner/repo". */
+export async function markRepoNotificationsRead(
+  token: string,
+  repoFullName: string,
+  lastReadAt: string,
+): Promise<void> {
+  await githubFetch(`/repos/${repoFullName}/notifications`, token, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ last_read_at: lastReadAt }),
+  });
+}
+
 /**
  * PR details returned from the GitHub API.
  * We only include fields needed to check if a PR is merged/closed.
