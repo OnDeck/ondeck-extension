@@ -30,9 +30,9 @@ PR titles and commits follow [Conventional Commits](https://www.conventionalcomm
 
 | Commits since the last tag | Release | Site tag |
 | --- | --- | --- |
-| Any `BREAKING CHANGE:` footer or `type!:` | 1.0.0 → 2.0.0 | breaking (red) |
-| At least one `feat` | 1.0.0 → 1.1.0 | feature (blue) |
-| `fix` or `perf`, no `feat` | 1.0.0 → 1.0.1 | bugfix (green) |
+| Any `BREAKING CHANGE:` footer or `type!:` | 1.0.0 → 2.0.0 | major (red) |
+| At least one `feat` | 1.0.0 → 1.1.0 | minor (blue) |
+| `fix` or `perf`, no `feat` | 1.0.0 → 1.0.1 | patch (green) |
 | Only `docs`, `chore`, `test`, `style`, `refactor` | none | none |
 
 The site entry lists up to four items summarised from the commit subjects, so

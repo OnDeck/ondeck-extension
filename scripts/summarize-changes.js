@@ -125,11 +125,11 @@ function determineToneAndTag(bumpType, isFirstRelease) {
 
   switch (bumpType) {
     case 'major':
-      return { tag: 'breaking', tone: 'red' };
+      return { tag: 'major', tone: 'red' };
     case 'minor':
-      return { tag: 'feature', tone: 'blue' };
+      return { tag: 'minor', tone: 'blue' };
     case 'patch':
-      return { tag: 'bugfix', tone: 'green' };
+      return { tag: 'patch', tone: 'green' };
     default:
       return { tag: 'update', tone: 'purple' };
   }
