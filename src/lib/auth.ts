@@ -1,5 +1,6 @@
 import { clearCryptoKey, decryptString, encryptString, type Envelope } from './crypto';
 import { fetchViewer, GitHubApiError, type Viewer } from './github-api';
+import { NOTIFICATION_SEEN_CACHE_KEY } from '../shared/constants';
 
 export const TOKEN_STORAGE_KEY = 'gh_workflow_token_v1';
 export const VIEWER_STORAGE_KEY = 'gh_workflow_viewer_v1';
@@ -18,13 +19,10 @@ interface StoredToken {
 }
 
 export async function getStoredAuth(): Promise<AuthState> {
-  const [syncBag, localBag] = await Promise.all([
-    chrome.storage.sync.get(TOKEN_STORAGE_KEY),
-    chrome.storage.local.get(VIEWER_STORAGE_KEY),
-  ]);
-  const stored = syncBag[TOKEN_STORAGE_KEY] as StoredToken | undefined;
-  const viewer = (localBag[VIEWER_STORAGE_KEY] as Viewer | undefined) ?? null;
-  if (!stored?.envelope) return { token: null, viewer: null };
+  const bag = await chrome.storage.local.get([TOKEN_STORAGE_KEY, VIEWER_STORAGE_KEY]);
+  const viewer = (bag[VIEWER_STORAGE_KEY] as Viewer | undefined) ?? null;
+  const stored = bag[TOKEN_STORAGE_KEY] as StoredToken | undefined;
+  if (!stored?.envelope) return migrateLegacySyncToken(viewer);
   try {
     const token = await decryptString(stored.envelope);
     return { token, viewer };
@@ -35,19 +33,37 @@ export async function getStoredAuth(): Promise<AuthState> {
   }
 }
 
+// Earlier builds wrote the envelope to chrome.storage.sync while the key stayed
+// in chrome.storage.local. A second Chrome profile then received an envelope it
+// could never decrypt, and its failure path wiped the token for every device.
+async function migrateLegacySyncToken(viewer: Viewer | null): Promise<AuthState> {
+  const syncBag = await chrome.storage.sync.get(TOKEN_STORAGE_KEY);
+  const legacy = syncBag[TOKEN_STORAGE_KEY] as StoredToken | undefined;
+  if (!legacy?.envelope || !viewer) return { token: null, viewer: null };
+  try {
+    const token = await decryptString(legacy.envelope);
+    await chrome.storage.local.set({ [TOKEN_STORAGE_KEY]: legacy });
+    await chrome.storage.sync.remove(TOKEN_STORAGE_KEY);
+    return { token, viewer };
+  } catch {
+    // Encrypted on another device — leave it for that device to migrate.
+    return { token: null, viewer: null };
+  }
+}
+
 export async function saveToken(token: string, viewer: Viewer): Promise<void> {
   const envelope = await encryptString(token);
   const payload: StoredToken = { envelope };
-  await Promise.all([
-    chrome.storage.sync.set({ [TOKEN_STORAGE_KEY]: payload }),
-    chrome.storage.local.set({ [VIEWER_STORAGE_KEY]: viewer }),
-  ]);
+  await chrome.storage.local.set({
+    [TOKEN_STORAGE_KEY]: payload,
+    [VIEWER_STORAGE_KEY]: viewer,
+  });
 }
 
 export async function clearStoredAuth(): Promise<void> {
   await Promise.all([
+    chrome.storage.local.remove([TOKEN_STORAGE_KEY, VIEWER_STORAGE_KEY, NOTIFICATION_SEEN_CACHE_KEY]),
     chrome.storage.sync.remove(TOKEN_STORAGE_KEY),
-    chrome.storage.local.remove(VIEWER_STORAGE_KEY),
     clearCryptoKey(),
   ]);
 }

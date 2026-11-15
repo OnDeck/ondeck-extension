@@ -1,3 +1,5 @@
+import { logger } from '../shared/logger';
+
 export const GITHUB_API_BASE = 'https://api.github.com';
 
 export interface Viewer {
@@ -12,7 +14,7 @@ export class GitHubApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,
-    public readonly kind: 'unauthorized' | 'forbidden' | 'network' | 'other',
+    public readonly kind: 'unauthorized' | 'forbidden' | 'rate_limited' | 'network' | 'other',
   ) {
     super(message);
     this.name = 'GitHubApiError';
@@ -32,8 +34,11 @@ async function githubFetch(
         Accept: 'application/vnd.github+json',
         Authorization: `Bearer ${token}`,
         'X-GitHub-Api-Version': '2022-11-28',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        Pragma: 'no-cache',
         ...(init.headers ?? {}),
       },
+      cache: 'no-store',
     });
   } catch (err) {
     throw new GitHubApiError(
@@ -44,6 +49,17 @@ async function githubFetch(
   }
   if (response.status === 401) {
     throw new GitHubApiError('Token is invalid or expired', 401, 'unauthorized');
+  }
+  // GitHub signals both primary and secondary rate limits with 403 (sometimes
+  // 429), so check the headers before treating a 403 as a scope problem.
+  const retryAfter = rateLimitRetrySeconds(response);
+  if (retryAfter !== null) {
+    const minutes = Math.max(1, Math.ceil(retryAfter / 60));
+    throw new GitHubApiError(
+      `GitHub rate limit reached. Try again in ${minutes} min.`,
+      response.status,
+      'rate_limited',
+    );
   }
   if (response.status === 403) {
     throw new GitHubApiError('Forbidden — check token scopes', 403, 'forbidden');
@@ -56,6 +72,17 @@ async function githubFetch(
     );
   }
   return response;
+}
+
+function rateLimitRetrySeconds(response: Response): number | null {
+  if (response.status !== 403 && response.status !== 429) return null;
+  const retryAfter = Number(response.headers.get('retry-after'));
+  if (retryAfter > 0) return retryAfter;
+  if (response.headers.get('x-ratelimit-remaining') !== '0') {
+    return response.status === 429 ? 60 : null;
+  }
+  const resetAt = Number(response.headers.get('x-ratelimit-reset'));
+  return resetAt > 0 ? Math.max(0, resetAt - Date.now() / 1000) : 60;
 }
 
 export async function fetchViewer(token: string): Promise<Viewer> {
@@ -240,6 +267,16 @@ export async function listNotifications(
     const notifications = (await res.json()) as NotificationItem[];
     allNotifications.push(...notifications);
 
+    logger.debug({
+      module: 'github-api',
+      message: `Fetched notifications page ${pageCount}`,
+      context: {
+        count: notifications.length,
+        newest: notifications[0]?.updated_at,
+        oldest: notifications[notifications.length - 1]?.updated_at,
+      },
+    });
+
     // Check for next page in Link header
     const linkHeader = res.headers.get('link');
     if (linkHeader) {
@@ -256,7 +293,55 @@ export async function listNotifications(
     }
   }
 
+  logger.debug({
+    module: 'github-api',
+    message: `Total notifications fetched: ${allNotifications.length}`,
+    context: {
+      newest: allNotifications[0]?.updated_at,
+      oldest: allNotifications[allNotifications.length - 1]?.updated_at,
+    },
+  });
+
   return allNotifications;
+}
+
+export interface NotificationsPage {
+  items: NotificationItem[];
+  /** Relative path of the next page (e.g. "/notifications?page=2"), or null. */
+  nextUrl: string | null;
+}
+
+/**
+ * Fetch a single page of notifications and expose the `rel="next"` cursor from
+ * the Link header. Pass `pageUrl` (a value previously returned as `nextUrl`) to
+ * fetch the following page. Lets callers paginate lazily instead of pulling the
+ * whole list up front.
+ */
+export async function listNotificationsPage(
+  token: string,
+  options: { all?: boolean; since?: string; pageUrl?: string } = {},
+): Promise<NotificationsPage> {
+  let url = options.pageUrl;
+  if (!url) {
+    const params = new URLSearchParams({
+      all: options.all ? 'true' : 'false',
+      per_page: '100',
+    });
+    if (options.since) params.append('since', options.since);
+    url = `/notifications?${params.toString()}`;
+  }
+
+  const res = await githubFetch(url, token);
+  const items = (await res.json()) as NotificationItem[];
+
+  let nextUrl: string | null = null;
+  const linkHeader = res.headers.get('link');
+  if (linkHeader) {
+    const nextMatch = linkHeader.match(/<([^>]+)>;\s*rel="next"/);
+    if (nextMatch) nextUrl = nextMatch[1].replace(GITHUB_API_BASE, '');
+  }
+
+  return { items, nextUrl };
 }
 
 export async function markNotificationRead(token: string, threadId: string): Promise<void> {

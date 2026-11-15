@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { getSettings } from '../../lib/settings';
+import { getSettings, saveSettings } from '../../lib/settings';
 import type { SyncInterval } from '../../shared/settings/types';
-
-const SETTINGS_KEY = 'userSettings';
+import { logger } from '../../shared/logger';
 
 export function useFilterSettings() {
   const [hideClosed, setHideClosed] = useState(false);
@@ -27,9 +26,9 @@ export function useFilterSettings() {
     try {
       const settings = await getSettings();
       settings.filters.hideClosed = value;
-      await chrome.storage.sync.set({ [SETTINGS_KEY]: settings });
+      await saveSettings(settings);
     } catch (error) {
-      console.error('Failed to update hideClosed setting:', error);
+      logger.error({ module: 'useFilterSettings', message: 'Failed to update hideClosed setting', error });
       // Revert on error
       setHideClosed(!value);
     }
@@ -41,9 +40,9 @@ export function useFilterSettings() {
     try {
       const settings = await getSettings();
       settings.sync.intervalMinutes = interval;
-      await chrome.storage.sync.set({ [SETTINGS_KEY]: settings });
+      await saveSettings(settings);
     } catch (error) {
-      console.error('Failed to update sync interval:', error);
+      logger.error({ module: 'useFilterSettings', message: 'Failed to update sync interval', error });
       // Revert on error
       const settings = await getSettings();
       setSyncInterval(settings.sync.intervalMinutes);

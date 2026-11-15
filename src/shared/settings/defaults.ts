@@ -18,4 +18,9 @@ export const DEFAULT_SETTINGS: UserSettings = {
     hiddenRepos: [],
     priorityLabels: ['urgent', 'blocking', 'priority', 'p0', 'p1', 'hotfix'],
   },
+  notifications: {
+    enabled: true,
+    sound: false,
+    reasons: ['assign', 'mention', 'review_requested', 'team_mention', 'security_alert'],
+  },
 };

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  listNotifications,
   markNotificationRead,
   type NotificationItem,
 } from '../../lib/github-api';
@@ -8,14 +7,7 @@ import { applyFilter, extractRepositories } from '../../shared/filters/engine';
 import type { NotificationFilter } from '../../shared/filters/types';
 import { groupNotifications, type GroupBy } from '../../shared/notifications/grouper';
 import { prioritizeAll } from '../../shared/notifications/prioritizer';
-import {
-  mergeNotificationsById,
-  latestUpdatedAt,
-  sinceFrom,
-} from '../../shared/notifications/merge';
-import { usePRStatus } from '../hooks/usePRStatus';
-import { useNotificationContext } from '../hooks/useNotificationContext';
-import { useGitHubQuery } from '../hooks/useGitHubQuery';
+import { useNotificationsFeed } from '../hooks/useNotificationsFeed';
 import type { ChipId } from './ChipRail';
 import { ChipRail } from './ChipRail';
 import { FilterPanel } from './FilterPanel';
@@ -26,6 +18,9 @@ import { EmptyState, ErrorState, Spinner } from './States';
 interface Props {
   token: string;
   onUnreadCountChange: (n: number) => void;
+  /** Bumped by the header's refresh button. */
+  refreshSignal: number;
+  onReconnect: () => void;
   searchOpen?: boolean;
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
@@ -42,34 +37,26 @@ function buildFilter(
 ): NotificationFilter {
   const base: NotificationFilter = {};
 
-  // Chip filter
+  // Chip filter - GitHub defaults only
   switch (chip) {
     case 'all':
-      base.subjectTypes = ['PullRequest', 'Issue'];
+      // Inbox - all notifications
       break;
     case 'unread':
       base.unreadOnly = true;
       break;
-    case 'prs':
-      base.subjectTypes = ['PullRequest'];
-      break;
-    case 'issues':
-      base.subjectTypes = ['Issue'];
-      break;
-    case 'reviews':
-      base.reasons = ['review_requested'];
+    case 'participating':
+      // Notifications where you're directly involved
+      base.reasons = ['author', 'assign', 'mention', 'team_mention', 'review_requested', 'comment', 'state_change'];
       break;
     case 'mentions':
       base.reasons = ['mention', 'team_mention'];
       break;
+    case 'reviews':
+      base.reasons = ['review_requested'];
+      break;
     case 'assigned':
       base.reasons = ['assign'];
-      break;
-    case 'ci':
-      base.reasons = ['ci_activity'];
-      break;
-    case 'security':
-      base.reasons = ['security_alert'];
       break;
   }
 
@@ -90,22 +77,23 @@ function buildFilter(
 function countsByChip(
   items: ReturnType<typeof prioritizeAll>,
 ): Partial<Record<ChipId, number>> {
+  const participatingReasons = ['author', 'assign', 'mention', 'team_mention', 'review_requested', 'comment', 'state_change'];
+
   return {
-    all:      items.filter((n) => n.subject.type === 'PullRequest' || n.subject.type === 'Issue').length,
-    unread:   items.filter((n) => n.unread).length,
-    prs:      items.filter((n) => n.subject.type === 'PullRequest').length,
-    issues:   items.filter((n) => n.subject.type === 'Issue').length,
-    reviews:  items.filter((n) => n.reason === 'review_requested').length,
-    mentions: items.filter((n) => n.reason === 'mention' || n.reason === 'team_mention').length,
-    assigned: items.filter((n) => n.reason === 'assign').length,
-    ci:       items.filter((n) => n.reason === 'ci_activity').length,
-    security: items.filter((n) => n.reason === 'security_alert').length,
+    all:           items.length,
+    unread:        items.filter((n) => n.unread).length,
+    participating: items.filter((n) => participatingReasons.includes(n.reason)).length,
+    mentions:      items.filter((n) => n.reason === 'mention' || n.reason === 'team_mention').length,
+    reviews:       items.filter((n) => n.reason === 'review_requested').length,
+    assigned:      items.filter((n) => n.reason === 'assign').length,
   };
 }
 
 export function Notifications({
   token,
   onUnreadCountChange,
+  refreshSignal,
+  onReconnect,
   searchOpen = false,
   searchQuery = '',
   onSearchChange,
@@ -119,22 +107,33 @@ export function Notifications({
     }
   }, [searchOpen]);
 
-  const query = useGitHubQuery(
-    () => listNotifications(token, { all: false }),
-    [token],
-  );
+  // Fetch only the most-recent page on open. Notifications come back
+  // newest-first, and each extra page is a sequential round-trip — pulling all
+  // ~10 pages was the dominant cause of slow popup open. Older pages load on
+  // demand via the "Load more" button below.
+  const feed = useNotificationsFeed(token, true);
 
-  // Notifications shown = the base query result with any live deltas merged on
-  // top. `deltaItems` tracks the base result until a NEW_NOTIFICATIONS message
-  // brings in newer threads.
-  const [deltaItems, setDeltaItems] = useState<NotificationItem[] | null>(null);
-
-  // Adopt each base-query (re)load — mount, token change, manual refresh, or
-  // the post-mark-as-read refetch — as the fresh baseline.
-  const { data: queryData } = query;
+  // Live-refresh the list when the background worker reports new
+  // notifications, so an open popup stays current without a manual refresh.
+  const { refresh, setUnread } = feed;
   useEffect(() => {
-    if (queryData) setDeltaItems(queryData);
-  }, [queryData]);
+    const handleMessage = (message: unknown) => {
+      if (
+        typeof message === 'object' &&
+        message !== null &&
+        (message as Record<string, unknown>)['type'] === 'NEW_NOTIFICATIONS'
+      ) {
+        void refresh({ delta: true });
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(handleMessage);
+    return () => chrome.runtime.onMessage.removeListener(handleMessage);
+  }, [refresh]);
+
+  useEffect(() => {
+    if (refreshSignal > 0) void refresh();
+  }, [refreshSignal, refresh]);
 
   const [chip, setChip] = useState<ChipId>('all');
   const [groupBy] = useState<GroupByMode>('none');
@@ -145,53 +144,20 @@ export function Notifications({
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  const notifications = deltaItems ?? query.data ?? [];
+  const notifications = feed.items;
 
-  // Mirror the current list in a ref so the message handler can compute the
-  // `since` cursor without re-subscribing whenever the data changes.
-  const notificationsRef = useRef<NotificationItem[]>([]);
-  notificationsRef.current = notifications;
+  // DISABLED: These hooks make hundreds of API calls and are very slow
+  // TODO: Make these optional via settings or fetch only for visible notifications
+  // const { statusMap } = usePRStatus(token, notifications);
+  // const { contextMap } = useNotificationContext(token, notifications);
+  const statusMap = { merged: new Set(), closed: new Set(), closedIssues: new Set() };
+  const contextMap = new Map();
 
-  // Live-refresh when the background worker reports new notifications: fetch
-  // only threads updated since our newest known item and merge them in, rather
-  // than re-pulling the whole list.
+  const prioritized = useMemo(() => prioritizeAll(notifications), [notifications]);
+
   useEffect(() => {
-    const handleMessage = (message: unknown) => {
-      if (
-        typeof message !== 'object' ||
-        message === null ||
-        (message as Record<string, unknown>)['type'] !== 'NEW_NOTIFICATIONS'
-      ) {
-        return;
-      }
-
-      const cursor = latestUpdatedAt(notificationsRef.current);
-      const since = cursor === null ? undefined : sinceFrom(cursor);
-      listNotifications(token, { all: false, since })
-        .then((fresh) => {
-          if (fresh.length === 0) return;
-          setDeltaItems((prev) => mergeNotificationsById(prev ?? [], fresh));
-        })
-        .catch(() => {
-          // Best-effort; the next full fetch reconciles.
-        });
-    };
-
-    chrome.runtime.onMessage.addListener(handleMessage);
-    return () => chrome.runtime.onMessage.removeListener(handleMessage);
-  }, [token]);
-
-  // Detect PR/Issue status (merged, closed)
-  const { statusMap } = usePRStatus(token, notifications);
-
-  // Fetch enhanced context (review states, actors, etc.)
-  const { contextMap } = useNotificationContext(token, notifications);
-
-  const prioritized = useMemo(() => {
-    const p = prioritizeAll(notifications);
-    onUnreadCountChange(p.filter((n) => n.unread).length);
-    return p;
-  }, [notifications, onUnreadCountChange]);
+    onUnreadCountChange(prioritized.filter((n) => n.unread).length);
+  }, [prioritized, onUnreadCountChange]);
 
   const counts = useMemo(() => countsByChip(prioritized), [prioritized]);
 
@@ -230,22 +196,18 @@ export function Notifications({
 
   const activeFilterCount = selectedRepos.length + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
 
+  // Optimistic: flip the row to read immediately and roll back on failure,
+  // rather than refetching (which flashed the skeleton and dropped loaded pages).
   const handleMark = async (item: NotificationItem) => {
     setMarkingIds((prev) => new Set(prev).add(item.id));
+    setUnread(item.id, false);
     try {
       await markNotificationRead(token, item.id);
-
-      // Trigger background sync to update badge
       chrome.runtime.sendMessage({ type: 'REQUEST_SYNC' }).catch(() => {
-        // Ignore if background script isn't ready
+        // Background worker not awake yet; the next alarm will fix the badge.
       });
-
-      // Refetch notifications after a short delay to get updated unread status
-      setTimeout(() => {
-        query.refetch();
-      }, 500);
     } catch {
-      // row stays visible; user can retry
+      setUnread(item.id, true);
     } finally {
       setMarkingIds((prev) => {
         const next = new Set(prev);
@@ -265,7 +227,7 @@ export function Notifications({
           background: 'var(--tg-bg1)',
         }}
       >
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <ChipRail active={chip} counts={counts} onChange={setChip} />
         </div>
         <button
@@ -273,6 +235,7 @@ export function Notifications({
           data-testid="filter-button"
           onClick={() => setFilterPanelOpen(true)}
           title="Advanced filters"
+          aria-label="Advanced filters"
           style={{
             padding: '6px 12px',
             margin: '6px 8px',
@@ -287,6 +250,7 @@ export function Notifications({
             display: 'flex',
             alignItems: 'center',
             gap: 4,
+            flexShrink: 0,
           }}
         >
           <svg
@@ -357,47 +321,73 @@ export function Notifications({
       )}
 
       <div className="tg-scroll" style={{ flex: 1, overflowY: 'auto', background: 'var(--tg-bg1)' }}>
-        {query.status === 'loading' || query.status === 'idle' ? (
+        {feed.status === 'loading' || feed.status === 'idle' ? (
           <Spinner />
-        ) : query.status === 'error' && query.error ? (
-          <ErrorState error={query.error} onRetry={query.refetch} />
+        ) : feed.status === 'error' && feed.error ? (
+          <ErrorState error={feed.error} onRetry={feed.refetch} onReconnect={onReconnect} />
         ) : filtered.length === 0 ? (
-          <EmptyState />
+          chip === 'all' && activeFilterCount === 0 && !searchQuery.trim() ? (
+            <EmptyState />
+          ) : (
+            <EmptyState title="Nothing matches." hint="Try another filter or clear your search." />
+          )
         ) : (
-          groups.map((group) => (
-            <div key={group.key}>
-              {group.label !== null && (
-                <GroupHeader
-                  label={group.label ?? ''}
-                  count={group.items.length}
-                  collapsed={!!collapsed[group.key]}
-                  onToggle={() => toggle(group.key)}
-                />
-              )}
-              {!collapsed[group.key] &&
-                group.items.map((item, i) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      borderBottom:
-                        i === group.items.length - 1
-                          ? 'none'
-                          : '1px solid var(--tg-line)',
-                    }}
-                  >
-                    <NotifRow
-                      item={item}
-                      marking={markingIds.has(item.id)}
-                      onMark={(n) => void handleMark(n)}
-                      isMerged={statusMap.merged.has(item.id)}
-                      isClosed={statusMap.closed.has(item.id)}
-                      isIssueClosed={statusMap.closedIssues.has(item.id)}
-                      context={contextMap.get(item.id)}
-                    />
-                  </div>
-                ))}
-            </div>
-          ))
+          <>
+            {groups.map((group) => (
+              <div key={group.key}>
+                {group.label !== null && (
+                  <GroupHeader
+                    label={group.label ?? ''}
+                    count={group.items.length}
+                    collapsed={!!collapsed[group.key]}
+                    onToggle={() => toggle(group.key)}
+                  />
+                )}
+                {!collapsed[group.key] &&
+                  group.items.map((item, i) => (
+                    <div
+                      key={item.id}
+                      style={{
+                        borderBottom:
+                          i === group.items.length - 1
+                            ? 'none'
+                            : '1px solid var(--tg-line)',
+                      }}
+                    >
+                      <NotifRow
+                        item={item}
+                        marking={markingIds.has(item.id)}
+                        onMark={(n) => void handleMark(n)}
+                        isMerged={statusMap.merged.has(item.id)}
+                        isClosed={statusMap.closed.has(item.id)}
+                        isIssueClosed={statusMap.closedIssues.has(item.id)}
+                        context={contextMap.get(item.id)}
+                      />
+                    </div>
+                  ))}
+              </div>
+            ))}
+            {feed.hasMore && (
+              <button
+                type="button"
+                onClick={() => void feed.loadMore()}
+                disabled={feed.loadingMore}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  border: 'none',
+                  borderTop: '1px solid var(--tg-line)',
+                  background: 'transparent',
+                  color: 'var(--tg-fg2)',
+                  fontSize: 12,
+                  fontFamily: 'var(--tg-sans)',
+                  cursor: feed.loadingMore ? 'default' : 'pointer',
+                }}
+              >
+                {feed.loadingMore ? 'Loading…' : 'Load more'}
+              </button>
+            )}
+          </>
         )}
       </div>
 

@@ -1,18 +1,15 @@
 import { getStoredAuth } from '../../lib/auth';
-import {
-  listNotifications,
-  searchAssignedPrs,
-  searchReviewRequested,
-  searchMentions,
-} from '../../lib/github-api';
+import { listNotifications, type NotificationItem } from '../../lib/github-api';
 import { prioritizeAll } from '../../shared/notifications/prioritizer';
 import {
   mergeNotificationsById,
   latestUpdatedAt,
   sinceFrom,
 } from '../../shared/notifications/merge';
+import { showDesktopNotifications } from './desktop-notifications';
 import {
   NOTIFICATIONS_CACHE_KEY,
+  NOTIFICATION_SEEN_CACHE_KEY,
   BADGE_COLOR_DEFAULT,
 } from '../../shared/constants';
 import { logger } from '../../shared/logger';
@@ -22,31 +19,35 @@ import { getSettings } from '../../lib/settings';
 
 const MODULE = 'sync-worker';
 
-const NOTIFICATION_IDS_CACHE_KEY = 'last_notification_ids_v1';
+// Incremental fetches can't see threads read elsewhere (they drop out of the
+// unread set without a new updated_at), so reconcile with a full fetch at
+// least this often to keep the badge honest.
+const FULL_RECONCILE_MS = 30 * 60 * 1000;
 
-interface NotificationIdCache {
-  ids: string[];
+interface SeenCache {
+  keys: string[];
   lastSyncAt: number;
 }
 
 export interface NotificationCache {
   items: ReturnType<typeof prioritizeAll>;
   fetchedAt: number;
+  lastFullSyncAt?: number;
 }
 
 interface SyncNotificationsOptions {
   /**
    * Fetch the whole unread inbox instead of only what changed since the last
-   * sync. Use at reconciliation points (startup, settings change, after a
-   * mark-as-read) so threads read elsewhere are pruned from the cached set.
+   * sync. Use at reconciliation points (startup, sign-in, settings change,
+   * after a mark-as-read) so threads read elsewhere are pruned.
    */
   full?: boolean;
-  /**
-   * Whether this call owns the toolbar badge. Set to false when a follow-up
-   * `syncAndUpdateBadge` will paint the badge from the user's formula, so the
-   * two don't race.
-   */
-  setBadge?: boolean;
+}
+
+// Thread ids are reused, so keying on id alone misses new activity on a thread
+// that was already unread at the previous sync.
+function seenKey(n: NotificationItem): string {
+  return `${n.id}:${n.updated_at}`;
 }
 
 async function getCachedNotifications(): Promise<NotificationCache | undefined> {
@@ -55,82 +56,40 @@ async function getCachedNotifications(): Promise<NotificationCache | undefined> 
 }
 
 /**
- * Sync the unread notification inbox. By default this is *incremental*: it
- * fetches only threads updated since the last sync (GitHub's `since`) and
- * merges them onto the cached set, so we stop redownloading the whole inbox on
- * every tick. Pass `{ full: true }` to reconcile against the full unread set.
+ * The single sync path for every trigger. Incremental by default: fetches only
+ * threads updated since the newest cached one (GitHub's `since`) and merges
+ * them onto the cache. Alerts on anything new and sets the badge to the unread
+ * count, so it always matches what the popup shows.
  */
-export async function syncNotifications(
-  options: SyncNotificationsOptions = {},
-): Promise<void> {
-  const { full = false, setBadge = true } = options;
-
+export async function syncNotifications(options: SyncNotificationsOptions = {}): Promise<void> {
   const auth = await getStoredAuth();
   if (!auth.token) {
-    if (setBadge) await chrome.action.setBadgeText({ text: '' });
+    await chrome.action.setBadgeText({ text: '' });
     return;
   }
 
   try {
     const cached = await getCachedNotifications();
     const cachedItems = cached?.items ?? [];
+    const reconcileDue = Date.now() - (cached?.lastFullSyncAt ?? 0) > FULL_RECONCILE_MS;
 
-    // Incremental unless forced, or there's nothing cached to merge onto.
-    const cursor = full ? null : latestUpdatedAt(cachedItems);
+    const cursor = options.full || reconcileDue ? null : latestUpdatedAt(cachedItems);
     const since = cursor === null ? undefined : sinceFrom(cursor);
     const incremental = since !== undefined;
 
     const fetched = await listNotifications(auth.token, { all: false, since });
+    const merged = incremental ? mergeNotificationsById(cachedItems, fetched) : fetched;
+    const prioritized = prioritizeAll(merged);
 
-    // Merge deltas onto the cached set; a full fetch replaces it outright.
-    const rawMerged = incremental
-      ? mergeNotificationsById(cachedItems, fetched)
-      : fetched;
-    const prioritized = prioritizeAll(rawMerged);
-
-    const cache: NotificationCache = { items: prioritized, fetchedAt: Date.now() };
+    const cache: NotificationCache = {
+      items: prioritized,
+      fetchedAt: Date.now(),
+      lastFullSyncAt: incremental ? cached?.lastFullSyncAt : Date.now(),
+    };
     await chrome.storage.local.set({ [NOTIFICATIONS_CACHE_KEY]: cache });
 
-    // Detect new notifications by comparing the freshly-fetched threads against
-    // the ids we last knew about.
-    const previousCacheResult = await chrome.storage.local.get(NOTIFICATION_IDS_CACHE_KEY);
-    const previousCache = previousCacheResult[NOTIFICATION_IDS_CACHE_KEY] as NotificationIdCache | undefined;
-    const previousIds = new Set(previousCache?.ids ?? []);
-
-    // Only send message if we have previous IDs (skip first sync)
-    if (previousCache && previousIds.size > 0) {
-      const newNotifications = fetched.filter((n) => !previousIds.has(n.id));
-
-      if (newNotifications.length > 0) {
-        const message: NewNotificationMessage = {
-          type: 'NEW_NOTIFICATIONS',
-          notifications: newNotifications.map((n) => ({
-            id: n.id,
-            subjectType: n.subject.type,
-          })),
-        };
-
-        // Send message to popup (catch error if popup isn't open)
-        chrome.runtime.sendMessage(message).catch(() => {
-          // Popup might not be open, that's fine
-        });
-      }
-    }
-
-    // Store ids of the full merged set for next comparison
-    await chrome.storage.local.set({
-      [NOTIFICATION_IDS_CACHE_KEY]: {
-        ids: prioritized.map((n) => n.id),
-        lastSyncAt: Date.now(),
-      } as NotificationIdCache,
-    });
-
-    if (setBadge) {
-      const unreadCount = prioritized.filter((n) => n.unread).length;
-      const badgeText = unreadCount > 0 ? String(Math.min(unreadCount, 99)) : '';
-      await chrome.action.setBadgeText({ text: badgeText });
-      await chrome.action.setBadgeBackgroundColor({ color: BADGE_COLOR_DEFAULT });
-    }
+    await announceNewNotifications(fetched, prioritized);
+    await setUnreadBadge(prioritized.filter((n) => n.unread).length);
 
     logger.info({
       module: MODULE,
@@ -139,6 +98,42 @@ export async function syncNotifications(
   } catch (error) {
     logger.error({ module: MODULE, message: 'Sync failed', error });
   }
+}
+
+async function announceNewNotifications(
+  fetched: NotificationItem[],
+  current: NotificationItem[],
+): Promise<void> {
+  const bag = await chrome.storage.local.get(NOTIFICATION_SEEN_CACHE_KEY);
+  const previous = bag[NOTIFICATION_SEEN_CACHE_KEY] as SeenCache | undefined;
+
+  const next: SeenCache = { keys: current.map(seenKey), lastSyncAt: Date.now() };
+  await chrome.storage.local.set({ [NOTIFICATION_SEEN_CACHE_KEY]: next });
+
+  // First sync after install or sign-in records a baseline rather than
+  // alerting on the whole backlog. An empty previous list is still a baseline.
+  if (!previous) return;
+
+  const seen = new Set(previous.keys);
+  const fresh = fetched.filter((n) => !seen.has(seenKey(n)));
+  if (fresh.length === 0) return;
+
+  const message: NewNotificationMessage = {
+    type: 'NEW_NOTIFICATIONS',
+    notifications: fresh.map((n) => ({ id: n.id, subjectType: n.subject.type })),
+  };
+  chrome.runtime.sendMessage(message).catch(() => {
+    // No popup open to receive it.
+  });
+
+  const settings = await getSettings();
+  await showDesktopNotifications(fresh, settings.notifications);
+}
+
+async function setUnreadBadge(unread: number): Promise<void> {
+  const text = unread === 0 ? '' : unread > 99 ? '99+' : String(unread);
+  await chrome.action.setBadgeText({ text });
+  await chrome.action.setBadgeBackgroundColor({ color: BADGE_COLOR_DEFAULT });
 }
 
 /**
@@ -171,76 +166,4 @@ export function calculateBadgeCount(
     default:
       return 0;
   }
-}
-
-/**
- * Fetch counts from GitHub API, cache in storage, update badge icon
- */
-export async function syncAndUpdateBadge(token: string, login: string): Promise<void> {
-  try {
-    const settings = await getSettings();
-
-    if (!settings.sync.enabled) {
-      logger.info({ module: MODULE, message: 'Sync disabled in settings, skipping' });
-      return;
-    }
-
-    logger.info({ module: MODULE, message: 'Starting sync' });
-
-    // Fetch the actionable counts in parallel. The notification count is taken
-    // from the cache that `syncNotifications` maintains incrementally, so we
-    // don't refetch the whole inbox here just to measure its size.
-    const [prs, reviews, mentions] = await Promise.all([
-      searchAssignedPrs(token, login),
-      searchReviewRequested(token, login),
-      searchMentions(token, login),
-    ]);
-
-    const notifCache = await getCachedNotifications();
-    const notificationCount = notifCache?.items.filter((n) => n.unread).length ?? 0;
-
-    const counts: CountsCache = {
-      prs: prs.items.length,
-      reviews: reviews.items.length,
-      mentions: mentions.items.length,
-      notifications: notificationCount,
-      timestamp: Date.now(),
-    };
-
-    logger.info({ module: MODULE, message: 'Counts fetched', context: counts });
-
-    // Cache counts in local storage
-    await chrome.storage.local.set({ counts });
-
-    // Calculate badge value based on settings
-    const badgeCount = calculateBadgeCount(counts, settings.badge);
-
-    logger.info({ module: MODULE, message: `Badge count: ${badgeCount}`, context: { formula: settings.badge.formula } });
-
-    // Update extension badge icon
-    const badgeText = badgeCount > 0 ? String(Math.min(badgeCount, 99)) : '';
-    await chrome.action.setBadgeText({ text: badgeText });
-    await chrome.action.setBadgeBackgroundColor({ color: BADGE_COLOR_DEFAULT });
-
-    logger.info({ module: MODULE, message: 'Sync completed' });
-  } catch (error) {
-    logger.error({ module: MODULE, message: 'Sync failed', error });
-    // Keep showing last cached counts on error
-  }
-}
-
-/**
- * Run a full background refresh in the correct order: first the notification
- * sync (which populates the notification cache and, if enabled, plays sounds
- * for new items), then the badge/counts refresh which reads that cache. The
- * notification sync is told not to touch the badge so `syncAndUpdateBadge`
- * remains the sole badge writer.
- */
-export async function syncAll(
-  token: string,
-  login: string,
-  options: { full?: boolean } = {},
-): Promise<void> {
-  await syncNotifications({ full: options.full, setBadge: false });
-  await syncAndUpdateBadge(token, login);
 }

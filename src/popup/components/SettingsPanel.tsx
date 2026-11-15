@@ -1,14 +1,13 @@
 import { useEffect, useRef, type CSSProperties } from 'react';
 import type { NotificationSettings } from '../hooks/useNotificationSettings';
-import type { TabId } from '../tabs';
-import type { TabVisibilitySettings } from '../hooks/useTabVisibility';
+import type { NotificationReasonFilter, UserSettings } from '../../shared/settings/types';
 
-const TAB_LABELS: Record<TabId, string> = {
-  dashboard: 'Home',
-  prs: 'PRs',
-  mentions: 'Mentions',
-  reviews: 'Reviews',
-  notifications: 'Inbox',
+const REASON_LABELS: Record<NotificationReasonFilter, string> = {
+  assign: 'Assigned to you',
+  mention: 'Mentions',
+  review_requested: 'Review requests',
+  team_mention: 'Team mentions',
+  security_alert: 'Security alerts',
 };
 
 interface SettingsPanelProps {
@@ -18,17 +17,17 @@ interface SettingsPanelProps {
   loading: boolean;
   onUpdateSound: (type: keyof NotificationSettings['soundEnabled'], enabled: boolean) => void;
   onSignOut: () => void;
-  tabVisibility: {
-    settings: TabVisibilitySettings | null;
-    loading: boolean;
-    toggleTab: (tabId: TabId, visible: boolean) => void;
-  };
   filterSettings: {
-    hideClosed: boolean;
     syncInterval: 5 | 15 | 30 | 60;
     loading: boolean;
-    toggleHideClosed: (value: boolean) => void;
     updateSyncInterval: (interval: 5 | 15 | 30 | 60) => void;
+  };
+  desktopNotifications: {
+    settings: UserSettings['notifications'] | null;
+    loading: boolean;
+    updateEnabled: (enabled: boolean) => void;
+    updateSound: (sound: boolean) => void;
+    toggleReason: (reason: NotificationReasonFilter, enabled: boolean) => void;
   };
 }
 
@@ -39,8 +38,8 @@ export function SettingsPanel({
   loading,
   onUpdateSound,
   onSignOut,
-  tabVisibility,
   filterSettings,
+  desktopNotifications,
 }: SettingsPanelProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -151,6 +150,7 @@ export function SettingsPanel({
             ref={closeButtonRef}
             type="button"
             onClick={onClose}
+            aria-label="Close settings"
             style={{
               width: 24,
               height: 24,
@@ -212,21 +212,32 @@ export function SettingsPanel({
                 </>
               )}
 
-              {/* Visible Tabs Section */}
-              <Section title="Visible Tabs" style={{ marginTop: 24 }} />
-              {tabVisibility.loading ? (
+              {/* Desktop Notifications Section */}
+              <Section title="Desktop Notifications" style={{ marginTop: 24 }} />
+              {desktopNotifications.loading ? (
                 <div style={{ color: 'var(--tg-fg3)', fontSize: 12 }}>Loading...</div>
               ) : (
-                tabVisibility.settings && (
+                desktopNotifications.settings && (
                   <>
-                    {(Object.keys(TAB_LABELS) as TabId[]).map((tabId) => (
-                      <ToggleRow
-                        key={tabId}
-                        label={TAB_LABELS[tabId]}
-                        checked={tabVisibility.settings!.visible[tabId]}
-                        onChange={(checked) => tabVisibility.toggleTab(tabId, checked)}
-                      />
-                    ))}
+                    <ToggleRow
+                      label="Enable desktop notifications"
+                      checked={desktopNotifications.settings.enabled}
+                      onChange={(checked) => desktopNotifications.updateEnabled(checked)}
+                    />
+                    <ToggleRow
+                      label="Play sound"
+                      checked={desktopNotifications.settings.sound}
+                      onChange={(checked) => desktopNotifications.updateSound(checked)}
+                    />
+                    {desktopNotifications.settings.enabled &&
+                      (Object.keys(REASON_LABELS) as NotificationReasonFilter[]).map((reason) => (
+                        <ToggleRow
+                          key={reason}
+                          label={REASON_LABELS[reason]}
+                          checked={desktopNotifications.settings!.reasons.includes(reason)}
+                          onChange={(checked) => desktopNotifications.toggleReason(reason, checked)}
+                        />
+                      ))}
                   </>
                 )
               )}
@@ -266,18 +277,6 @@ export function SettingsPanel({
                     <option value={60}>60 minutes</option>
                   </select>
                 </div>
-              )}
-
-              {/* Filters Section */}
-              <Section title="Filters" style={{ marginTop: 24 }} />
-              {filterSettings.loading ? (
-                <div style={{ color: 'var(--tg-fg3)', fontSize: 12 }}>Loading...</div>
-              ) : (
-                <ToggleRow
-                  label="Hide closed items"
-                  checked={filterSettings.hideClosed}
-                  onChange={(checked) => filterSettings.toggleHideClosed(checked)}
-                />
               )}
 
               {/* Account Section */}

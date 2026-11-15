@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Header } from './components/Header';
 import { Notifications } from './components/Notifications';
 import { PopupFooter } from './components/PopupFooter';
 import { SettingsPanel } from './components/SettingsPanel';
 import { SignIn } from './components/SignIn';
 import { useAuth } from './hooks/useAuth';
+import { useDesktopNotificationSettings } from './hooks/useDesktopNotificationSettings';
 import { useFilterSettings } from './hooks/useFilterSettings';
 import { useNotificationSettings } from './hooks/useNotificationSettings';
 import { useNotificationSounds } from './hooks/useNotificationSounds';
-import { useTabVisibility } from './hooks/useTabVisibility';
 
 export default function App() {
   const auth = useAuth();
@@ -16,8 +16,9 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [refreshSignal, setRefreshSignal] = useState(0);
   const notificationSettings = useNotificationSettings();
-  const tabVisibility = useTabVisibility();
+  const desktopNotifications = useDesktopNotificationSettings();
   const filterSettings = useFilterSettings();
 
   // Enable notification sounds
@@ -40,6 +41,13 @@ export default function App() {
     setSearchOpen(false);
     setSearchQuery('');
   };
+
+  const handleRefresh = useCallback(() => {
+    setRefreshSignal((n) => n + 1);
+    chrome.runtime.sendMessage({ type: 'REQUEST_SYNC' }).catch(() => {
+      // Background worker not awake yet; the next alarm will update the badge.
+    });
+  }, []);
 
   const handleSettingsSignOut = () => {
     const confirmed = window.confirm(
@@ -90,10 +98,8 @@ export default function App() {
       <Header
         viewer={auth.viewer}
         unreadCount={unreadCount}
-        onSignOut={() => void auth.signOut()}
-        busy={auth.busy}
         onSearch={() => setSearchOpen(true)}
-        onRefresh={() => window.location.reload()}
+        onRefresh={handleRefresh}
         onSettingsClick={() => setSettingsOpen(true)}
       />
 
@@ -101,6 +107,8 @@ export default function App() {
         <Notifications
           token={token}
           onUnreadCountChange={setUnreadCount}
+          refreshSignal={refreshSignal}
+          onReconnect={() => void auth.signOut()}
           searchOpen={searchOpen}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -108,7 +116,7 @@ export default function App() {
         />
       </div>
 
-      <PopupFooter selectedCount={0} />
+      <PopupFooter />
 
       <SettingsPanel
         open={settingsOpen}
@@ -117,8 +125,8 @@ export default function App() {
         loading={notificationSettings.loading}
         onUpdateSound={notificationSettings.updateSound}
         onSignOut={handleSettingsSignOut}
-        tabVisibility={tabVisibility}
         filterSettings={filterSettings}
+        desktopNotifications={desktopNotifications}
       />
     </div>
   );

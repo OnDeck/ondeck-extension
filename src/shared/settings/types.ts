@@ -8,6 +8,14 @@ export type BadgeCountFormula =
 
 export type SyncInterval = 5 | 15 | 30 | 60; // minutes
 
+// Subset of GitHub notification reasons users can opt into for desktop alerts.
+export type NotificationReasonFilter =
+  | 'assign'
+  | 'mention'
+  | 'review_requested'
+  | 'team_mention'
+  | 'security_alert';
+
 export interface UserSettings {
   // Sync & Updates
   sync: {
@@ -33,6 +41,13 @@ export interface UserSettings {
     hideClosed: boolean;
     hiddenRepos: string[]; // e.g., ['owner/repo-name']
     priorityLabels: string[]; // e.g., ['urgent', 'p0', 'blocking']
+  };
+
+  // Desktop Notifications
+  notifications: {
+    enabled: boolean;
+    sound: boolean;
+    reasons: NotificationReasonFilter[]; // which reasons trigger a desktop alert
   };
 }
 

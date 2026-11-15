@@ -4,10 +4,7 @@
   "version": "0.1.0",
   "description": "OnDeck — an at-a-glance view of your GitHub workflow: assigned PRs, mentions, reviews, and notifications.",
   "permissions": ["storage", "identity", "notifications", "alarms"],
-  "host_permissions": [
-    "https://github.com/*",
-    "https://api.github.com/*"
-  ],
+  "host_permissions": ["https://api.github.com/*"],
   "action": {
     "default_popup": "src/popup/index.html",
     "default_title": "OnDeck",
