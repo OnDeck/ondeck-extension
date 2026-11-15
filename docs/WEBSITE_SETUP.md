@@ -18,6 +18,6 @@ To try the site side without cutting a release, run **Actions → Changelog
 Update → Run workflow** in ondeck-site and paste a payload, or locally:
 
 ```bash
-echo '{"version":"1.0.1","date":"2026-11-20","tag":"bugfix","tone":"green","items":["Fix: example"]}' > /tmp/payload.json
+echo '{"version":"1.0.1","date":"2026-11-20","tag":"patch","tone":"green","items":["Fix: example"]}' > /tmp/payload.json
 node scripts/add-release.mjs /tmp/payload.json
 ```
