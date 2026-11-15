@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Header } from './components/Header';
 import { Notifications } from './components/Notifications';
-import { PopupFooter } from './components/PopupFooter';
 import { SettingsPanel } from './components/SettingsPanel';
 import { SignIn } from './components/SignIn';
 import { useAuth } from './hooks/useAuth';
@@ -115,8 +114,6 @@ export default function App() {
           onSearchClose={closeSearch}
         />
       </div>
-
-      <PopupFooter />
 
       <SettingsPanel
         open={settingsOpen}

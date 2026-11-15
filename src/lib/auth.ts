@@ -1,6 +1,6 @@
 import { clearCryptoKey, decryptString, encryptString, type Envelope } from './crypto';
 import { fetchViewer, GitHubApiError, type Viewer } from './github-api';
-import { NOTIFICATION_SEEN_CACHE_KEY } from '../shared/constants';
+import { NOTIFICATIONS_CACHE_KEY, NOTIFICATION_SEEN_CACHE_KEY } from '../shared/constants';
 
 export const TOKEN_STORAGE_KEY = 'gh_workflow_token_v1';
 export const VIEWER_STORAGE_KEY = 'gh_workflow_viewer_v1';
@@ -62,7 +62,13 @@ export async function saveToken(token: string, viewer: Viewer): Promise<void> {
 
 export async function clearStoredAuth(): Promise<void> {
   await Promise.all([
-    chrome.storage.local.remove([TOKEN_STORAGE_KEY, VIEWER_STORAGE_KEY, NOTIFICATION_SEEN_CACHE_KEY]),
+    // The notification cache is the signed-in user's inbox; never show it to the next account.
+    chrome.storage.local.remove([
+      TOKEN_STORAGE_KEY,
+      VIEWER_STORAGE_KEY,
+      NOTIFICATIONS_CACHE_KEY,
+      NOTIFICATION_SEEN_CACHE_KEY,
+    ]),
     chrome.storage.sync.remove(TOKEN_STORAGE_KEY),
     clearCryptoKey(),
   ]);

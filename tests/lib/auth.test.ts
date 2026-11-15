@@ -8,6 +8,7 @@ import {
   VIEWER_STORAGE_KEY,
 } from '../../src/lib/auth';
 import { encryptString } from '../../src/lib/crypto';
+import { NOTIFICATIONS_CACHE_KEY } from '../../src/shared/constants';
 
 const local = memoryStorageArea();
 const sync = memoryStorageArea();
@@ -47,10 +48,12 @@ describe('token storage', () => {
 
   it('sign-out clears local and legacy copies', async () => {
     await saveToken('ghp_secret', viewer);
+    local.data[NOTIFICATIONS_CACHE_KEY] = { items: [], fetchedAt: 1 };
     sync.data[TOKEN_STORAGE_KEY] = { envelope: await encryptString('old') };
     await signOut();
     expect(local.data[TOKEN_STORAGE_KEY]).toBeUndefined();
     expect(sync.data[TOKEN_STORAGE_KEY]).toBeUndefined();
+    expect(local.data[NOTIFICATIONS_CACHE_KEY]).toBeUndefined();
     expect(await getStoredAuth()).toEqual({ token: null, viewer: null });
   });
 });

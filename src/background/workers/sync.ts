@@ -8,10 +8,11 @@ import {
 } from '../../shared/notifications/merge';
 import { showDesktopNotifications } from './desktop-notifications';
 import {
-  NOTIFICATIONS_CACHE_KEY,
-  NOTIFICATION_SEEN_CACHE_KEY,
-  BADGE_COLOR_DEFAULT,
-} from '../../shared/constants';
+  readNotificationCache,
+  writeNotificationCache,
+  type NotificationCache,
+} from '../../shared/notifications/cache';
+import { NOTIFICATION_SEEN_CACHE_KEY, BADGE_COLOR_DEFAULT } from '../../shared/constants';
 import { logger } from '../../shared/logger';
 import type { NewNotificationMessage } from '../../shared/types/notifications';
 import type { CountsCache, UserSettings } from '../../shared/settings/types';
@@ -29,12 +30,6 @@ interface SeenCache {
   lastSyncAt: number;
 }
 
-export interface NotificationCache {
-  items: ReturnType<typeof prioritizeAll>;
-  fetchedAt: number;
-  lastFullSyncAt?: number;
-}
-
 interface SyncNotificationsOptions {
   /**
    * Fetch the whole unread inbox instead of only what changed since the last
@@ -48,11 +43,6 @@ interface SyncNotificationsOptions {
 // that was already unread at the previous sync.
 function seenKey(n: NotificationItem): string {
   return `${n.id}:${n.updated_at}`;
-}
-
-async function getCachedNotifications(): Promise<NotificationCache | undefined> {
-  const result = await chrome.storage.local.get(NOTIFICATIONS_CACHE_KEY);
-  return result[NOTIFICATIONS_CACHE_KEY] as NotificationCache | undefined;
 }
 
 /**
@@ -69,7 +59,7 @@ export async function syncNotifications(options: SyncNotificationsOptions = {}):
   }
 
   try {
-    const cached = await getCachedNotifications();
+    const cached = await readNotificationCache();
     const cachedItems = cached?.items ?? [];
     const reconcileDue = Date.now() - (cached?.lastFullSyncAt ?? 0) > FULL_RECONCILE_MS;
 
@@ -86,7 +76,7 @@ export async function syncNotifications(options: SyncNotificationsOptions = {}):
       fetchedAt: Date.now(),
       lastFullSyncAt: incremental ? cached?.lastFullSyncAt : Date.now(),
     };
-    await chrome.storage.local.set({ [NOTIFICATIONS_CACHE_KEY]: cache });
+    await writeNotificationCache(cache);
 
     await announceNewNotifications(fetched, prioritized);
     await setUnreadBadge(prioritized.filter((n) => n.unread).length);
