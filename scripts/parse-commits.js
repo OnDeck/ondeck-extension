@@ -4,7 +4,7 @@
  */
 
 import { execSync } from 'child_process';
-import conventionalCommitsParser from 'conventional-commits-parser';
+import { CommitParser } from 'conventional-commits-parser';
 
 /**
  * Get the last git tag (version tag)
@@ -43,16 +43,17 @@ export function getCommitsSince(since) {
  * @returns {object[]} Parsed commit objects
  */
 export function parseConventionalCommits(commitMessages) {
-  const parser = conventionalCommitsParser.sync;
+  const parser = new CommitParser({
+    headerPattern: /^(\w+)(?:\(([^)]*)\))?!?: (.+)$/,
+    breakingHeaderPattern: /^(\w+)(?:\(([^)]*)\))?!: (.+)$/,
+    headerCorrespondence: ['type', 'scope', 'subject'],
+    noteKeywords: ['BREAKING CHANGE', 'BREAKING-CHANGE'],
+    revertPattern: /^(?:Revert|revert:)\s"?([\s\S]+?)"?\s*This reverts commit (\w+)/i,
+    revertCorrespondence: ['header', 'hash'],
+  });
 
   return commitMessages.map((message) => {
-    const parsed = parser(message, {
-      headerPattern: /^(\w+)(?:\(([^)]*)\))?: (.+)$/,
-      headerCorrespondence: ['type', 'scope', 'subject'],
-      noteKeywords: ['BREAKING CHANGE', 'BREAKING-CHANGE'],
-      revertPattern: /^(?:Revert|revert:)\s"?([\s\S]+?)"?\s*This reverts commit (\w+)/i,
-      revertCorrespondence: ['header', 'hash'],
-    });
+    const parsed = parser.parse(message);
 
     return {
       type: parsed.type || 'other',
@@ -61,7 +62,7 @@ export function parseConventionalCommits(commitMessages) {
       body: parsed.body || '',
       footer: parsed.footer || '',
       notes: parsed.notes || [],
-      isBreaking: parsed.notes.some((note) => note.title === 'BREAKING CHANGE'),
+      isBreaking: parsed.notes.length > 0,
       raw: message,
     };
   });

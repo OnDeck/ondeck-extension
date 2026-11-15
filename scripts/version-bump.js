@@ -112,11 +112,6 @@ async function main() {
   updatePackageJson(newVersion);
   updateManifestJson(newVersion);
 
-  // Output for GitHub Actions
-  console.log(`\n::set-output name=version::${newVersion}`);
-  console.log(`::set-output name=bump_type::${bumpType}`);
-  console.log(`::set-output name=is_first_release::${isFirstRelease}`);
-
   return newVersion;
 }
 

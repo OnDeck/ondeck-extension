@@ -85,14 +85,12 @@ When the PR is merged, the automation kicks in:
 
 ### 4. Website Update
 
-After the release workflow completes:
+The final step of `release.yml`:
 
-1. `update-website.yml` workflow triggers
-2. Generates changelog summary data
-3. Dispatches to `ondeck-site` repository
-4. Website's `changelog-update.yml` workflow receives event
-5. Updates `src/components/landing/Changelog.tsx`
-6. Commits and pushes to website repo
+1. Dispatches the changelog summary (computed before tagging) to the `ondeck-site` repository
+2. Website's `changelog-update.yml` workflow receives event
+3. Updates `src/components/landing/Changelog.tsx`
+4. Commits and pushes to website repo
 
 ## Version Numbering
 

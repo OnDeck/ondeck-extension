@@ -174,11 +174,11 @@ async function main() {
     items,
   };
 
-  console.log('📝 Changelog Summary:');
-  console.log(JSON.stringify(websitePayload, null, 2));
+  console.error('📝 Changelog Summary:');
+  console.error(JSON.stringify(websitePayload, null, 2));
 
-  // Output for GitHub Actions
-  console.log(`\n::set-output name=changelog_json::${JSON.stringify(websitePayload)}`);
+  // stdout carries only the payload so the release workflow can capture it verbatim
+  console.log(JSON.stringify(websitePayload));
 
   return websitePayload;
 }
