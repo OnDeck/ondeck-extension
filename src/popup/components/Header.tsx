@@ -3,8 +3,6 @@ import type { Viewer } from '../../lib/github-api';
 interface Props {
   viewer: Viewer;
   unreadCount: number;
-  onSignOut: () => void;
-  busy: boolean;
   onSearch: () => void;
   onRefresh: () => void;
   onSettingsClick: () => void;
@@ -65,23 +63,10 @@ const iconBtnBase: React.CSSProperties = {
 export function Header({
   viewer,
   unreadCount,
-  onSignOut,
-  busy,
   onSearch,
   onRefresh,
   onSettingsClick,
 }: Props) {
-  const handleAvatarSignOut = () => {
-    if (busy) return;
-
-    const confirmed = window.confirm(
-      'Sign out of OnDeck? Your personal access token will be removed.'
-    );
-
-    if (confirmed) {
-      onSignOut();
-    }
-  };
   return (
     <header
       style={{
@@ -111,24 +96,25 @@ export function Header({
         <OnDeckLogo />
       </div>
 
-      {/* Viewer avatar */}
-      <img
-        src={viewer.avatar_url}
-        alt={viewer.login}
-        title={`@${viewer.login} · click to sign out`}
-        onClick={handleAvatarSignOut}
-        style={{
-          width: 20,
-          height: 20,
-          borderRadius: 10,
-          border: '1px solid var(--tg-line-strong)',
-          marginLeft: 8,
-          cursor: busy ? 'default' : 'pointer',
-          opacity: busy ? 0.5 : 1,
-          transition: 'opacity 80ms',
-          flexShrink: 0,
-        }}
-      />
+      {/* Viewer avatar — sign-out lives in Settings, not behind a hidden click */}
+      <a
+        href={viewer.html_url}
+        target="_blank"
+        rel="noreferrer"
+        title={`@${viewer.login}`}
+        style={{ display: 'flex', marginLeft: 8, marginRight: 8, flexShrink: 0 }}
+      >
+        <img
+          src={viewer.avatar_url}
+          alt={viewer.login}
+          style={{
+            width: 20,
+            height: 20,
+            borderRadius: 10,
+            border: '1px solid var(--tg-line-strong)',
+          }}
+        />
+      </a>
 
       {unreadCount > 0 && (
         <span
@@ -154,6 +140,7 @@ export function Header({
         type="button"
         onClick={onRefresh}
         title="Refresh notifications"
+        aria-label="Refresh notifications"
         style={{ ...iconBtnBase, color: 'var(--tg-fg2)' }}
         onMouseEnter={(e) => {
           (e.currentTarget as HTMLElement).style.color = 'var(--tg-fg0)';
@@ -172,6 +159,7 @@ export function Header({
         type="button"
         onClick={onSearch}
         title="Search · ⌘K"
+        aria-label="Search notifications"
         style={{ ...iconBtnBase, color: 'var(--tg-fg2)' }}
         onMouseEnter={(e) => {
           (e.currentTarget as HTMLElement).style.color = 'var(--tg-fg0)';

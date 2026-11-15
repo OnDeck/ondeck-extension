@@ -18,6 +18,9 @@ import { EmptyState, ErrorState, Spinner } from './States';
 interface Props {
   token: string;
   onUnreadCountChange: (n: number) => void;
+  /** Bumped by the header's refresh button. */
+  refreshSignal: number;
+  onReconnect: () => void;
   searchOpen?: boolean;
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
@@ -89,6 +92,8 @@ function countsByChip(
 export function Notifications({
   token,
   onUnreadCountChange,
+  refreshSignal,
+  onReconnect,
   searchOpen = false,
   searchQuery = '',
   onSearchChange,
@@ -110,7 +115,7 @@ export function Notifications({
 
   // Live-refresh the list when the background worker reports new
   // notifications, so an open popup stays current without a manual refresh.
-  const { refetch } = feed;
+  const { refresh, setUnread } = feed;
   useEffect(() => {
     const handleMessage = (message: unknown) => {
       if (
@@ -118,25 +123,17 @@ export function Notifications({
         message !== null &&
         (message as Record<string, unknown>)['type'] === 'NEW_NOTIFICATIONS'
       ) {
-        refetch();
+        void refresh();
       }
     };
 
     chrome.runtime.onMessage.addListener(handleMessage);
     return () => chrome.runtime.onMessage.removeListener(handleMessage);
-  }, [refetch]);
+  }, [refresh]);
 
-  // Refetch when settings change
   useEffect(() => {
-    const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }, area: string) => {
-      if (area === 'sync' && changes.settings) {
-        refetch();
-      }
-    };
-
-    chrome.storage.onChanged.addListener(handleStorageChange);
-    return () => chrome.storage.onChanged.removeListener(handleStorageChange);
-  }, [refetch]);
+    if (refreshSignal > 0) void refresh();
+  }, [refreshSignal, refresh]);
 
   const [chip, setChip] = useState<ChipId>('all');
   const [groupBy] = useState<GroupByMode>('none');
@@ -156,11 +153,11 @@ export function Notifications({
   const statusMap = { merged: new Set(), closed: new Set(), closedIssues: new Set() };
   const contextMap = new Map();
 
-  const prioritized = useMemo(() => {
-    const p = prioritizeAll(notifications);
-    onUnreadCountChange(p.filter((n) => n.unread).length);
-    return p;
-  }, [notifications, onUnreadCountChange]);
+  const prioritized = useMemo(() => prioritizeAll(notifications), [notifications]);
+
+  useEffect(() => {
+    onUnreadCountChange(prioritized.filter((n) => n.unread).length);
+  }, [prioritized, onUnreadCountChange]);
 
   const counts = useMemo(() => countsByChip(prioritized), [prioritized]);
 
@@ -199,22 +196,18 @@ export function Notifications({
 
   const activeFilterCount = selectedRepos.length + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
 
+  // Optimistic: flip the row to read immediately and roll back on failure,
+  // rather than refetching (which flashed the skeleton and dropped loaded pages).
   const handleMark = async (item: NotificationItem) => {
     setMarkingIds((prev) => new Set(prev).add(item.id));
+    setUnread(item.id, false);
     try {
       await markNotificationRead(token, item.id);
-
-      // Trigger background sync to update badge
       chrome.runtime.sendMessage({ type: 'REQUEST_SYNC' }).catch(() => {
-        // Ignore if background script isn't ready
+        // Background worker not awake yet; the next alarm will fix the badge.
       });
-
-      // Refetch notifications after a short delay to get updated unread status
-      setTimeout(() => {
-        feed.refetch();
-      }, 500);
     } catch {
-      // row stays visible; user can retry
+      setUnread(item.id, true);
     } finally {
       setMarkingIds((prev) => {
         const next = new Set(prev);
@@ -234,7 +227,7 @@ export function Notifications({
           background: 'var(--tg-bg1)',
         }}
       >
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <ChipRail active={chip} counts={counts} onChange={setChip} />
         </div>
         <button
@@ -242,6 +235,7 @@ export function Notifications({
           data-testid="filter-button"
           onClick={() => setFilterPanelOpen(true)}
           title="Advanced filters"
+          aria-label="Advanced filters"
           style={{
             padding: '6px 12px',
             margin: '6px 8px',
@@ -256,6 +250,7 @@ export function Notifications({
             display: 'flex',
             alignItems: 'center',
             gap: 4,
+            flexShrink: 0,
           }}
         >
           <svg
@@ -329,9 +324,13 @@ export function Notifications({
         {feed.status === 'loading' || feed.status === 'idle' ? (
           <Spinner />
         ) : feed.status === 'error' && feed.error ? (
-          <ErrorState error={feed.error} onRetry={feed.refetch} />
+          <ErrorState error={feed.error} onRetry={feed.refetch} onReconnect={onReconnect} />
         ) : filtered.length === 0 ? (
-          <EmptyState />
+          chip === 'all' && activeFilterCount === 0 && !searchQuery.trim() ? (
+            <EmptyState />
+          ) : (
+            <EmptyState title="Nothing matches." hint="Try another filter or clear your search." />
+          )
         ) : (
           <>
             {groups.map((group) => (

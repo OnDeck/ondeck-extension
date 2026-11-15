@@ -1,68 +1,67 @@
 import { setupAlarm, registerAlarmHandler } from './schedulers/alarm';
-import { syncNotifications, syncAndUpdateBadge } from './workers/sync';
+import { syncNotifications } from './workers/sync';
+import { registerNotificationClickHandler } from './workers/desktop-notifications';
 import { getSettings } from '../lib/settings';
-import { getStoredAuth } from '../lib/auth';
+import { TOKEN_STORAGE_KEY } from '../lib/auth';
 import { logger } from '../shared/logger';
 import { SYNC_ALARM_NAME } from '../shared/constants';
+import type { UserSettings } from '../shared/settings/types';
 
-// On extension install/update
-chrome.runtime.onInstalled.addListener(async () => {
-  logger.info({ module: 'service-worker', message: 'Extension installed/updated' });
-
+async function scheduleAndSync(): Promise<void> {
   const settings = await getSettings();
+  if (!settings.sync.enabled) return;
+  await setupAlarm(settings.sync.intervalMinutes);
+  await syncNotifications();
+}
 
-  if (settings.sync.enabled) {
-    await setupAlarm(settings.sync.intervalMinutes);
-
-    // Run initial sync immediately if token exists
-    const auth = await getStoredAuth();
-    if (auth.token && auth.viewer?.login) {
-      await syncAndUpdateBadge(auth.token, auth.viewer.login);
-    }
-  }
-
-  logger.info({ module: 'service-worker', message: 'Setup complete' });
+chrome.runtime.onInstalled.addListener(() => {
+  logger.info({ module: 'service-worker', message: 'Extension installed/updated' });
+  void scheduleAndSync();
 });
 
-// Re-sync on browser startup (service worker restarts).
-chrome.runtime.onStartup.addListener(async () => {
-  const settings = await getSettings();
-
-  if (settings.sync.enabled) {
-    await setupAlarm(settings.sync.intervalMinutes);
-    void syncNotifications();
-  }
+chrome.runtime.onStartup.addListener(() => {
+  void scheduleAndSync();
 });
 
 registerAlarmHandler();
+registerNotificationClickHandler();
 
-// When settings change, reschedule alarm or clear badge
-chrome.storage.onChanged.addListener(async (changes, area) => {
-  try {
-    if (area === 'sync' && changes.settings?.newValue) {
-      const settings = changes.settings.newValue;
-      logger.info({ module: 'service-worker', message: 'Settings changed', context: settings });
+function syncSettingsChanged(prev?: UserSettings, next?: UserSettings): boolean {
+  return (
+    prev?.sync?.enabled !== next?.sync?.enabled ||
+    prev?.sync?.intervalMinutes !== next?.sync?.intervalMinutes
+  );
+}
 
-      if (settings.sync?.enabled) {
-        await setupAlarm(settings.sync.intervalMinutes);
+chrome.storage.onChanged.addListener((changes, area) => {
+  // Sign-in and sign-out: refresh (or clear) the badge straight away instead of
+  // waiting up to a full interval for the next alarm.
+  if (area === 'local' && changes[TOKEN_STORAGE_KEY]) {
+    void syncNotifications();
+    return;
+  }
 
-        // Trigger immediate sync if we have auth
-        const auth = await getStoredAuth();
-        if (auth.token && auth.viewer?.login) {
-          await syncAndUpdateBadge(auth.token, auth.viewer.login);
-        }
+  if (area !== 'sync' || !changes.settings?.newValue) return;
+  const next = changes.settings.newValue as UserSettings;
+  const prev = changes.settings.oldValue as UserSettings | undefined;
+  // Toggling sounds or notification reasons shouldn't cost API calls.
+  if (!syncSettingsChanged(prev, next)) return;
+
+  void (async () => {
+    try {
+      if (next.sync.enabled) {
+        await setupAlarm(next.sync.intervalMinutes);
+        await syncNotifications();
       } else {
-        logger.info({ module: 'service-worker', message: 'Sync disabled, clearing alarm and badge' });
         await chrome.alarms.clear(SYNC_ALARM_NAME);
         await chrome.action.setBadgeText({ text: '' });
       }
+    } catch (error) {
+      logger.error({ module: 'service-worker', message: 'Error handling settings change', error });
     }
-  } catch (error) {
-    logger.error({ module: 'service-worker', message: 'Error handling storage change', error });
-  }
+  })();
 });
 
-// Popup requests a fresh sync so it always opens with current data.
 chrome.runtime.onMessage.addListener((message: unknown) => {
   if (
     typeof message === 'object' &&

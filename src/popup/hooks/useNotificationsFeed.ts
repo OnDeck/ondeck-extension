@@ -13,13 +13,21 @@ export interface NotificationsFeed {
   hasMore: boolean;
   loadingMore: boolean;
   loadMore: () => void;
+  /** Full reload with the skeleton — use when there's nothing on screen yet. */
   refetch: () => void;
+  /** Pulls the newest page and merges it in place, keeping scroll and loaded pages. */
+  refresh: () => void;
+  setUnread: (id: string, unread: boolean) => void;
+}
+
+function appendUnique(base: NotificationItem[], extra: NotificationItem[]): NotificationItem[] {
+  const ids = new Set(base.map((n) => n.id));
+  return [...base, ...extra.filter((n) => !ids.has(n.id))];
 }
 
 /**
  * Paginated notifications feed. Loads only the first page on open (fast popup
- * open), then appends older pages on demand via `loadMore()`. `refetch()`
- * resets back to the first page — used for live-refresh and after marking read.
+ * open), then appends older pages on demand via `loadMore()`.
  */
 export function useNotificationsFeed(token: string, all = true): NotificationsFeed {
   const [items, setItems] = useState<NotificationItem[]>([]);
@@ -66,7 +74,7 @@ export function useNotificationsFeed(token: string, all = true): NotificationsFe
     try {
       const page = await listNotificationsPage(token, { all, pageUrl });
       if (!mountedRef.current) return;
-      setItems((prev) => [...prev, ...page.items]);
+      setItems((prev) => appendUnique(prev, page.items));
       nextUrlRef.current = page.nextUrl;
       setHasMore(page.nextUrl !== null);
     } catch (err) {
@@ -76,6 +84,26 @@ export function useNotificationsFeed(token: string, all = true): NotificationsFe
       if (mountedRef.current) setLoadingMore(false);
     }
   }, [token, all, loadingMore]);
+
+  const refresh = useCallback(async () => {
+    try {
+      const page = await listNotificationsPage(token, { all });
+      if (!mountedRef.current) return;
+      setItems((prev) => appendUnique(page.items, prev));
+      if (nextUrlRef.current === null) {
+        nextUrlRef.current = page.nextUrl;
+        setHasMore(page.nextUrl !== null);
+      }
+      setError(null);
+      setStatus('success');
+    } catch {
+      // Keep showing what we have; the next refresh or manual retry will recover.
+    }
+  }, [token, all]);
+
+  const setUnread = useCallback((id: string, unread: boolean) => {
+    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, unread } : n)));
+  }, []);
 
   useEffect(() => {
     void loadFirstPage();
@@ -89,5 +117,7 @@ export function useNotificationsFeed(token: string, all = true): NotificationsFe
     loadingMore,
     loadMore,
     refetch: loadFirstPage,
+    refresh,
+    setUnread,
   };
 }

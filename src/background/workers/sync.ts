@@ -1,14 +1,10 @@
 import { getStoredAuth } from '../../lib/auth';
-import {
-  listNotifications,
-  searchAssignedPrs,
-  searchReviewRequested,
-  searchMentions,
-} from '../../lib/github-api';
+import { listNotifications, type NotificationItem } from '../../lib/github-api';
 import { prioritizeAll } from '../../shared/notifications/prioritizer';
 import { showDesktopNotifications } from './desktop-notifications';
 import {
   NOTIFICATIONS_CACHE_KEY,
+  NOTIFICATION_SEEN_CACHE_KEY,
   BADGE_COLOR_DEFAULT,
 } from '../../shared/constants';
 import { logger } from '../../shared/logger';
@@ -18,10 +14,8 @@ import { getSettings } from '../../lib/settings';
 
 const MODULE = 'sync-worker';
 
-const NOTIFICATION_IDS_CACHE_KEY = 'last_notification_ids_v1';
-
-interface NotificationIdCache {
-  ids: string[];
+interface SeenCache {
+  keys: string[];
   lastSyncAt: number;
 }
 
@@ -30,6 +24,17 @@ export interface NotificationCache {
   fetchedAt: number;
 }
 
+// Thread ids are reused, so keying on id alone misses new activity on a thread
+// that was already unread at the previous sync.
+function seenKey(n: NotificationItem): string {
+  return `${n.id}:${n.updated_at}`;
+}
+
+/**
+ * The single sync path for every trigger (alarm, startup, popup request):
+ * fetch unread notifications, alert on anything new, and set the badge to the
+ * unread count so it always matches what the popup shows.
+ */
 export async function syncNotifications(): Promise<void> {
   const auth = await getStoredAuth();
   if (!auth.token) {
@@ -39,64 +44,50 @@ export async function syncNotifications(): Promise<void> {
 
   try {
     const raw = await listNotifications(auth.token, { all: false });
-    const prioritized = prioritizeAll(raw);
 
-    const cache: NotificationCache = { items: prioritized, fetchedAt: Date.now() };
+    const cache: NotificationCache = { items: prioritizeAll(raw), fetchedAt: Date.now() };
     await chrome.storage.local.set({ [NOTIFICATIONS_CACHE_KEY]: cache });
 
-    // Detect new notifications
-    const previousCacheResult = await chrome.storage.local.get(NOTIFICATION_IDS_CACHE_KEY);
-    const previousCache = previousCacheResult[NOTIFICATION_IDS_CACHE_KEY] as NotificationIdCache | undefined;
-    const previousIds = new Set(previousCache?.ids ?? []);
-    const currentIds = raw.map((n) => n.id);
+    await announceNewNotifications(raw);
+    await setUnreadBadge(raw.filter((n) => n.unread).length);
 
-    // Only send message if we have previous IDs (skip first sync)
-    if (previousCache && previousIds.size > 0) {
-      const newNotifications = raw.filter((n) => !previousIds.has(n.id));
-
-      if (newNotifications.length > 0) {
-        const message: NewNotificationMessage = {
-          type: 'NEW_NOTIFICATIONS',
-          notifications: newNotifications.map((n) => ({
-            id: n.id,
-            subjectType: n.subject.type,
-          })),
-        };
-
-        // Send message to popup (catch error if popup isn't open)
-        chrome.runtime.sendMessage(message).catch(() => {
-          // Popup might not be open, that's fine
-        });
-
-        // Surface OS-level desktop notifications when the user has opted in.
-        const settings = await getSettings();
-        await showDesktopNotifications(newNotifications, settings.notifications);
-      }
-    }
-
-    // Store current IDs for next sync
-    await chrome.storage.local.set({
-      [NOTIFICATION_IDS_CACHE_KEY]: {
-        ids: currentIds,
-        lastSyncAt: Date.now(),
-      } as NotificationIdCache,
-    });
-
-    const unreadCount = raw.filter((n) => n.unread).length;
-
-    const badgeText = unreadCount > 0 ? String(Math.min(unreadCount, 99)) : '';
-    const badgeColor = BADGE_COLOR_DEFAULT;
-
-    await chrome.action.setBadgeText({ text: badgeText });
-    await chrome.action.setBadgeBackgroundColor({ color: badgeColor });
-
-    logger.info({
-      module: MODULE,
-      message: `Synced ${raw.length} notifications`,
-    });
+    logger.info({ module: MODULE, message: `Synced ${raw.length} notifications` });
   } catch (error) {
     logger.error({ module: MODULE, message: 'Sync failed', error });
   }
+}
+
+async function announceNewNotifications(current: NotificationItem[]): Promise<void> {
+  const bag = await chrome.storage.local.get(NOTIFICATION_SEEN_CACHE_KEY);
+  const previous = bag[NOTIFICATION_SEEN_CACHE_KEY] as SeenCache | undefined;
+
+  const next: SeenCache = { keys: current.map(seenKey), lastSyncAt: Date.now() };
+  await chrome.storage.local.set({ [NOTIFICATION_SEEN_CACHE_KEY]: next });
+
+  // First sync after install or sign-in records a baseline rather than
+  // alerting on the whole backlog. An empty previous list is still a baseline.
+  if (!previous) return;
+
+  const seen = new Set(previous.keys);
+  const fresh = current.filter((n) => !seen.has(seenKey(n)));
+  if (fresh.length === 0) return;
+
+  const message: NewNotificationMessage = {
+    type: 'NEW_NOTIFICATIONS',
+    notifications: fresh.map((n) => ({ id: n.id, subjectType: n.subject.type })),
+  };
+  chrome.runtime.sendMessage(message).catch(() => {
+    // No popup open to receive it.
+  });
+
+  const settings = await getSettings();
+  await showDesktopNotifications(fresh, settings.notifications);
+}
+
+async function setUnreadBadge(unread: number): Promise<void> {
+  const text = unread === 0 ? '' : unread > 99 ? '99+' : String(unread);
+  await chrome.action.setBadgeText({ text });
+  await chrome.action.setBadgeBackgroundColor({ color: BADGE_COLOR_DEFAULT });
 }
 
 /**
@@ -128,57 +119,5 @@ export function calculateBadgeCount(
       }, 0);
     default:
       return 0;
-  }
-}
-
-/**
- * Fetch counts from GitHub API, cache in storage, update badge icon
- */
-export async function syncAndUpdateBadge(token: string, login: string): Promise<void> {
-  try {
-    const settings = await getSettings();
-
-    if (!settings.sync.enabled) {
-      logger.info({ module: MODULE, message: 'Sync disabled in settings, skipping' });
-      return;
-    }
-
-    logger.info({ module: MODULE, message: 'Starting sync' });
-
-    // Fetch all counts in parallel
-    const [prs, reviews, mentions, inbox] = await Promise.all([
-      searchAssignedPrs(token, login),
-      searchReviewRequested(token, login),
-      searchMentions(token, login),
-      listNotifications(token),
-    ]);
-
-    const counts: CountsCache = {
-      prs: prs.items.length,
-      reviews: reviews.items.length,
-      mentions: mentions.items.length,
-      notifications: inbox.length,
-      timestamp: Date.now(),
-    };
-
-    logger.info({ module: MODULE, message: 'Counts fetched', context: counts });
-
-    // Cache counts in local storage
-    await chrome.storage.local.set({ counts });
-
-    // Calculate badge value based on settings
-    const badgeCount = calculateBadgeCount(counts, settings.badge);
-
-    logger.info({ module: MODULE, message: `Badge count: ${badgeCount}`, context: { formula: settings.badge.formula } });
-
-    // Update extension badge icon
-    const badgeText = badgeCount > 0 ? String(Math.min(badgeCount, 99)) : '';
-    await chrome.action.setBadgeText({ text: badgeText });
-    await chrome.action.setBadgeBackgroundColor({ color: BADGE_COLOR_DEFAULT });
-
-    logger.info({ module: MODULE, message: 'Sync completed' });
-  } catch (error) {
-    logger.error({ module: MODULE, message: 'Sync failed', error });
-    // Keep showing last cached counts on error
   }
 }

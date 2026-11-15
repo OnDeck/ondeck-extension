@@ -1,16 +1,6 @@
 import { useEffect, useRef, type CSSProperties } from 'react';
 import type { NotificationSettings } from '../hooks/useNotificationSettings';
-import type { TabId } from '../tabs';
-import type { TabVisibilitySettings } from '../hooks/useTabVisibility';
 import type { NotificationReasonFilter, UserSettings } from '../../shared/settings/types';
-
-const TAB_LABELS: Record<TabId, string> = {
-  dashboard: 'Home',
-  prs: 'PRs',
-  mentions: 'Mentions',
-  reviews: 'Reviews',
-  notifications: 'Inbox',
-};
 
 const REASON_LABELS: Record<NotificationReasonFilter, string> = {
   assign: 'Assigned to you',
@@ -27,16 +17,9 @@ interface SettingsPanelProps {
   loading: boolean;
   onUpdateSound: (type: keyof NotificationSettings['soundEnabled'], enabled: boolean) => void;
   onSignOut: () => void;
-  tabVisibility: {
-    settings: TabVisibilitySettings | null;
-    loading: boolean;
-    toggleTab: (tabId: TabId, visible: boolean) => void;
-  };
   filterSettings: {
-    hideClosed: boolean;
     syncInterval: 5 | 15 | 30 | 60;
     loading: boolean;
-    toggleHideClosed: (value: boolean) => void;
     updateSyncInterval: (interval: 5 | 15 | 30 | 60) => void;
   };
   desktopNotifications: {
@@ -55,7 +38,6 @@ export function SettingsPanel({
   loading,
   onUpdateSound,
   onSignOut,
-  tabVisibility,
   filterSettings,
   desktopNotifications,
 }: SettingsPanelProps) {
@@ -168,6 +150,7 @@ export function SettingsPanel({
             ref={closeButtonRef}
             type="button"
             onClick={onClose}
+            aria-label="Close settings"
             style={{
               width: 24,
               height: 24,
@@ -259,25 +242,6 @@ export function SettingsPanel({
                 )
               )}
 
-              {/* Visible Tabs Section */}
-              <Section title="Visible Tabs" style={{ marginTop: 24 }} />
-              {tabVisibility.loading ? (
-                <div style={{ color: 'var(--tg-fg3)', fontSize: 12 }}>Loading...</div>
-              ) : (
-                tabVisibility.settings && (
-                  <>
-                    {(Object.keys(TAB_LABELS) as TabId[]).map((tabId) => (
-                      <ToggleRow
-                        key={tabId}
-                        label={TAB_LABELS[tabId]}
-                        checked={tabVisibility.settings!.visible[tabId]}
-                        onChange={(checked) => tabVisibility.toggleTab(tabId, checked)}
-                      />
-                    ))}
-                  </>
-                )
-              )}
-
               {/* Sync Section */}
               <Section title="Sync" style={{ marginTop: 24 }} />
               {filterSettings.loading ? (
@@ -313,18 +277,6 @@ export function SettingsPanel({
                     <option value={60}>60 minutes</option>
                   </select>
                 </div>
-              )}
-
-              {/* Filters Section */}
-              <Section title="Filters" style={{ marginTop: 24 }} />
-              {filterSettings.loading ? (
-                <div style={{ color: 'var(--tg-fg3)', fontSize: 12 }}>Loading...</div>
-              ) : (
-                <ToggleRow
-                  label="Hide closed items"
-                  checked={filterSettings.hideClosed}
-                  onChange={(checked) => filterSettings.toggleHideClosed(checked)}
-                />
               )}
 
               {/* Account Section */}

@@ -1,8 +1,4 @@
-interface Props {
-  selectedCount: number;
-}
-
-export function PopupFooter({ selectedCount }: Props) {
+export function PopupFooter() {
   return (
     <div
       style={{
@@ -16,14 +12,19 @@ export function PopupFooter({ selectedCount }: Props) {
         fontFamily: 'var(--tg-mono)',
         color: 'var(--tg-fg3)',
         flexShrink: 0,
-        gap: 10,
         whiteSpace: 'nowrap',
         overflow: 'hidden',
       }}
     >
-      <span style={{ marginLeft: 'auto', color: 'var(--tg-fg2)', flexShrink: 0 }}>
-        {selectedCount > 0 ? `${selectedCount} selected` : ''}
-      </span>
+      <a
+        href="https://github.com/notifications"
+        target="_blank"
+        rel="noreferrer"
+        className="hover:text-[var(--tg-fg1)]"
+        style={{ marginLeft: 'auto', color: 'var(--tg-fg2)', textDecoration: 'none' }}
+      >
+        Open GitHub inbox ↗
+      </a>
     </div>
   );
 }

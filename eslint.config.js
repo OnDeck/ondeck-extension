@@ -53,6 +53,8 @@ export default [
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       'no-console': 'error',
+      // TypeScript already resolves identifiers; ESLint's version needs every DOM global listed.
+      'no-undef': 'off',
     },
     settings: {
       react: { version: 'detect' },

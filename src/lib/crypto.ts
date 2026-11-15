@@ -1,17 +1,10 @@
-// Lightweight AES-GCM wrapper used to obfuscate GitHub tokens before writing
-// them to chrome.storage.sync.
+// Lightweight AES-GCM wrapper used to obfuscate GitHub tokens at rest in
+// chrome.storage.local.
 //
-// Note: a Chrome extension cannot achieve "true" at-rest encryption against
-// an attacker with local machine access — any key the extension can read, a
-// local attacker can also read. What this module buys us is:
-//   1. Tokens are not sitting in plaintext in chrome.storage.sync (which
-//      syncs across devices).
-//   2. The key lives in chrome.storage.local, so a backup of only sync data
-//      is not enough to recover the token.
-//   3. Extensions or scripts reading sync data still need the local key.
-//
-// For stronger protection we would need a user-supplied passphrase, which
-// is out of scope for the MVP auth ticket.
+// The key lives next to the ciphertext, so this is not real at-rest
+// encryption: anything that can read this extension's storage can recover the
+// token. It only keeps the token out of plaintext dumps of storage. Stronger
+// protection would need a user-supplied passphrase.
 
 const KEY_STORAGE_KEY = 'gh_workflow_crypto_key_v1';
 const ALGO = { name: 'AES-GCM', length: 256 } as const;

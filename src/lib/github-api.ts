@@ -14,7 +14,7 @@ export class GitHubApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,
-    public readonly kind: 'unauthorized' | 'forbidden' | 'network' | 'other',
+    public readonly kind: 'unauthorized' | 'forbidden' | 'rate_limited' | 'network' | 'other',
   ) {
     super(message);
     this.name = 'GitHubApiError';
@@ -50,6 +50,17 @@ async function githubFetch(
   if (response.status === 401) {
     throw new GitHubApiError('Token is invalid or expired', 401, 'unauthorized');
   }
+  // GitHub signals both primary and secondary rate limits with 403 (sometimes
+  // 429), so check the headers before treating a 403 as a scope problem.
+  const retryAfter = rateLimitRetrySeconds(response);
+  if (retryAfter !== null) {
+    const minutes = Math.max(1, Math.ceil(retryAfter / 60));
+    throw new GitHubApiError(
+      `GitHub rate limit reached. Try again in ${minutes} min.`,
+      response.status,
+      'rate_limited',
+    );
+  }
   if (response.status === 403) {
     throw new GitHubApiError('Forbidden — check token scopes', 403, 'forbidden');
   }
@@ -61,6 +72,17 @@ async function githubFetch(
     );
   }
   return response;
+}
+
+function rateLimitRetrySeconds(response: Response): number | null {
+  if (response.status !== 403 && response.status !== 429) return null;
+  const retryAfter = Number(response.headers.get('retry-after'));
+  if (retryAfter > 0) return retryAfter;
+  if (response.headers.get('x-ratelimit-remaining') !== '0') {
+    return response.status === 429 ? 60 : null;
+  }
+  const resetAt = Number(response.headers.get('x-ratelimit-reset'));
+  return resetAt > 0 ? Math.max(0, resetAt - Date.now() / 1000) : 60;
 }
 
 export async function fetchViewer(token: string): Promise<Viewer> {

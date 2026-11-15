@@ -1,5 +1,8 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
-import { showDesktopNotifications } from '../../../src/background/workers/desktop-notifications';
+import {
+  showDesktopNotifications,
+  urlFromNotificationId,
+} from '../../../src/background/workers/desktop-notifications';
 import type { NotificationItem, NotificationReason } from '../../../src/lib/github-api';
 import type { UserSettings } from '../../../src/shared/settings/types';
 
@@ -76,6 +79,7 @@ describe('showDesktopNotifications', () => {
     );
     expect(createMock).toHaveBeenCalledTimes(1);
     expect(createMock).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({ title: 'Fix the bug', silent: true }),
     );
   });
@@ -92,13 +96,17 @@ describe('showDesktopNotifications', () => {
     // owner/repo (2 grouped) + other/repo (1) = 2 create calls
     expect(createMock).toHaveBeenCalledTimes(2);
     expect(createMock).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({ title: '2 new notifications in owner/repo' }),
     );
   });
 
   it('respects the sound setting via the silent flag', async () => {
     await showDesktopNotifications([makeNotification()], settings({ sound: true }));
-    expect(createMock).toHaveBeenCalledWith(expect.objectContaining({ silent: false }));
+    expect(createMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ silent: false }),
+    );
   });
 
   it('elevates priority and requires interaction for security alerts', async () => {
@@ -107,7 +115,30 @@ describe('showDesktopNotifications', () => {
       settings(),
     );
     expect(createMock).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({ priority: 2, requireInteraction: true }),
     );
+  });
+
+  it('encodes a github.com click target in the notification id', async () => {
+    await showDesktopNotifications([makeNotification()], settings());
+    const id = createMock.mock.calls[0][0] as string;
+    expect(urlFromNotificationId(id)).toBe('https://github.com/owner/repo');
+  });
+
+  it('links grouped alerts to the repo-filtered GitHub inbox', async () => {
+    await showDesktopNotifications(
+      [makeNotification({ id: '1' }), makeNotification({ id: '2' })],
+      settings(),
+    );
+    const id = createMock.mock.calls[0][0] as string;
+    expect(urlFromNotificationId(id)).toBe(
+      'https://github.com/notifications?query=repo%3Aowner%2Frepo',
+    );
+  });
+
+  it('ignores ids that were not created by OnDeck', () => {
+    expect(urlFromNotificationId('someone-else')).toBeNull();
+    expect(urlFromNotificationId('ondeck|abc|https://evil.example/')).toBeNull();
   });
 });

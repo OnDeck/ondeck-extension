@@ -139,24 +139,14 @@ export function EmptyState({ title, hint }: { title?: string; hint?: string } = 
 export function ErrorState({
   error,
   onRetry,
+  onReconnect,
 }: {
   error: GitHubApiError;
   onRetry: () => void;
+  onReconnect?: () => void;
 }) {
-  const isAuth = error.kind === 'unauthorized' || error.kind === 'forbidden';
-  const title = isAuth
-    ? 'GitHub token expired'
-    : error.kind === 'network'
-      ? 'Network error'
-      : 'Something went wrong';
-  const subtitle = isAuth
-    ? 'Your access token is no longer valid. Reconnect to resume notifications.'
-    : error.message;
-  const errorCode = isAuth
-    ? 'AUTH_TOKEN_EXPIRED · scope: notifications'
-    : error.kind === 'network'
-      ? 'NETWORK_FAILURE · offline or unreachable'
-      : `ERROR · ${error.message.slice(0, 40)}`;
+  const copy = errorCopy(error);
+  const showReconnect = Boolean(onReconnect) && (error.kind === 'unauthorized' || error.kind === 'forbidden');
 
   return (
     <div
@@ -207,7 +197,7 @@ export function ErrorState({
             marginBottom: 5,
           }}
         >
-          {title}
+          {copy.title}
         </div>
         <div
           style={{
@@ -217,12 +207,12 @@ export function ErrorState({
             maxWidth: 220,
           }}
         >
-          {subtitle}
+          {copy.subtitle}
         </div>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
-        {isAuth && (
+        {showReconnect && (
           <button
             type="button"
             style={{
@@ -237,7 +227,7 @@ export function ErrorState({
               cursor: 'pointer',
               letterSpacing: 0.2,
             }}
-            onClick={onRetry}
+            onClick={onReconnect}
           >
             Reconnect
           </button>
@@ -269,8 +259,44 @@ export function ErrorState({
           marginTop: 4,
         }}
       >
-        {errorCode}
+        {copy.code}
       </div>
     </div>
   );
+}
+
+function errorCopy(error: GitHubApiError): { title: string; subtitle: string; code: string } {
+  switch (error.kind) {
+    case 'unauthorized':
+      return {
+        title: 'GitHub token expired',
+        subtitle: 'Your access token is no longer valid. Reconnect to resume notifications.',
+        code: 'AUTH_TOKEN_INVALID · 401',
+      };
+    case 'forbidden':
+      return {
+        title: 'Missing permissions',
+        subtitle:
+          'This token can’t read notifications. Use a classic token with the notifications and repo scopes.',
+        code: 'FORBIDDEN · check token scopes',
+      };
+    case 'rate_limited':
+      return {
+        title: 'Rate limited by GitHub',
+        subtitle: error.message,
+        code: `RATE_LIMITED · ${error.status}`,
+      };
+    case 'network':
+      return {
+        title: 'Network error',
+        subtitle: 'Couldn’t reach GitHub. Check your connection and retry.',
+        code: 'NETWORK_FAILURE · offline or unreachable',
+      };
+    default:
+      return {
+        title: 'Something went wrong',
+        subtitle: error.message,
+        code: `ERROR · ${error.message.slice(0, 40)}`,
+      };
+  }
 }
