@@ -6,8 +6,8 @@
 :root {
   color-scheme: dark;
 
-  --tg-sans: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --tg-mono: 'Geist Mono', 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  --tg-sans: 'Geist Variable', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --tg-mono: 'Geist Mono Variable', 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
 
   --tg-bg0: #0a0b0d;
   --tg-bg1: #101216;

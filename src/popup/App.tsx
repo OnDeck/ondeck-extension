@@ -6,8 +6,6 @@ import { SignIn } from './components/SignIn';
 import { useAuth } from './hooks/useAuth';
 import { useDesktopNotificationSettings } from './hooks/useDesktopNotificationSettings';
 import { useFilterSettings } from './hooks/useFilterSettings';
-import { useNotificationSettings } from './hooks/useNotificationSettings';
-import { useNotificationSounds } from './hooks/useNotificationSounds';
 
 export default function App() {
   const auth = useAuth();
@@ -16,12 +14,8 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshSignal, setRefreshSignal] = useState(0);
-  const notificationSettings = useNotificationSettings();
   const desktopNotifications = useDesktopNotificationSettings();
   const filterSettings = useFilterSettings();
-
-  // Enable notification sounds
-  useNotificationSounds(notificationSettings.settings);
 
   // Keyboard shortcut for search (Cmd+K / Ctrl+K)
   useEffect(() => {
@@ -118,9 +112,6 @@ export default function App() {
       <SettingsPanel
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
-        settings={notificationSettings.settings}
-        loading={notificationSettings.loading}
-        onUpdateSound={notificationSettings.updateSound}
         onSignOut={handleSettingsSignOut}
         filterSettings={filterSettings}
         desktopNotifications={desktopNotifications}
