@@ -108,6 +108,10 @@ function generateConciseSummary(parsedCommits) {
   return items.slice(0, 4);
 }
 
+function capitalize(text) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 /**
  * Determine tone and tag based on version bump
  * @param {string} bumpType - Type of version bump
@@ -156,8 +160,19 @@ async function main() {
     ? 'minor'
     : 'patch';
 
-  // Generate summary items
-  const items = generateConciseSummary(parsedCommits);
+  // Release notes typed into the manual Release run win; otherwise summarise
+  // the commits. The first release would otherwise list the whole history.
+  const manualNotes = (process.env.RELEASE_NOTES ?? '')
+    .split('\n')
+    .map((line) => line.replace(/^[-*•]\s*/, '').trim())
+    .filter(Boolean);
+  const items = (
+    manualNotes.length > 0
+      ? manualNotes
+      : isFirstRelease
+        ? ['First release']
+        : generateConciseSummary(parsedCommits)
+  ).map(capitalize);
 
   // Determine tone and tag
   const { tag, tone } = determineToneAndTag(bumpType, isFirstRelease);
