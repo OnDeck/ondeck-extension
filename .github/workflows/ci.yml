@@ -21,6 +21,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        # No e2e here; playwright-chromium's postinstall download fails on unsupported runner images
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
 
       - name: Typecheck
         run: npx tsc --noEmit
