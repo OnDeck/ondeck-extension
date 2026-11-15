@@ -11,7 +11,7 @@ async function scheduleAndSync(): Promise<void> {
   const settings = await getSettings();
   if (!settings.sync.enabled) return;
   await setupAlarm(settings.sync.intervalMinutes);
-  await syncNotifications();
+  await syncNotifications({ full: true });
 }
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -37,7 +37,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   // Sign-in and sign-out: refresh (or clear) the badge straight away instead of
   // waiting up to a full interval for the next alarm.
   if (area === 'local' && changes[TOKEN_STORAGE_KEY]) {
-    void syncNotifications();
+    void syncNotifications({ full: true });
     return;
   }
 
@@ -51,7 +51,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
     try {
       if (next.sync.enabled) {
         await setupAlarm(next.sync.intervalMinutes);
-        await syncNotifications();
+        await syncNotifications({ full: true });
       } else {
         await chrome.alarms.clear(SYNC_ALARM_NAME);
         await chrome.action.setBadgeText({ text: '' });
@@ -62,13 +62,15 @@ chrome.storage.onChanged.addListener((changes, area) => {
   })();
 });
 
+// Popup requests a sync after marking threads read: reconcile in full so the
+// read threads drop out of the cache and the badge.
 chrome.runtime.onMessage.addListener((message: unknown) => {
   if (
     typeof message === 'object' &&
     message !== null &&
     (message as Record<string, unknown>)['type'] === 'REQUEST_SYNC'
   ) {
-    void syncNotifications();
+    void syncNotifications({ full: true });
   }
 });
 

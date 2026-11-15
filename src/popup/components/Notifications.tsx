@@ -123,7 +123,7 @@ export function Notifications({
         message !== null &&
         (message as Record<string, unknown>)['type'] === 'NEW_NOTIFICATIONS'
       ) {
-        void refresh();
+        void refresh({ delta: true });
       }
     };
 

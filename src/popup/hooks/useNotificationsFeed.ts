@@ -4,6 +4,7 @@ import {
   listNotificationsPage,
   type NotificationItem,
 } from '../../lib/github-api';
+import { latestUpdatedAt, mergeNotificationsById, sinceFrom } from '../../shared/notifications/merge';
 import type { QueryStatus } from './useGitHubQuery';
 
 export interface NotificationsFeed {
@@ -15,14 +16,22 @@ export interface NotificationsFeed {
   loadMore: () => void;
   /** Full reload with the skeleton — use when there's nothing on screen yet. */
   refetch: () => void;
-  /** Pulls the newest page and merges it in place, keeping scroll and loaded pages. */
-  refresh: () => void;
+  /**
+   * Merges fresh data in place, keeping scroll and loaded pages. `delta` only
+   * fetches threads updated since the newest one held (for live updates); a
+   * plain refresh re-reads the first page so read-elsewhere state is picked up.
+   */
+  refresh: (options?: { delta?: boolean }) => void;
   setUnread: (id: string, unread: boolean) => void;
 }
 
 function appendUnique(base: NotificationItem[], extra: NotificationItem[]): NotificationItem[] {
   const ids = new Set(base.map((n) => n.id));
   return [...base, ...extra.filter((n) => !ids.has(n.id))];
+}
+
+function newestFirst(items: NotificationItem[]): NotificationItem[] {
+  return [...items].sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at));
 }
 
 /**
@@ -85,12 +94,17 @@ export function useNotificationsFeed(token: string, all = true): NotificationsFe
     }
   }, [token, all, loadingMore]);
 
-  const refresh = useCallback(async () => {
+  const itemsRef = useRef<NotificationItem[]>([]);
+  itemsRef.current = items;
+
+  const refresh = useCallback(async (options: { delta?: boolean } = {}) => {
+    const cursor = options.delta ? latestUpdatedAt(itemsRef.current) : null;
+    const since = cursor === null ? undefined : sinceFrom(cursor);
     try {
-      const page = await listNotificationsPage(token, { all });
+      const page = await listNotificationsPage(token, { all, since });
       if (!mountedRef.current) return;
-      setItems((prev) => appendUnique(page.items, prev));
-      if (nextUrlRef.current === null) {
+      setItems((prev) => newestFirst(mergeNotificationsById(prev, page.items)));
+      if (since === undefined && nextUrlRef.current === null) {
         nextUrlRef.current = page.nextUrl;
         setHasMore(page.nextUrl !== null);
       }

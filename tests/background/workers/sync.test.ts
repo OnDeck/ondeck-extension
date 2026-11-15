@@ -94,4 +94,29 @@ describe('syncNotifications', () => {
     expect(listNotifications).not.toHaveBeenCalled();
     expect(setBadgeText).toHaveBeenLastCalledWith({ text: '' });
   });
+
+  it('fetches incrementally after a full sync and merges onto the cache', async () => {
+    listNotifications.mockResolvedValue([notif('1', '2026-01-01T00:00:00Z')]);
+    await syncNotifications({ full: true });
+    expect(listNotifications.mock.calls[0][1]).toEqual({ all: false, since: undefined });
+
+    listNotifications.mockResolvedValue([notif('2', '2026-01-02T00:00:00Z')]);
+    await syncNotifications();
+    expect(listNotifications.mock.calls[1][1].since).toBe('2025-12-31T23:59:59.000Z');
+    expect(setBadgeText).toHaveBeenLastCalledWith({ text: '2' });
+  });
+
+  it('reconciles in full once the last full sync is stale, pruning threads read elsewhere', async () => {
+    listNotifications.mockResolvedValue([notif('1'), notif('2')]);
+    await syncNotifications({ full: true });
+
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.now() + 31 * 60 * 1000);
+    listNotifications.mockResolvedValue([notif('2')]);
+    await syncNotifications();
+    vi.useRealTimers();
+
+    expect(listNotifications.mock.calls[1][1].since).toBeUndefined();
+    expect(setBadgeText).toHaveBeenLastCalledWith({ text: '1' });
+  });
 });

@@ -1,6 +1,11 @@
 import { getStoredAuth } from '../../lib/auth';
 import { listNotifications, type NotificationItem } from '../../lib/github-api';
 import { prioritizeAll } from '../../shared/notifications/prioritizer';
+import {
+  mergeNotificationsById,
+  latestUpdatedAt,
+  sinceFrom,
+} from '../../shared/notifications/merge';
 import { showDesktopNotifications } from './desktop-notifications';
 import {
   NOTIFICATIONS_CACHE_KEY,
@@ -14,6 +19,11 @@ import { getSettings } from '../../lib/settings';
 
 const MODULE = 'sync-worker';
 
+// Incremental fetches can't see threads read elsewhere (they drop out of the
+// unread set without a new updated_at), so reconcile with a full fetch at
+// least this often to keep the badge honest.
+const FULL_RECONCILE_MS = 30 * 60 * 1000;
+
 interface SeenCache {
   keys: string[];
   lastSyncAt: number;
@@ -22,6 +32,16 @@ interface SeenCache {
 export interface NotificationCache {
   items: ReturnType<typeof prioritizeAll>;
   fetchedAt: number;
+  lastFullSyncAt?: number;
+}
+
+interface SyncNotificationsOptions {
+  /**
+   * Fetch the whole unread inbox instead of only what changed since the last
+   * sync. Use at reconciliation points (startup, sign-in, settings change,
+   * after a mark-as-read) so threads read elsewhere are pruned.
+   */
+  full?: boolean;
 }
 
 // Thread ids are reused, so keying on id alone misses new activity on a thread
@@ -30,12 +50,18 @@ function seenKey(n: NotificationItem): string {
   return `${n.id}:${n.updated_at}`;
 }
 
+async function getCachedNotifications(): Promise<NotificationCache | undefined> {
+  const result = await chrome.storage.local.get(NOTIFICATIONS_CACHE_KEY);
+  return result[NOTIFICATIONS_CACHE_KEY] as NotificationCache | undefined;
+}
+
 /**
- * The single sync path for every trigger (alarm, startup, popup request):
- * fetch unread notifications, alert on anything new, and set the badge to the
- * unread count so it always matches what the popup shows.
+ * The single sync path for every trigger. Incremental by default: fetches only
+ * threads updated since the newest cached one (GitHub's `since`) and merges
+ * them onto the cache. Alerts on anything new and sets the badge to the unread
+ * count, so it always matches what the popup shows.
  */
-export async function syncNotifications(): Promise<void> {
+export async function syncNotifications(options: SyncNotificationsOptions = {}): Promise<void> {
   const auth = await getStoredAuth();
   if (!auth.token) {
     await chrome.action.setBadgeText({ text: '' });
@@ -43,21 +69,41 @@ export async function syncNotifications(): Promise<void> {
   }
 
   try {
-    const raw = await listNotifications(auth.token, { all: false });
+    const cached = await getCachedNotifications();
+    const cachedItems = cached?.items ?? [];
+    const reconcileDue = Date.now() - (cached?.lastFullSyncAt ?? 0) > FULL_RECONCILE_MS;
 
-    const cache: NotificationCache = { items: prioritizeAll(raw), fetchedAt: Date.now() };
+    const cursor = options.full || reconcileDue ? null : latestUpdatedAt(cachedItems);
+    const since = cursor === null ? undefined : sinceFrom(cursor);
+    const incremental = since !== undefined;
+
+    const fetched = await listNotifications(auth.token, { all: false, since });
+    const merged = incremental ? mergeNotificationsById(cachedItems, fetched) : fetched;
+    const prioritized = prioritizeAll(merged);
+
+    const cache: NotificationCache = {
+      items: prioritized,
+      fetchedAt: Date.now(),
+      lastFullSyncAt: incremental ? cached?.lastFullSyncAt : Date.now(),
+    };
     await chrome.storage.local.set({ [NOTIFICATIONS_CACHE_KEY]: cache });
 
-    await announceNewNotifications(raw);
-    await setUnreadBadge(raw.filter((n) => n.unread).length);
+    await announceNewNotifications(fetched, prioritized);
+    await setUnreadBadge(prioritized.filter((n) => n.unread).length);
 
-    logger.info({ module: MODULE, message: `Synced ${raw.length} notifications` });
+    logger.info({
+      module: MODULE,
+      message: `Synced ${fetched.length} notifications (${incremental ? 'incremental' : 'full'}), ${prioritized.length} cached`,
+    });
   } catch (error) {
     logger.error({ module: MODULE, message: 'Sync failed', error });
   }
 }
 
-async function announceNewNotifications(current: NotificationItem[]): Promise<void> {
+async function announceNewNotifications(
+  fetched: NotificationItem[],
+  current: NotificationItem[],
+): Promise<void> {
   const bag = await chrome.storage.local.get(NOTIFICATION_SEEN_CACHE_KEY);
   const previous = bag[NOTIFICATION_SEEN_CACHE_KEY] as SeenCache | undefined;
 
@@ -69,7 +115,7 @@ async function announceNewNotifications(current: NotificationItem[]): Promise<vo
   if (!previous) return;
 
   const seen = new Set(previous.keys);
-  const fresh = current.filter((n) => !seen.has(seenKey(n)));
+  const fresh = fetched.filter((n) => !seen.has(seenKey(n)));
   if (fresh.length === 0) return;
 
   const message: NewNotificationMessage = {
