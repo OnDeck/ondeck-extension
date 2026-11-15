@@ -13,6 +13,7 @@ import { ChipRail } from './ChipRail';
 import { FilterPanel } from './FilterPanel';
 import { GroupHeader } from './GroupHeader';
 import { NotifRow } from './NotifRow';
+import { PopupFooter } from './PopupFooter';
 import { EmptyState, ErrorState, Spinner } from './States';
 
 interface Props {
@@ -390,6 +391,13 @@ export function Notifications({
           </>
         )}
       </div>
+
+      <PopupFooter
+        updatedAt={feed.updatedAt}
+        refreshing={feed.refreshing}
+        refreshFailed={feed.refreshError !== null}
+        onRetry={() => void refresh()}
+      />
 
       <FilterPanel
         open={filterPanelOpen}

@@ -4,6 +4,7 @@ import {
   listNotificationsPage,
   type NotificationItem,
 } from '../../lib/github-api';
+import { readNotificationCache } from '../../shared/notifications/cache';
 import { latestUpdatedAt, mergeNotificationsById, sinceFrom } from '../../shared/notifications/merge';
 import type { QueryStatus } from './useGitHubQuery';
 
@@ -13,6 +14,11 @@ export interface NotificationsFeed {
   error: GitHubApiError | null;
   hasMore: boolean;
   loadingMore: boolean;
+  /** Epoch ms of the data on screen; the worker's sync time while showing the cache. */
+  updatedAt: number | null;
+  refreshing: boolean;
+  /** Last refresh failure that didn't replace the list (network blips, rate limits). */
+  refreshError: GitHubApiError | null;
   loadMore: () => void;
   /** Full reload with the skeleton — use when there's nothing on screen yet. */
   refetch: () => void;
@@ -34,18 +40,36 @@ function newestFirst(items: NotificationItem[]): NotificationItem[] {
   return [...items].sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at));
 }
 
+function normalizeError(err: unknown): GitHubApiError {
+  return err instanceof GitHubApiError
+    ? err
+    : new GitHubApiError(err instanceof Error ? err.message : 'Unknown error', 0, 'other');
+}
+
+// A cached list is useless once the token is bad; swap it for the error screen
+// so the user can reconnect instead of staring at stale data.
+function invalidatesList(err: GitHubApiError): boolean {
+  return err.kind === 'unauthorized' || err.kind === 'forbidden';
+}
+
 /**
- * Paginated notifications feed. Loads only the first page on open (fast popup
- * open), then appends older pages on demand via `loadMore()`.
+ * Paginated notifications feed. Opens instantly from the background worker's
+ * cache when there is one, refreshing in place, and otherwise loads the first
+ * page behind a skeleton. Older pages load on demand via `loadMore()`.
  */
 export function useNotificationsFeed(token: string, all = true): NotificationsFeed {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [status, setStatus] = useState<QueryStatus>('idle');
   const [error, setError] = useState<GitHubApiError | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
-  const nextUrlRef = useRef<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<GitHubApiError | null>(null);
+  const nextUrlRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
+  const itemsRef = useRef<NotificationItem[]>([]);
+  itemsRef.current = items;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -54,20 +78,17 @@ export function useNotificationsFeed(token: string, all = true): NotificationsFe
     };
   }, []);
 
-  const normalizeError = (err: unknown): GitHubApiError =>
-    err instanceof GitHubApiError
-      ? err
-      : new GitHubApiError(err instanceof Error ? err.message : 'Unknown error', 0, 'other');
-
   const loadFirstPage = useCallback(async () => {
     setStatus('loading');
     setError(null);
+    setRefreshError(null);
     try {
       const page = await listNotificationsPage(token, { all });
       if (!mountedRef.current) return;
       setItems(page.items);
       nextUrlRef.current = page.nextUrl;
       setHasMore(page.nextUrl !== null);
+      setUpdatedAt(Date.now());
       setStatus('success');
     } catch (err) {
       if (!mountedRef.current) return;
@@ -88,40 +109,69 @@ export function useNotificationsFeed(token: string, all = true): NotificationsFe
       setHasMore(page.nextUrl !== null);
     } catch (err) {
       if (!mountedRef.current) return;
-      setError(normalizeError(err));
+      setRefreshError(normalizeError(err));
     } finally {
       if (mountedRef.current) setLoadingMore(false);
     }
   }, [token, all, loadingMore]);
 
-  const itemsRef = useRef<NotificationItem[]>([]);
-  itemsRef.current = items;
-
-  const refresh = useCallback(async (options: { delta?: boolean } = {}) => {
-    const cursor = options.delta ? latestUpdatedAt(itemsRef.current) : null;
-    const since = cursor === null ? undefined : sinceFrom(cursor);
-    try {
-      const page = await listNotificationsPage(token, { all, since });
-      if (!mountedRef.current) return;
-      setItems((prev) => newestFirst(mergeNotificationsById(prev, page.items)));
-      if (since === undefined && nextUrlRef.current === null) {
-        nextUrlRef.current = page.nextUrl;
-        setHasMore(page.nextUrl !== null);
+  const refresh = useCallback(
+    async (options: { delta?: boolean } = {}) => {
+      const cursor = options.delta ? latestUpdatedAt(itemsRef.current) : null;
+      const since = cursor === null ? undefined : sinceFrom(cursor);
+      setRefreshing(true);
+      try {
+        const page = await listNotificationsPage(token, { all, since });
+        if (!mountedRef.current) return;
+        setItems((prev) => newestFirst(mergeNotificationsById(prev, page.items)));
+        if (since === undefined && nextUrlRef.current === null) {
+          nextUrlRef.current = page.nextUrl;
+          setHasMore(page.nextUrl !== null);
+        }
+        setUpdatedAt(Date.now());
+        setError(null);
+        setRefreshError(null);
+        setStatus('success');
+      } catch (err) {
+        if (!mountedRef.current) return;
+        const apiError = normalizeError(err);
+        if (invalidatesList(apiError)) {
+          setError(apiError);
+          setStatus('error');
+        } else {
+          setRefreshError(apiError);
+        }
+      } finally {
+        if (mountedRef.current) setRefreshing(false);
       }
-      setError(null);
-      setStatus('success');
-    } catch {
-      // Keep showing what we have; the next refresh or manual retry will recover.
-    }
-  }, [token, all]);
+    },
+    [token, all],
+  );
 
   const setUnread = useCallback((id: string, unread: boolean) => {
     setItems((prev) => prev.map((n) => (n.id === id ? { ...n, unread } : n)));
   }, []);
 
+  // Paint the worker's cached inbox first so the popup opens instantly, then
+  // refresh it in place. Without a cache, fall back to the skeleton load.
   useEffect(() => {
-    void loadFirstPage();
-  }, [loadFirstPage]);
+    let cancelled = false;
+    void (async () => {
+      const cached = await readNotificationCache().catch(() => undefined);
+      if (cancelled) return;
+      if (cached && cached.items.length > 0) {
+        setItems(newestFirst(cached.items));
+        setUpdatedAt(cached.fetchedAt);
+        setStatus('success');
+        void refresh();
+      } else {
+        void loadFirstPage();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadFirstPage, refresh]);
 
   return {
     items,
@@ -129,6 +179,9 @@ export function useNotificationsFeed(token: string, all = true): NotificationsFe
     error,
     hasMore,
     loadingMore,
+    updatedAt,
+    refreshing,
+    refreshError,
     loadMore,
     refetch: loadFirstPage,
     refresh,
