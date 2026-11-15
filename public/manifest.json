@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "OnDeck",
   "version": "0.1.0",
-  "description": "OnDeck — an at-a-glance view of your GitHub workflow: assigned PRs, mentions, reviews, and notifications.",
-  "permissions": ["storage", "identity", "notifications", "alarms"],
+  "description": "A calm GitHub notifications inbox in your toolbar: review requests, mentions and assignments, with desktop alerts.",
+  "permissions": ["storage", "notifications", "alarms"],
   "host_permissions": ["https://api.github.com/*"],
   "action": {
     "default_popup": "src/popup/index.html",

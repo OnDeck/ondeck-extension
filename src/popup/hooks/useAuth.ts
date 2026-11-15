@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   getStoredAuth,
-  signInWithOAuth as oauthSignIn,
   signInWithToken,
   signOut as doSignOut,
 } from '../../lib/auth';
@@ -16,7 +15,6 @@ export interface UseAuth {
   error: string | null;
   busy: boolean;
   signInWithPat: (token: string) => Promise<void>;
-  signInWithOAuth: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -60,24 +58,6 @@ export function useAuth(): UseAuth {
     }
   }, []);
 
-  const signInWithOAuth = useCallback(async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const v = await oauthSignIn();
-      setViewer(v);
-      // Re-read from storage so we get the access token that signInWithOAuth
-      // just persisted. Avoids duplicating the return shape of the lib fn.
-      const stored = await getStoredAuth();
-      setToken(stored.token);
-      setStatus('signed-in');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'OAuth failed');
-    } finally {
-      setBusy(false);
-    }
-  }, []);
-
   const signOut = useCallback(async () => {
     setBusy(true);
     try {
@@ -98,7 +78,6 @@ export function useAuth(): UseAuth {
     error,
     busy,
     signInWithPat,
-    signInWithOAuth,
     signOut,
   };
 }

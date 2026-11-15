@@ -86,13 +86,10 @@ tests/
 ## Sign in (first run)
 
 1. Click the extension icon to open the popup.
-2. Go to [github.com/settings/tokens/new](https://github.com/settings/tokens/new) and create a token with these scopes:
-   - `read:user`
-   - `notifications`
-   - `repo` (or `public_repo` for public-only access)
-3. Paste the token into the **Personal Access Token** field and click **Connect**.
+2. Click **Create token on GitHub**. It opens the classic-token page with the `notifications` and `repo` scopes selected (fine-grained tokens can't read notifications).
+3. Paste the token into the popup and press Enter.
 
-Tokens are encrypted with AES-GCM before being written to `chrome.storage.sync`.
+Tokens are encrypted with AES-GCM and stored in `chrome.storage.local`.
 
 ## Project layout
 
@@ -107,7 +104,7 @@ github-chrome/
 │   │   ├── schedulers/        # Alarm-based polling setup
 │   │   └── workers/           # Sync logic (fetch → cache → badge)
 │   ├── lib/
-│   │   ├── auth.ts            # PAT + OAuth sign-in, encrypted storage
+│   │   ├── auth.ts            # PAT sign-in, encrypted token storage
 │   │   ├── crypto.ts          # AES-GCM wrapper
 │   │   └── github-api.ts      # Typed GitHub REST client
 │   ├── shared/
