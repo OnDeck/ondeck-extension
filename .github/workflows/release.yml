@@ -1,23 +1,20 @@
 name: Release
 
 on:
-  pull_request:
-    types: [closed]
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   release:
-    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/')
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # pull_request events check out the merge SHA detached; `git push origin main` needs the branch
+          # The run can be started from any branch in the UI; always release main
           ref: main
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}

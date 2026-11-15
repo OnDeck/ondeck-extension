@@ -274,11 +274,10 @@ curl -X POST \
 
 ### Full Integration Test
 
-1. In extension repository, create a test release branch
-2. Add some commits with conventional commit messages
-3. Open and merge PR to main
-4. Check extension repository workflows complete
-5. Check website repository receives dispatch and updates
+1. In extension repository, merge some conventional commits to `main`
+2. Run the release workflow: `gh workflow run release.yml`
+3. Check the extension repository workflow completes
+4. Check website repository receives dispatch and updates
 
 ## Troubleshooting
 

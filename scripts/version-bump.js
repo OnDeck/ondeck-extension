@@ -93,6 +93,11 @@ function updateManifestJson(newVersion) {
 async function main() {
   const { lastTag, parsedCommits } = await parseCommitsFromGit();
 
+  if (lastTag && parsedCommits.length === 0) {
+    console.error(`❌ No commits since ${lastTag}, nothing to release`);
+    process.exit(1);
+  }
+
   const pkgPath = join(rootDir, 'package.json');
   const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
   const currentVersion = pkg.version;

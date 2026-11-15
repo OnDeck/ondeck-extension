@@ -4,7 +4,7 @@ This document describes the automated changelog and release process for the OnDe
 
 ## Overview
 
-When a `release/*` branch is merged to `main`, the following happens automatically:
+Releases are cut manually by running the `Release` workflow against `main`. It then:
 
 1. **Version Bump**: Calculates new version based on conventional commits (semver)
 2. **Changelog Generation**: Creates/updates `CHANGELOG.md` with grouped changes
@@ -49,33 +49,21 @@ Old tokens are no longer valid.
 
 ## Release Workflow
 
-### 1. Create Release Branch
+### 1. Get `main` Ready
+
+Merge everything that should ship into `main` and make sure CI is green. Merging does not release anything.
+
+### 2. Run the Release Workflow
+
+From the Actions tab (**Release** → **Run workflow**), or:
 
 ```bash
-# Create release branch from main
-git checkout main
-git pull origin main
-git checkout -b release/1
-
-# Make any final changes
-# ... commit changes ...
-
-# Push release branch
-git push origin release/1
+gh workflow run release.yml
 ```
 
-### 2. Open Pull Request
+It always releases `main`, whichever branch the run is started from:
 
-- Open a PR from `release/1` to `main`
-- PR title should follow conventional commit format
-- Example: `chore(release): prepare v1.0.0`
-
-### 3. Merge PR
-
-When the PR is merged, the automation kicks in:
-
-1. `release.yml` workflow triggers
-2. Analyzes commits since last tag
+1. Analyzes commits since last tag (fails if there are none)
 3. Determines version bump (major/minor/patch)
 4. Updates `package.json` and `public/manifest.json`
 5. Generates `CHANGELOG.md`
@@ -83,7 +71,7 @@ When the PR is merged, the automation kicks in:
 7. Creates git tag
 8. Pushes to main
 
-### 4. Website Update
+### 3. Website Update
 
 The final step of `release.yml`:
 
@@ -106,7 +94,7 @@ The final step of `release.yml`:
 |---------|---------|-----|------|
 | `feat:` only | 1.0.0 → 1.1.0 | feature | blue |
 | `fix:` only | 1.0.0 → 1.0.1 | bugfix | green |
-| Mixed `feat:` + `fix:` | 1.0.0 → 1.1.0 | update | purple |
+| Mixed `feat:` + `fix:` | 1.0.0 → 1.1.0 | feature | blue |
 | `BREAKING CHANGE:` | 1.0.0 → 2.0.0 | breaking | red |
 
 ## Rollback Procedure
@@ -191,11 +179,14 @@ const entries: ChangelogEntry[] = [
 
 ## Troubleshooting
 
-### Workflow doesn't trigger
+### Run Workflow button is missing
 
-- Ensure PR is merged (not closed without merging)
-- Ensure PR source branch starts with `release/`
+- `workflow_dispatch` only appears once `release.yml` is on `main`
 - Check GitHub Actions are enabled
+
+### Release fails with "nothing to release"
+
+- No commits landed on `main` since the last tag; merge something first
 
 ### Version bump is wrong
 
@@ -244,7 +235,7 @@ node scripts/summarize-changes.js
 ## Best Practices
 
 1. **Write clear commit messages**: Follow conventional commit format
-2. **Test before releasing**: Ensure all tests pass before creating release branch
+2. **Test before releasing**: Ensure CI is green on `main` before running the workflow
 3. **Review changelog**: Check generated changelog makes sense
 4. **Small, frequent releases**: Better than large, infrequent ones
 5. **Document breaking changes**: Clearly explain what changed and how to migrate
