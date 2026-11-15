@@ -1,5 +1,4 @@
 import { useEffect, useRef, type CSSProperties } from 'react';
-import type { NotificationSettings } from '../hooks/useNotificationSettings';
 import type { NotificationReasonFilter, UserSettings } from '../../shared/settings/types';
 
 const REASON_LABELS: Record<NotificationReasonFilter, string> = {
@@ -13,9 +12,6 @@ const REASON_LABELS: Record<NotificationReasonFilter, string> = {
 interface SettingsPanelProps {
   open: boolean;
   onClose: () => void;
-  settings: NotificationSettings | null;
-  loading: boolean;
-  onUpdateSound: (type: keyof NotificationSettings['soundEnabled'], enabled: boolean) => void;
   onSignOut: () => void;
   filterSettings: {
     syncInterval: 5 | 15 | 30 | 60;
@@ -34,9 +30,6 @@ interface SettingsPanelProps {
 export function SettingsPanel({
   open,
   onClose,
-  settings,
-  loading,
-  onUpdateSound,
   onSignOut,
   filterSettings,
   desktopNotifications,
@@ -176,131 +169,105 @@ export function SettingsPanel({
             padding: '16px 12px',
           }}
         >
-          {loading ? (
+          {/* Desktop Notifications Section */}
+          <Section title="Desktop Notifications" />
+          {desktopNotifications.loading ? (
             <div style={{ color: 'var(--tg-fg3)', fontSize: 12 }}>Loading...</div>
           ) : (
-            <>
-              {/* Notification Sounds Section */}
-              <Section title="Notification Sounds" />
-              {settings && (
-                <>
-                  <ToggleRow
-                    label="Pull Requests"
-                    checked={settings.soundEnabled.PullRequest}
-                    onChange={(checked) => onUpdateSound('PullRequest', checked)}
-                  />
-                  <ToggleRow
-                    label="Issues"
-                    checked={settings.soundEnabled.Issue}
-                    onChange={(checked) => onUpdateSound('Issue', checked)}
-                  />
-                  <ToggleRow
-                    label="Releases"
-                    checked={settings.soundEnabled.Release}
-                    onChange={(checked) => onUpdateSound('Release', checked)}
-                  />
-                  <ToggleRow
-                    label="Discussions"
-                    checked={settings.soundEnabled.Discussion}
-                    onChange={(checked) => onUpdateSound('Discussion', checked)}
-                  />
-                  <ToggleRow
-                    label="Commits"
-                    checked={settings.soundEnabled.Commit}
-                    onChange={(checked) => onUpdateSound('Commit', checked)}
-                  />
-                </>
-              )}
-
-              {/* Desktop Notifications Section */}
-              <Section title="Desktop Notifications" style={{ marginTop: 24 }} />
-              {desktopNotifications.loading ? (
-                <div style={{ color: 'var(--tg-fg3)', fontSize: 12 }}>Loading...</div>
-              ) : (
-                desktopNotifications.settings && (
-                  <>
-                    <ToggleRow
-                      label="Enable desktop notifications"
-                      checked={desktopNotifications.settings.enabled}
-                      onChange={(checked) => desktopNotifications.updateEnabled(checked)}
-                    />
-                    <ToggleRow
-                      label="Play sound"
-                      checked={desktopNotifications.settings.sound}
-                      onChange={(checked) => desktopNotifications.updateSound(checked)}
-                    />
-                    {desktopNotifications.settings.enabled &&
-                      (Object.keys(REASON_LABELS) as NotificationReasonFilter[]).map((reason) => (
-                        <ToggleRow
-                          key={reason}
-                          label={REASON_LABELS[reason]}
-                          checked={desktopNotifications.settings!.reasons.includes(reason)}
-                          onChange={(checked) => desktopNotifications.toggleReason(reason, checked)}
-                        />
-                      ))}
-                  </>
-                )
-              )}
-
-              {/* Sync Section */}
-              <Section title="Sync" style={{ marginTop: 24 }} />
-              {filterSettings.loading ? (
-                <div style={{ color: 'var(--tg-fg3)', fontSize: 12 }}>Loading...</div>
-              ) : (
-                <div style={{ padding: '8px 0' }}>
-                  <div style={{
-                    fontSize: 13,
-                    color: 'var(--tg-fg0)',
-                    fontFamily: 'var(--tg-sans)',
-                    marginBottom: 8,
-                  }}>
-                    Refresh interval
-                  </div>
-                  <select
-                    value={filterSettings.syncInterval}
-                    onChange={(e) => filterSettings.updateSyncInterval(Number(e.target.value) as 5 | 15 | 30 | 60)}
+            desktopNotifications.settings && (
+              <>
+                <ToggleRow
+                  label="Enable desktop notifications"
+                  checked={desktopNotifications.settings.enabled}
+                  onChange={(checked) => desktopNotifications.updateEnabled(checked)}
+                />
+                <ToggleRow
+                  label="Play sound"
+                  checked={desktopNotifications.settings.sound}
+                  onChange={(checked) => desktopNotifications.updateSound(checked)}
+                />
+                {desktopNotifications.settings.enabled && (
+                  <div
                     style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      fontSize: 13,
+                      marginTop: 10,
+                      fontSize: 11.5,
+                      color: 'var(--tg-fg2)',
                       fontFamily: 'var(--tg-sans)',
-                      color: 'var(--tg-fg0)',
-                      background: 'var(--tg-bg0)',
-                      border: '1px solid var(--tg-line)',
-                      borderRadius: 4,
-                      cursor: 'pointer',
                     }}
                   >
-                    <option value={5}>5 minutes</option>
-                    <option value={15}>15 minutes</option>
-                    <option value={30}>30 minutes</option>
-                    <option value={60}>60 minutes</option>
-                  </select>
-                </div>
-              )}
+                    Alert me for
+                  </div>
+                )}
+                {desktopNotifications.settings.enabled &&
+                  (Object.keys(REASON_LABELS) as NotificationReasonFilter[]).map((reason) => (
+                    <ToggleRow
+                      key={reason}
+                      label={REASON_LABELS[reason]}
+                      checked={desktopNotifications.settings!.reasons.includes(reason)}
+                      onChange={(checked) => desktopNotifications.toggleReason(reason, checked)}
+                    />
+                  ))}
+              </>
+            )
+          )}
 
-              {/* Account Section */}
-              <Section title="Account" style={{ marginTop: 24 }} />
-              <button
-                type="button"
-                onClick={onSignOut}
+          {/* Sync Section */}
+          <Section title="Sync" style={{ marginTop: 24 }} />
+          {filterSettings.loading ? (
+            <div style={{ color: 'var(--tg-fg3)', fontSize: 12 }}>Loading...</div>
+          ) : (
+            <div style={{ padding: '8px 0' }}>
+              <div style={{
+                fontSize: 13,
+                color: 'var(--tg-fg0)',
+                fontFamily: 'var(--tg-sans)',
+                marginBottom: 8,
+              }}>
+                Refresh interval
+              </div>
+              <select
+                value={filterSettings.syncInterval}
+                onChange={(e) => filterSettings.updateSyncInterval(Number(e.target.value) as 5 | 15 | 30 | 60)}
                 style={{
                   width: '100%',
                   padding: '8px 12px',
-                  border: '1px solid var(--tg-line)',
-                  borderRadius: 4,
-                  background: 'transparent',
-                  color: 'var(--tg-red, #ff4444)',
                   fontSize: 13,
                   fontFamily: 'var(--tg-sans)',
+                  color: 'var(--tg-fg0)',
+                  background: 'var(--tg-bg0)',
+                  border: '1px solid var(--tg-line)',
+                  borderRadius: 4,
                   cursor: 'pointer',
-                  fontWeight: 500,
                 }}
               >
-                Sign Out
-              </button>
-            </>
+                <option value={5}>5 minutes</option>
+                <option value={15}>15 minutes</option>
+                <option value={30}>30 minutes</option>
+                <option value={60}>60 minutes</option>
+              </select>
+            </div>
           )}
+
+          {/* Account Section */}
+          <Section title="Account" style={{ marginTop: 24 }} />
+          <button
+            type="button"
+            onClick={onSignOut}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              border: '1px solid var(--tg-line)',
+              borderRadius: 4,
+              background: 'transparent',
+              color: 'var(--tg-critical)',
+              fontSize: 13,
+              fontFamily: 'var(--tg-sans)',
+              cursor: 'pointer',
+              fontWeight: 500,
+            }}
+          >
+            Sign out
+          </button>
         </div>
       </div>
     </div>

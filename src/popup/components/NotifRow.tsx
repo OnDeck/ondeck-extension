@@ -12,6 +12,20 @@ import {
   IssueClosedIcon,
 } from './GitHubIcons';
 
+// Threads that ask something of you directly get the accent bar; watcher
+// noise (subscribed, ci_activity, comment on something you follow) doesn't.
+const NEEDS_YOU_REASONS: ReadonlySet<string> = new Set([
+  'review_requested',
+  'assign',
+  'mention',
+  'team_mention',
+  'security_alert',
+]);
+
+function needsYou(item: { reason: string }): boolean {
+  return NEEDS_YOU_REASONS.has(item.reason);
+}
+
 interface MarkReadBtnProps {
   marking: boolean;
   onMark: () => void;
@@ -98,7 +112,9 @@ export function NotifRow({
       className={`flex py-2.5 pr-2.5 cursor-pointer bg-transparent relative no-underline transition-colors duration-[80ms] hover:bg-[var(--tg-bg2)] ${dim ? 'opacity-55' : 'opacity-100'}`}
     >
       {/* Priority bar */}
-      <div className="w-0.5 self-stretch mr-2.5 mt-[3px] mb-[3px] bg-[var(--tg-accent)] rounded-sm shrink-0" />
+      <div
+        className={`w-0.5 self-stretch mr-2.5 mt-[3px] mb-[3px] rounded-sm shrink-0 ${needsYou(item) ? 'bg-[var(--tg-accent)]' : 'bg-transparent'}`}
+      />
 
       {/* Unread dot */}
       <div className="w-2 flex items-start justify-center pt-[5px] shrink-0">
