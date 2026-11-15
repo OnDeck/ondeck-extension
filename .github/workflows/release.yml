@@ -33,7 +33,8 @@ jobs:
           # The run can be started from any branch in the UI; always release main
           ref: main
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Deploy keys bypass the main ruleset, so the version bump can be pushed without a PR
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
