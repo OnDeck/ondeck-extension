@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  markAllNotificationsRead,
   markNotificationRead,
+  markRepoNotificationsRead,
   type NotificationItem,
 } from '../../lib/github-api';
 import { applyFilter, extractRepositories } from '../../shared/filters/engine';
 import type { NotificationFilter } from '../../shared/filters/types';
 import { groupNotifications, type GroupBy } from '../../shared/notifications/grouper';
+import { planMarkRead, type MarkReadPlan } from '../../shared/notifications/markRead';
 import { prioritizeAll } from '../../shared/notifications/prioritizer';
 import { useNotificationsFeed } from '../hooks/useNotificationsFeed';
 import type { ChipId } from './ChipRail';
@@ -29,6 +32,49 @@ interface Props {
 }
 
 type GroupByMode = GroupBy | 'none';
+
+type MarkAllState = 'idle' | 'confirm' | 'working' | 'error';
+
+const MARK_THREADS_CONCURRENCY = 4;
+
+/** PATCHes threads a few at a time; resolves to the ids that failed. */
+async function markThreadsRead(token: string, ids: string[]): Promise<string[]> {
+  const failed: string[] = [];
+  for (let i = 0; i < ids.length; i += MARK_THREADS_CONCURRENCY) {
+    const batch = ids.slice(i, i + MARK_THREADS_CONCURRENCY);
+    const results = await Promise.allSettled(batch.map((id) => markNotificationRead(token, id)));
+    results.forEach((r, j) => {
+      if (r.status === 'rejected') failed.push(batch[j]);
+    });
+  }
+  return failed;
+}
+
+async function executeMarkRead(token: string, plan: MarkReadPlan): Promise<string[]> {
+  switch (plan.kind) {
+    case 'all':
+      await markAllNotificationsRead(token, plan.lastReadAt);
+      return [];
+    case 'repos':
+      await Promise.all(plan.repos.map((repo) => markRepoNotificationsRead(token, repo, plan.lastReadAt)));
+      return [];
+    case 'threads':
+      return markThreadsRead(token, plan.ids);
+    case 'none':
+      return [];
+  }
+}
+
+function confirmCopy(plan: MarkReadPlan): string {
+  if (plan.kind === 'all') return 'Mark everything in your inbox as read?';
+  if (plan.kind === 'repos') {
+    return plan.repos.length === 1
+      ? `Mark everything in ${plan.repos[0]} as read?`
+      : `Mark everything in ${plan.repos.length} repos as read?`;
+  }
+  if (plan.kind === 'none') return '';
+  return plan.count === 1 ? 'Mark 1 notification as read?' : `Mark ${plan.count} notifications as read?`;
+}
 
 function buildFilter(
   chip: ChipId,
@@ -197,6 +243,39 @@ export function Notifications({
 
   const activeFilterCount = selectedRepos.length + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
 
+  const [markAllState, setMarkAllState] = useState<MarkAllState>('idle');
+  const markReadPlan = useMemo(
+    () =>
+      planMarkRead({
+        visible: filtered,
+        unscoped: (chip === 'all' || chip === 'unread') && !searchQuery.trim() && !dateFrom && !dateTo,
+        selectedRepos,
+      }),
+    [filtered, chip, searchQuery, dateFrom, dateTo, selectedRepos],
+  );
+
+  const handleMarkAll = async () => {
+    if (markReadPlan.kind === 'none') return;
+    const affected = filtered.filter((n) => n.unread).map((n) => n.id);
+    setMarkAllState('working');
+    setUnread(affected, false);
+    try {
+      const failed = await executeMarkRead(token, markReadPlan);
+      if (failed.length > 0) {
+        setUnread(failed, true);
+        setMarkAllState('error');
+      } else {
+        setMarkAllState('idle');
+      }
+    } catch {
+      setUnread(affected, true);
+      setMarkAllState('error');
+    }
+    chrome.runtime.sendMessage({ type: 'REQUEST_SYNC' }).catch(() => {
+      // Background worker not awake yet; the next alarm will fix the badge.
+    });
+  };
+
   // Optimistic: flip the row to read immediately and roll back on failure,
   // rather than refetching (which flashed the skeleton and dropped loaded pages).
   const handleMark = async (item: NotificationItem) => {
@@ -231,6 +310,39 @@ export function Notifications({
         <div style={{ flex: 1, minWidth: 0 }}>
           <ChipRail active={chip} counts={counts} onChange={setChip} />
         </div>
+        <button
+          type="button"
+          onClick={() => setMarkAllState('confirm')}
+          disabled={markReadPlan.kind === 'none' || markAllState === 'working'}
+          title={markReadPlan.kind === 'all' ? 'Mark all as read' : 'Mark these as read'}
+          aria-label={markReadPlan.kind === 'all' ? 'Mark all as read' : 'Mark these as read'}
+          className="enabled:hover:border-[var(--tg-accent-border)] enabled:hover:text-[var(--tg-accent)] disabled:opacity-40"
+          style={{
+            padding: '6px 8px',
+            margin: '6px 0 6px 8px',
+            border: '1px solid var(--tg-line)',
+            borderRadius: 4,
+            background: 'transparent',
+            color: 'var(--tg-fg2)',
+            cursor: markReadPlan.kind === 'none' ? 'default' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <svg
+            width="14"
+            height="12"
+            viewBox="0 0 16 12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M1 6.5l3 3 6-7M7 9.5l1 1 6-7" />
+          </svg>
+        </button>
         <button
           type="button"
           data-testid="filter-button"
@@ -268,6 +380,72 @@ export function Notifications({
           {activeFilterCount > 0 && <span>({activeFilterCount})</span>}
         </button>
       </div>
+
+      {markAllState !== 'idle' && (
+        <div
+          role={markAllState === 'error' ? 'alert' : undefined}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setMarkAllState('idle');
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '7px 10px',
+            borderBottom: '1px solid var(--tg-line)',
+            background: markAllState === 'error' ? 'var(--tg-critical-soft)' : 'var(--tg-accent-soft)',
+            fontSize: 12,
+            fontFamily: 'var(--tg-sans)',
+            color: 'var(--tg-fg0)',
+          }}
+        >
+          <span style={{ flex: 1, minWidth: 0 }}>
+            {markAllState === 'working'
+              ? 'Marking as read…'
+              : markAllState === 'error'
+                ? 'Couldn’t mark everything as read.'
+                : confirmCopy(markReadPlan)}
+          </span>
+          {markAllState !== 'working' && (
+            <>
+              <button
+                type="button"
+                autoFocus
+                onClick={() => void handleMarkAll()}
+                style={{
+                  padding: '4px 10px',
+                  border: 'none',
+                  borderRadius: 4,
+                  background: 'var(--tg-accent)',
+                  color: '#fff',
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  fontFamily: 'var(--tg-sans)',
+                  cursor: 'pointer',
+                }}
+              >
+                {markAllState === 'error' ? 'Retry' : 'Mark read'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMarkAllState('idle')}
+                style={{
+                  padding: '4px 10px',
+                  border: '1px solid var(--tg-line-strong)',
+                  borderRadius: 4,
+                  background: 'transparent',
+                  color: 'var(--tg-fg1)',
+                  fontSize: 11.5,
+                  fontFamily: 'var(--tg-sans)',
+                  cursor: 'pointer',
+                }}
+              >
+                {markAllState === 'error' ? 'Dismiss' : 'Cancel'}
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {searchOpen && (
         <div

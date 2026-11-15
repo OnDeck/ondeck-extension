@@ -195,10 +195,12 @@ export function NotifRow({
         </div>
       </div>
 
-      {/* Mark-read button */}
-      <div className="ml-2 self-center">
-        <MarkReadBtn marking={marking} onMark={() => onMark(item)} />
-      </div>
+      {/* Mark-read button (unread rows only) */}
+      {item.unread && (
+        <div className="ml-2 self-center">
+          <MarkReadBtn marking={marking} onMark={() => onMark(item)} />
+        </div>
+      )}
     </a>
   );
 }
