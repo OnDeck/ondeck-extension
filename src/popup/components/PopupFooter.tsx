@@ -15,38 +15,14 @@ function syncLabel(updatedAt: number | null): string {
 
 export function PopupFooter({ updatedAt, refreshing, refreshFailed, onRetry }: Props) {
   return (
-    <div
-      style={{
-        height: 28,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '0 10px',
-        borderTop: '1px solid var(--tg-line)',
-        background: 'var(--tg-bg1)',
-        fontSize: 10.5,
-        fontFamily: 'var(--tg-mono)',
-        color: 'var(--tg-fg3)',
-        flexShrink: 0,
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-      }}
-    >
+    <div className="flex h-[28px] shrink-0 items-center gap-2 overflow-hidden whitespace-nowrap border-t border-tg-line bg-tg-bg1 px-2.5 font-mono text-[10.5px] text-tg-fg3">
       {refreshing ? (
         <span>Refreshing…</span>
       ) : refreshFailed ? (
         <button
           type="button"
           onClick={onRetry}
-          className="hover:text-[var(--tg-fg1)]"
-          style={{
-            padding: 0,
-            border: 'none',
-            background: 'transparent',
-            color: 'var(--tg-important)',
-            font: 'inherit',
-            cursor: 'pointer',
-          }}
+          className="cursor-pointer border-none bg-transparent p-0 text-tg-important hover:text-tg-fg1"
         >
           Couldn’t refresh · Retry
         </button>
@@ -57,8 +33,7 @@ export function PopupFooter({ updatedAt, refreshing, refreshFailed, onRetry }: P
         href="https://github.com/notifications"
         target="_blank"
         rel="noreferrer"
-        className="hover:text-[var(--tg-fg1)]"
-        style={{ marginLeft: 'auto', color: 'var(--tg-fg2)', textDecoration: 'none' }}
+        className="ml-auto text-tg-fg2 no-underline hover:text-tg-fg1"
       >
         Open GitHub inbox ↗
       </a>

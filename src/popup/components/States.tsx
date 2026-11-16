@@ -1,58 +1,23 @@
 import type { GitHubApiError } from '../../lib/github-api';
 
 function SkeletonRow({ delay }: { delay: number }) {
+  const block = 'tg-skel shrink-0 bg-tg-bg3';
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        padding: '10px 10px 10px 0',
-        borderBottom: '1px solid var(--tg-line)',
-        gap: 0,
-      }}
-    >
-      {/* Priority bar stub */}
-      <div
-        className="tg-skel"
-        style={{
-          width: 2,
-          height: 40,
-          borderRadius: 1,
-          marginRight: 10,
-          marginTop: 3,
-          flexShrink: 0,
-          animationDelay: `${delay}ms`,
-        }}
-      />
+    <div className="flex items-start border-b border-tg-line py-2.5 pr-2.5">
+      {/* Accent bar stub */}
+      <div className={`${block} mr-2.5 mt-[3px] h-10 w-0.5 rounded-[1px]`} style={{ animationDelay: `${delay}ms` }} />
       {/* Dot placeholder */}
-      <div style={{ width: 8, flexShrink: 0 }} />
-      {/* Avatar stub */}
+      <div className="w-2 shrink-0" />
+      {/* Icon stub */}
       <div
-        className="tg-skel"
-        style={{
-          width: 22,
-          height: 22,
-          borderRadius: 11,
-          marginLeft: 6,
-          marginTop: 1,
-          flexShrink: 0,
-          animationDelay: `${delay + 60}ms`,
-        }}
+        className={`${block} ml-1.5 mt-px h-[22px] w-[22px] rounded-[11px]`}
+        style={{ animationDelay: `${delay + 60}ms` }}
       />
       {/* Content stubs */}
-      <div style={{ flex: 1, marginLeft: 9, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div
-          className="tg-skel"
-          style={{ height: 10, width: '60%', borderRadius: 3, animationDelay: `${delay + 80}ms` }}
-        />
-        <div
-          className="tg-skel"
-          style={{ height: 12, width: '90%', borderRadius: 3, animationDelay: `${delay + 100}ms` }}
-        />
-        <div
-          className="tg-skel"
-          style={{ height: 10, width: '40%', borderRadius: 3, animationDelay: `${delay + 120}ms` }}
-        />
+      <div className="ml-[9px] flex flex-1 flex-col gap-1.5">
+        <div className="tg-skel h-2.5 w-[60%] rounded-[3px] bg-tg-bg3" style={{ animationDelay: `${delay + 80}ms` }} />
+        <div className="tg-skel h-3 w-[90%] rounded-[3px] bg-tg-bg3" style={{ animationDelay: `${delay + 100}ms` }} />
+        <div className="tg-skel h-2.5 w-[40%] rounded-[3px] bg-tg-bg3" style={{ animationDelay: `${delay + 120}ms` }} />
       </div>
     </div>
   );
@@ -60,9 +25,9 @@ function SkeletonRow({ delay }: { delay: number }) {
 
 export function Spinner() {
   return (
-    <div style={{ background: 'var(--tg-bg1)' }}>
-      {[0, 80, 160, 240, 320].map((delay, i) => (
-        <SkeletonRow key={i} delay={delay} />
+    <div className="bg-tg-bg1">
+      {[0, 80, 160, 240, 320].map((delay) => (
+        <SkeletonRow key={delay} delay={delay} />
       ))}
     </div>
   );
@@ -70,31 +35,9 @@ export function Spinner() {
 
 export function EmptyState({ title, hint }: { title?: string; hint?: string } = {}) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '40px 24px',
-        gap: 12,
-        textAlign: 'center',
-      }}
-    >
+    <div className="flex flex-col items-center justify-center gap-3 px-6 py-10 text-center">
       {/* Check icon */}
-      <div
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: 10,
-          background: 'rgba(52, 211, 153, 0.12)',
-          border: '1px solid rgba(52, 211, 153, 0.25)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-        }}
-      >
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-[rgba(52,211,153,0.25)] bg-[rgba(52,211,153,0.12)]">
         <svg
           width="18"
           height="18"
@@ -110,25 +53,10 @@ export function EmptyState({ title, hint }: { title?: string; hint?: string } = 
       </div>
 
       <div>
-        <div
-          style={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: 'var(--tg-fg0)',
-            letterSpacing: -0.2,
-            marginBottom: 6,
-          }}
-        >
+        <div className="mb-1.5 text-[14px] font-semibold tracking-[-0.2px] text-tg-fg0">
           {title ?? 'Inbox zero.'}
         </div>
-        <div
-          style={{
-            fontSize: 12,
-            color: 'var(--tg-fg2)',
-            lineHeight: 1.5,
-            maxWidth: 220,
-          }}
-        >
+        <div className="max-w-[220px] text-[12px] leading-[1.5] text-tg-fg2">
           {hint ?? 'The next notification will land here — until then, go ship.'}
         </div>
       </div>
@@ -147,86 +75,25 @@ export function ErrorState({
 }) {
   const copy = errorCopy(error);
   const showReconnect = Boolean(onReconnect) && (error.kind === 'unauthorized' || error.kind === 'forbidden');
+  const button = 'cursor-pointer rounded-[5px] px-3.5 py-[5px] font-mono text-[11px] tracking-[0.2px]';
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '40px 20px',
-        gap: 12,
-        textAlign: 'center',
-      }}
-    >
+    <div className="flex flex-col items-center justify-center gap-3 px-5 py-10 text-center">
       {/* ! badge */}
-      <div
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: 10,
-          background: 'rgba(239, 107, 107, 0.12)',
-          border: '1px solid rgba(239, 107, 107, 0.3)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-        }}
-      >
-        <span
-          style={{
-            fontSize: 16,
-            fontWeight: 700,
-            color: 'var(--tg-critical)',
-            lineHeight: 1,
-            fontFamily: 'var(--tg-mono)',
-          }}
-        >
-          !
-        </span>
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-[rgba(239,107,107,0.3)] bg-[rgba(239,107,107,0.12)]">
+        <span className="font-mono text-[16px] font-bold leading-none text-tg-critical">!</span>
       </div>
 
       <div>
-        <div
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: 'var(--tg-fg0)',
-            letterSpacing: -0.2,
-            marginBottom: 5,
-          }}
-        >
-          {copy.title}
-        </div>
-        <div
-          style={{
-            fontSize: 12,
-            color: 'var(--tg-fg2)',
-            lineHeight: 1.5,
-            maxWidth: 220,
-          }}
-        >
-          {copy.subtitle}
-        </div>
+        <div className="mb-[5px] text-[13px] font-semibold tracking-[-0.2px] text-tg-fg0">{copy.title}</div>
+        <div className="max-w-[220px] text-[12px] leading-[1.5] text-tg-fg2">{copy.subtitle}</div>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+      <div className="mt-0.5 flex gap-2">
         {showReconnect && (
           <button
             type="button"
-            style={{
-              padding: '5px 14px',
-              borderRadius: 5,
-              border: 'none',
-              background: 'var(--tg-accent)',
-              color: '#fff',
-              fontFamily: 'var(--tg-mono)',
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: 'pointer',
-              letterSpacing: 0.2,
-            }}
+            className={`${button} border-none bg-tg-accent font-semibold text-white`}
             onClick={onReconnect}
           >
             Reconnect
@@ -235,32 +102,13 @@ export function ErrorState({
         <button
           type="button"
           onClick={onRetry}
-          style={{
-            padding: '5px 14px',
-            borderRadius: 5,
-            border: '1px solid var(--tg-line-strong)',
-            background: 'transparent',
-            color: 'var(--tg-fg1)',
-            fontFamily: 'var(--tg-mono)',
-            fontSize: 11,
-            cursor: 'pointer',
-            letterSpacing: 0.2,
-          }}
+          className={`${button} border border-tg-line-strong bg-transparent text-tg-fg1`}
         >
           Retry
         </button>
       </div>
 
-      <div
-        style={{
-          fontFamily: 'var(--tg-mono)',
-          fontSize: 10,
-          color: 'var(--tg-fg3)',
-          marginTop: 4,
-        }}
-      >
-        {copy.code}
-      </div>
+      <div className="mt-1 font-mono text-[10px] text-tg-fg3">{copy.code}</div>
     </div>
   );
 }

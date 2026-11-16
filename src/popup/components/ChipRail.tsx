@@ -23,11 +23,8 @@ interface Props {
 export function ChipRail({ active, counts, onChange }: Props) {
   return (
     <div
-      className="flex gap-1 px-3 py-[7px] border-b border-[var(--tg-line)] bg-[var(--tg-bg1)] overflow-x-auto shrink-0"
-      style={{
-        scrollbarWidth: 'thin', // Show scrollbar so users know it's scrollable
-        scrollbarColor: 'var(--tg-line) transparent',
-      }}
+      // A thin visible scrollbar tells people the chip row scrolls.
+      className="flex shrink-0 gap-1 overflow-x-auto border-b border-tg-line bg-tg-bg1 px-3 py-[7px] [scrollbar-color:var(--tg-line)_transparent] [scrollbar-width:thin]"
     >
       {CHIP_FILTERS.map((f) => {
         const on = active === f.id;
@@ -39,16 +36,14 @@ export function ChipRail({ active, counts, onChange }: Props) {
             onClick={() => onChange(f.id)}
             className={`h-[26px] px-[9px] rounded-[5px] border font-medium text-[11.5px] cursor-pointer inline-flex items-center gap-[5px] whitespace-nowrap shrink-0 tracking-[-0.1px] transition-[background,border-color,color] duration-[80ms] ${
               on
-                ? 'border-[var(--tg-accent-border)] bg-[var(--tg-accent-soft)] text-[var(--tg-accent)]'
-                : 'border-[var(--tg-line)] bg-transparent text-[var(--tg-fg1)]'
-            }`}
-            style={{ fontFamily: 'var(--tg-sans)' }}
+                ? 'border-tg-accent-border bg-tg-accent-soft text-tg-accent'
+                : 'border-tg-line bg-transparent text-tg-fg1'
+            } font-sans`}
           >
             <span>{f.label}</span>
             {count !== undefined && count > 0 && (
               <span
-                className={`text-[10px] opacity-90 ${on ? 'text-[var(--tg-accent)]' : 'text-[var(--tg-fg3)]'}`}
-                style={{ fontFamily: 'var(--tg-mono)' }}
+                className={`text-[10px] opacity-90 ${on ? 'text-tg-accent' : 'text-tg-fg3'} font-mono`}
               >
                 {count}
               </span>

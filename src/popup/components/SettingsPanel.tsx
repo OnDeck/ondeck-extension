@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties } from 'react';
+import { useEffect, useRef } from 'react';
 import type { NotificationReasonFilter, UserSettings } from '../../shared/settings/types';
 
 const REASON_LABELS: Record<NotificationReasonFilter, string> = {
@@ -60,83 +60,18 @@ export function SettingsPanel({
   if (!open) return null;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="settings-title"
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 1000,
-      }}
-    >
+    <div role="dialog" aria-modal="true" aria-labelledby="settings-title" className="fixed inset-0 z-[1000]">
       {/* Backdrop */}
-      <div
-        onClick={onClose}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.4)',
-        }}
-      />
+      <div onClick={onClose} className="absolute inset-0 bg-black/40" />
 
       {/* Panel */}
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          position: 'absolute',
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: 320,
-          background: 'var(--tg-bg1)',
-          borderLeft: '1px solid var(--tg-line)',
-          display: 'flex',
-          flexDirection: 'column',
-          animation: 'slideIn 250ms ease-out',
-        }}
+        className="absolute bottom-0 right-0 top-0 flex w-[320px] animate-[tg-slide-in_250ms_ease-out] flex-col border-l border-tg-line bg-tg-bg1"
       >
-        <style>
-          {`
-            @keyframes slideIn {
-              from {
-                transform: translateX(100%);
-              }
-              to {
-                transform: translateX(0);
-              }
-            }
-          `}
-        </style>
-
         {/* Header */}
-        <div
-          style={{
-            height: 44,
-            display: 'flex',
-            alignItems: 'center',
-            padding: '0 12px',
-            borderBottom: '1px solid var(--tg-line)',
-            flexShrink: 0,
-          }}
-        >
-          <h2
-            id="settings-title"
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: 'var(--tg-fg0)',
-              margin: 0,
-              flex: 1,
-              fontFamily: 'var(--tg-sans)',
-            }}
-          >
+        <div className="flex h-[44px] shrink-0 items-center border-b border-tg-line px-3">
+          <h2 id="settings-title" className="m-0 flex-1 font-sans text-[14px] font-semibold text-tg-fg0">
             Settings
           </h2>
           <button
@@ -144,35 +79,17 @@ export function SettingsPanel({
             type="button"
             onClick={onClose}
             aria-label="Close settings"
-            style={{
-              width: 24,
-              height: 24,
-              border: 'none',
-              background: 'transparent',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--tg-fg2)',
-              fontSize: 18,
-            }}
+            className="flex h-6 w-6 cursor-pointer items-center justify-center border-none bg-transparent text-[18px] text-tg-fg2"
           >
             ×
           </button>
         </div>
 
         {/* Body */}
-        <div
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '16px 12px',
-          }}
-        >
-          {/* Desktop Notifications Section */}
+        <div className="flex-1 overflow-y-auto px-3 py-4">
           <Section title="Desktop Notifications" />
           {desktopNotifications.loading ? (
-            <div style={{ color: 'var(--tg-fg3)', fontSize: 12 }}>Loading...</div>
+            <div className="text-[12px] text-tg-fg3">Loading...</div>
           ) : (
             desktopNotifications.settings && (
               <>
@@ -187,16 +104,7 @@ export function SettingsPanel({
                   onChange={(checked) => desktopNotifications.updateSound(checked)}
                 />
                 {desktopNotifications.settings.enabled && (
-                  <div
-                    style={{
-                      marginTop: 10,
-                      fontSize: 11.5,
-                      color: 'var(--tg-fg2)',
-                      fontFamily: 'var(--tg-sans)',
-                    }}
-                  >
-                    Alert me for
-                  </div>
+                  <div className="mt-2.5 font-sans text-[11.5px] text-tg-fg2">Alert me for</div>
                 )}
                 {desktopNotifications.settings.enabled &&
                   (Object.keys(REASON_LABELS) as NotificationReasonFilter[]).map((reason) => (
@@ -211,34 +119,16 @@ export function SettingsPanel({
             )
           )}
 
-          {/* Sync Section */}
-          <Section title="Sync" style={{ marginTop: 24 }} />
+          <Section title="Sync" className="mt-6" />
           {syncSettings.loading ? (
-            <div style={{ color: 'var(--tg-fg3)', fontSize: 12 }}>Loading...</div>
+            <div className="text-[12px] text-tg-fg3">Loading...</div>
           ) : (
-            <div style={{ padding: '8px 0' }}>
-              <div style={{
-                fontSize: 13,
-                color: 'var(--tg-fg0)',
-                fontFamily: 'var(--tg-sans)',
-                marginBottom: 8,
-              }}>
-                Refresh interval
-              </div>
+            <div className="py-2">
+              <div className="mb-2 font-sans text-[13px] text-tg-fg0">Refresh interval</div>
               <select
                 value={syncSettings.syncInterval}
                 onChange={(e) => syncSettings.updateSyncInterval(Number(e.target.value) as 5 | 15 | 30 | 60)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  fontSize: 13,
-                  fontFamily: 'var(--tg-sans)',
-                  color: 'var(--tg-fg0)',
-                  background: 'var(--tg-bg0)',
-                  border: '1px solid var(--tg-line)',
-                  borderRadius: 4,
-                  cursor: 'pointer',
-                }}
+                className="w-full cursor-pointer rounded border border-tg-line bg-tg-bg0 px-3 py-2 font-sans text-[13px] text-tg-fg0"
               >
                 <option value={5}>5 minutes</option>
                 <option value={15}>15 minutes</option>
@@ -248,23 +138,11 @@ export function SettingsPanel({
             </div>
           )}
 
-          {/* Account Section */}
-          <Section title="Account" style={{ marginTop: 24 }} />
+          <Section title="Account" className="mt-6" />
           <button
             type="button"
             onClick={onSignOut}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              border: '1px solid var(--tg-line)',
-              borderRadius: 4,
-              background: 'transparent',
-              color: 'var(--tg-critical)',
-              fontSize: 13,
-              fontFamily: 'var(--tg-sans)',
-              cursor: 'pointer',
-              fontWeight: 500,
-            }}
+            className="w-full cursor-pointer rounded border border-tg-line bg-transparent px-3 py-2 font-sans text-[13px] font-medium text-tg-critical"
           >
             Sign out
           </button>
@@ -274,20 +152,9 @@ export function SettingsPanel({
   );
 }
 
-function Section({ title, style }: { title: string; style?: CSSProperties }) {
+function Section({ title, className = '' }: { title: string; className?: string }) {
   return (
-    <div
-      style={{
-        fontSize: 11,
-        fontWeight: 600,
-        color: 'var(--tg-fg3)',
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-        marginBottom: 8,
-        fontFamily: 'var(--tg-sans)',
-        ...style,
-      }}
-    >
+    <div className={`mb-2 font-sans text-[11px] font-semibold uppercase tracking-[0.5px] text-tg-fg3 ${className}`}>
       {title}
     </div>
   );
@@ -303,33 +170,13 @@ function ToggleRow({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '8px 0',
-        cursor: 'pointer',
-      }}
-    >
-      <span
-        style={{
-          fontSize: 13,
-          color: 'var(--tg-fg0)',
-          fontFamily: 'var(--tg-sans)',
-        }}
-      >
-        {label}
-      </span>
+    <label className="flex cursor-pointer items-center justify-between py-2">
+      <span className="font-sans text-[13px] text-tg-fg0">{label}</span>
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        style={{
-          width: 16,
-          height: 16,
-          cursor: 'pointer',
-        }}
+        className="h-4 w-4 cursor-pointer"
       />
     </label>
   );

@@ -12,13 +12,12 @@ function Step({ n, title, children }: { n: number; title: string; children?: Rea
   return (
     <li className="flex gap-3">
       <span
-        className="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[var(--tg-line-strong)] text-[10.5px] text-[var(--tg-fg2)]"
-        style={{ fontFamily: 'var(--tg-mono)' }}
+        className="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-tg-line-strong text-[10.5px] text-tg-fg2 font-mono"
       >
         {n}
       </span>
       <div className="min-w-0 flex-1">
-        <div className="text-[12.5px] font-medium text-[var(--tg-fg0)]">{title}</div>
+        <div className="text-[12.5px] font-medium text-tg-fg0">{title}</div>
         {children}
       </div>
     </li>
@@ -30,16 +29,16 @@ export function SignIn({ auth }: Props) {
   const canSubmit = !auth.busy && token.trim().length > 0;
 
   return (
-    <div className="flex h-full flex-col bg-[var(--tg-bg0)] px-5 pb-4 pt-6">
+    <div className="flex h-full flex-col bg-tg-bg0 px-5 pb-4 pt-6">
       <div className="flex items-center gap-2">
         <img src="/icons/icon48.png" alt="" width={24} height={24} />
-        <span className="text-[15px] font-semibold tracking-[-0.2px] text-[var(--tg-fg0)]">OnDeck</span>
+        <span className="text-[15px] font-semibold tracking-[-0.2px] text-tg-fg0">OnDeck</span>
       </div>
 
-      <h1 className="mb-1 mt-6 text-[20px] font-semibold leading-tight tracking-[-0.4px] text-[var(--tg-fg0)]">
+      <h1 className="mb-1 mt-6 text-[20px] font-semibold leading-tight tracking-[-0.4px] text-tg-fg0">
         Your GitHub inbox, without the noise.
       </h1>
-      <p className="m-0 text-[12.5px] leading-[1.5] text-[var(--tg-fg2)]">
+      <p className="m-0 text-[12.5px] leading-[1.5] text-tg-fg2">
         Review requests, mentions and assignments in one popup, with a desktop alert when something
         needs you.
       </p>
@@ -53,16 +52,16 @@ export function SignIn({ auth }: Props) {
       >
         <ol className="m-0 flex list-none flex-col gap-4 p-0">
           <Step n={1} title="Create a classic token on GitHub">
-            <p className="mb-2 mt-1 text-[11.5px] leading-[1.45] text-[var(--tg-fg2)]">
-              The link pre-selects the <code style={{ fontFamily: 'var(--tg-mono)' }}>notifications</code> and{' '}
-              <code style={{ fontFamily: 'var(--tg-mono)' }}>repo</code> scopes. Fine-grained tokens can&rsquo;t read
+            <p className="mb-2 mt-1 text-[11.5px] leading-[1.45] text-tg-fg2">
+              The link pre-selects the <code className="font-mono">notifications</code> and{' '}
+              <code className="font-mono">repo</code> scopes. Fine-grained tokens can&rsquo;t read
               notifications yet.
             </p>
             <a
               href={TOKEN_URL}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--tg-accent)] px-3 text-[12px] font-semibold text-white no-underline hover:brightness-110"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-tg-accent px-3 text-[12px] font-semibold text-white no-underline hover:brightness-110"
             >
               Create token on GitHub
               <span aria-hidden="true" className="opacity-70">
@@ -83,8 +82,7 @@ export function SignIn({ auth }: Props) {
               placeholder="ghp_…"
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              className="mt-2 h-8 w-full rounded-md border border-[var(--tg-line-strong)] bg-[var(--tg-bg1)] px-2.5 text-[12px] text-[var(--tg-fg0)] outline-none placeholder:text-[var(--tg-fg3)] focus:border-[var(--tg-accent-border)]"
-              style={{ fontFamily: 'var(--tg-mono)' }}
+              className="mt-2 h-8 w-full rounded-md border border-tg-line-strong bg-tg-bg1 px-2.5 text-[12px] text-tg-fg0 outline-none placeholder:text-tg-fg3 focus:border-tg-accent-border font-mono"
             />
           </Step>
 
@@ -92,7 +90,7 @@ export function SignIn({ auth }: Props) {
             <button
               type="submit"
               disabled={!canSubmit}
-              className="mt-2 h-8 w-full rounded-md border border-[var(--tg-line-strong)] bg-[var(--tg-bg2)] text-[12px] font-semibold text-[var(--tg-fg0)] enabled:hover:border-[var(--tg-accent-border)] disabled:opacity-50"
+              className="mt-2 h-8 w-full rounded-md border border-tg-line-strong bg-tg-bg2 text-[12px] font-semibold text-tg-fg0 enabled:hover:border-tg-accent-border disabled:opacity-50"
             >
               {auth.busy ? 'Verifying…' : 'Connect to GitHub'}
             </button>
@@ -103,13 +101,13 @@ export function SignIn({ auth }: Props) {
       {auth.error && (
         <div
           role="alert"
-          className="mt-4 rounded-md border border-[var(--tg-critical)] bg-[var(--tg-critical-soft)] px-3 py-2 text-[12px] text-[var(--tg-critical)]"
+          className="mt-4 rounded-md border border-tg-critical bg-tg-critical-soft px-3 py-2 text-[12px] text-tg-critical"
         >
           {auth.error}
         </div>
       )}
 
-      <p className="m-0 mt-auto pt-4 text-[11px] leading-[1.45] text-[var(--tg-fg3)]">
+      <p className="m-0 mt-auto pt-4 text-[11px] leading-[1.45] text-tg-fg3">
         Your token stays in this browser, encrypted, and is only ever sent to api.github.com.
       </p>
     </div>

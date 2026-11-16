@@ -56,16 +56,7 @@ export default function App() {
   if (auth.status === 'loading') {
     return (
       <div
-        style={{
-          display: 'flex',
-          height: '100%',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 12,
-          color: 'var(--tg-fg3)',
-          background: 'var(--tg-bg0)',
-          fontFamily: 'var(--tg-mono)',
-        }}
+        className="flex h-full items-center justify-center bg-tg-bg0 font-mono text-[12px] text-tg-fg3"
       >
         Loading…
       </div>
@@ -80,13 +71,7 @@ export default function App() {
 
   return (
     <div
-      style={{
-        display: 'flex',
-        height: '100%',
-        width: '100%',
-        flexDirection: 'column',
-        background: 'var(--tg-bg0)',
-      }}
+      className="flex h-full w-full flex-col bg-tg-bg0"
     >
       <Header
         viewer={auth.viewer}
@@ -96,7 +81,7 @@ export default function App() {
         onSettingsClick={() => setSettingsOpen(true)}
       />
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <div className="flex min-h-0 flex-1 flex-col">
         <Notifications
           token={token}
           onUnreadCountChange={setUnreadCount}

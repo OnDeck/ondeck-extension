@@ -15,7 +15,7 @@ function OnDeckLogo() {
       alt="OnDeck"
       width="16"
       height="16"
-      style={{ display: 'block' }}
+      className="block"
     />
   );
 }
@@ -47,18 +47,8 @@ function CogIcon() {
   );
 }
 
-const iconBtnBase: React.CSSProperties = {
-  width: 26,
-  height: 26,
-  borderRadius: 4,
-  border: 'none',
-  background: 'transparent',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  transition: 'background 80ms, color 80ms',
-};
+const iconButton =
+  'flex h-[26px] w-[26px] cursor-pointer items-center justify-center rounded border-none bg-transparent text-tg-fg2 transition-[background,color] duration-[80ms] hover:bg-tg-bg3 hover:text-tg-fg0';
 
 export function Header({
   viewer,
@@ -68,31 +58,9 @@ export function Header({
   onSettingsClick,
 }: Props) {
   return (
-    <header
-      style={{
-        height: 44,
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 10px 0 12px',
-        borderBottom: '1px solid var(--tg-line)',
-        background: 'var(--tg-bg1)',
-        flexShrink: 0,
-        gap: 0,
-      }}
-    >
+    <header className="flex h-[44px] shrink-0 items-center border-b border-tg-line bg-tg-bg1 pl-3 pr-2.5">
       {/* Brand mark */}
-      <div
-        style={{
-          width: 24,
-          height: 24,
-          borderRadius: 5,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginRight: 8,
-          flexShrink: 0,
-        }}
-      >
+      <div className="mr-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-[5px]">
         <OnDeckLogo />
       </div>
 
@@ -102,93 +70,50 @@ export function Header({
         target="_blank"
         rel="noreferrer"
         title={`@${viewer.login}`}
-        style={{ display: 'flex', marginLeft: 8, marginRight: 8, flexShrink: 0 }}
+        className="mx-2 flex shrink-0"
       >
         <img
           src={viewer.avatar_url}
           alt={viewer.login}
-          style={{
-            width: 20,
-            height: 20,
-            borderRadius: 10,
-            border: '1px solid var(--tg-line-strong)',
-          }}
+          className="h-5 w-5 rounded-[10px] border border-tg-line-strong"
         />
       </a>
 
       {unreadCount > 0 && (
-        <span
-          style={{
-            padding: '1.5px 6px',
-            borderRadius: 4,
-            background: 'var(--tg-bg3)',
-            color: 'var(--tg-fg2)',
-            fontSize: 10.5,
-            fontFamily: 'var(--tg-mono)',
-            fontWeight: 500,
-            lineHeight: 1,
-          }}
-        >
+        <span className="rounded bg-tg-bg3 px-1.5 py-[1.5px] font-mono text-[10.5px] font-medium leading-none text-tg-fg2">
           {unreadCount}
         </span>
       )}
 
-      <div style={{ flex: 1 }} />
+      <div className="flex-1" />
 
-      {/* Refresh */}
       <button
         type="button"
         onClick={onRefresh}
         title="Refresh notifications"
         aria-label="Refresh notifications"
-        style={{ ...iconBtnBase, color: 'var(--tg-fg2)' }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLElement).style.color = 'var(--tg-fg0)';
-          (e.currentTarget as HTMLElement).style.background = 'var(--tg-bg3)';
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLElement).style.color = 'var(--tg-fg2)';
-          (e.currentTarget as HTMLElement).style.background = 'transparent';
-        }}
+        className={iconButton}
       >
         <RefreshIcon />
       </button>
 
-      {/* Search */}
       <button
         type="button"
         onClick={onSearch}
         title="Search · ⌘K"
         aria-label="Search notifications"
-        style={{ ...iconBtnBase, color: 'var(--tg-fg2)' }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLElement).style.color = 'var(--tg-fg0)';
-          (e.currentTarget as HTMLElement).style.background = 'var(--tg-bg3)';
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLElement).style.color = 'var(--tg-fg2)';
-          (e.currentTarget as HTMLElement).style.background = 'transparent';
-        }}
+        className={iconButton}
       >
         <SearchIcon />
       </button>
 
-      {/* Settings */}
       <button
         type="button"
         data-testid="settings-button"
         onClick={onSettingsClick}
         title="Settings"
         aria-label="Settings"
-        style={{ ...iconBtnBase, color: 'var(--tg-fg2)' }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLElement).style.color = 'var(--tg-fg0)';
-          (e.currentTarget as HTMLElement).style.background = 'var(--tg-bg3)';
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLElement).style.color = 'var(--tg-fg2)';
-          (e.currentTarget as HTMLElement).style.background = 'transparent';
-        }}
+        className={iconButton}
       >
         <CogIcon />
       </button>

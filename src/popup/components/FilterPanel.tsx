@@ -1,4 +1,4 @@
-import { useState, useEffect, type CSSProperties } from 'react';
+import { useState, useEffect } from 'react';
 
 interface FilterPanelProps {
   open: boolean;
@@ -79,156 +79,61 @@ export function FilterPanel({
   const activeFilterCount =
     localRepos.size + (localFrom ? 1 : 0) + (localTo ? 1 : 0);
 
+  const dateInput =
+    'rounded border border-tg-line bg-tg-bg0 px-2 py-1.5 font-mono text-[12px] text-tg-fg0';
+  const footerButton = 'flex-1 cursor-pointer rounded px-3 py-2 font-sans text-[13px] font-medium';
+
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="filter-title"
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 1000,
-      }}
-    >
+    <div role="dialog" aria-modal="true" aria-labelledby="filter-title" className="fixed inset-0 z-[1000]">
       {/* Backdrop */}
-      <div
-        onClick={onClose}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.4)',
-        }}
-      />
+      <div onClick={onClose} className="absolute inset-0 bg-black/40" />
 
       {/* Panel */}
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          position: 'absolute',
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: 320,
-          background: 'var(--tg-bg1)',
-          borderLeft: '1px solid var(--tg-line)',
-          display: 'flex',
-          flexDirection: 'column',
-          animation: 'slideIn 250ms ease-out',
-        }}
+        className="absolute bottom-0 right-0 top-0 flex w-[320px] animate-[tg-slide-in_250ms_ease-out] flex-col border-l border-tg-line bg-tg-bg1"
       >
-        <style>
-          {`
-            @keyframes slideIn {
-              from {
-                transform: translateX(100%);
-              }
-              to {
-                transform: translateX(0);
-              }
-            }
-          `}
-        </style>
-
         {/* Header */}
-        <div
-          style={{
-            height: 44,
-            display: 'flex',
-            alignItems: 'center',
-            padding: '0 12px',
-            borderBottom: '1px solid var(--tg-line)',
-            flexShrink: 0,
-          }}
-        >
-          <h2
-            id="filter-title"
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: 'var(--tg-fg0)',
-              margin: 0,
-              flex: 1,
-              fontFamily: 'var(--tg-sans)',
-            }}
-          >
+        <div className="flex h-[44px] shrink-0 items-center border-b border-tg-line px-3">
+          <h2 id="filter-title" className="m-0 flex-1 font-sans text-[14px] font-semibold text-tg-fg0">
             Filters
             {activeFilterCount > 0 && (
-              <span
-                style={{
-                  marginLeft: 6,
-                  fontSize: 11,
-                  fontWeight: 500,
-                  color: 'var(--tg-accent)',
-                }}
-              >
-                ({activeFilterCount})
-              </span>
+              <span className="ml-1.5 text-[11px] font-medium text-tg-accent">({activeFilterCount})</span>
             )}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            style={{
-              width: 24,
-              height: 24,
-              border: 'none',
-              background: 'transparent',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--tg-fg2)',
-              fontSize: 18,
-            }}
+            aria-label="Close filters"
+            className="flex h-6 w-6 cursor-pointer items-center justify-center border-none bg-transparent text-[18px] text-tg-fg2"
           >
             ×
           </button>
         </div>
 
         {/* Body */}
-        <div
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '16px 12px',
-          }}
-        >
-          {/* Date Range Section */}
+        <div className="flex-1 overflow-y-auto px-3 py-4">
           <Section title="Date Range" />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <label style={labelStyle}>
-              <span style={labelTextStyle}>From</span>
+          <div className="flex flex-col gap-2">
+            <label className="flex flex-col gap-1">
+              <span className="font-sans text-[12px] text-tg-fg2">From</span>
               <input
                 type="date"
                 value={localFrom}
                 onChange={(e) => setLocalFrom(e.target.value)}
-                style={inputStyle}
+                className={dateInput}
               />
             </label>
-            <label style={labelStyle}>
-              <span style={labelTextStyle}>To</span>
-              <input
-                type="date"
-                value={localTo}
-                onChange={(e) => setLocalTo(e.target.value)}
-                style={inputStyle}
-              />
+            <label className="flex flex-col gap-1">
+              <span className="font-sans text-[12px] text-tg-fg2">To</span>
+              <input type="date" value={localTo} onChange={(e) => setLocalTo(e.target.value)} className={dateInput} />
             </label>
           </div>
 
-          {/* Repository Section */}
-          <Section title="Repositories" style={{ marginTop: 24 }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <Section title="Repositories" className="mt-6" />
+          <div className="flex flex-col gap-1">
             {repositories.length === 0 ? (
-              <div style={{ fontSize: 12, color: 'var(--tg-fg3)', padding: '8px 0' }}>
-                No repositories
-              </div>
+              <div className="py-2 text-[12px] text-tg-fg3">No repositories</div>
             ) : (
               repositories.map((repo) => (
                 <RepoCheckbox
@@ -243,48 +148,18 @@ export function FilterPanel({
         </div>
 
         {/* Footer */}
-        <div
-          style={{
-            padding: 12,
-            borderTop: '1px solid var(--tg-line)',
-            display: 'flex',
-            gap: 8,
-            flexShrink: 0,
-          }}
-        >
+        <div className="flex shrink-0 gap-2 border-t border-tg-line p-3">
           <button
             type="button"
             onClick={handleResetLocal}
-            style={{
-              flex: 1,
-              padding: '8px 12px',
-              border: '1px solid var(--tg-line)',
-              borderRadius: 4,
-              background: 'transparent',
-              color: 'var(--tg-fg0)',
-              fontSize: 13,
-              fontFamily: 'var(--tg-sans)',
-              cursor: 'pointer',
-              fontWeight: 500,
-            }}
+            className={`${footerButton} border border-tg-line bg-transparent text-tg-fg0`}
           >
             Reset
           </button>
           <button
             type="button"
             onClick={handleApply}
-            style={{
-              flex: 1,
-              padding: '8px 12px',
-              border: 'none',
-              borderRadius: 4,
-              background: 'var(--tg-accent)',
-              color: 'white',
-              fontSize: 13,
-              fontFamily: 'var(--tg-sans)',
-              cursor: 'pointer',
-              fontWeight: 500,
-            }}
+            className={`${footerButton} border-none bg-tg-accent text-white`}
           >
             Apply
           </button>
@@ -294,20 +169,9 @@ export function FilterPanel({
   );
 }
 
-function Section({ title, style }: { title: string; style?: CSSProperties }) {
+function Section({ title, className = '' }: { title: string; className?: string }) {
   return (
-    <div
-      style={{
-        fontSize: 11,
-        fontWeight: 600,
-        color: 'var(--tg-fg3)',
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-        marginBottom: 8,
-        fontFamily: 'var(--tg-sans)',
-        ...style,
-      }}
-    >
+    <div className={`mb-2 font-sans text-[11px] font-semibold uppercase tracking-[0.5px] text-tg-fg3 ${className}`}>
       {title}
     </div>
   );
@@ -323,34 +187,10 @@ function RepoCheckbox({
   onChange: () => void;
 }) {
   return (
-    <label
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        padding: '6px 0',
-        cursor: 'pointer',
-      }}
-    >
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={onChange}
-        style={{
-          width: 14,
-          height: 14,
-          cursor: 'pointer',
-          marginRight: 8,
-        }}
-      />
+    <label className="flex cursor-pointer items-center py-1.5">
+      <input type="checkbox" checked={checked} onChange={onChange} className="mr-2 h-3.5 w-3.5 cursor-pointer" />
       <span
-        style={{
-          fontSize: 12,
-          color: 'var(--tg-fg0)',
-          fontFamily: 'var(--tg-mono)',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
+        className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[12px] text-tg-fg0"
         title={repo}
       >
         {repo}
@@ -358,25 +198,3 @@ function RepoCheckbox({
     </label>
   );
 }
-
-const labelStyle: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 4,
-};
-
-const labelTextStyle: CSSProperties = {
-  fontSize: 12,
-  color: 'var(--tg-fg2)',
-  fontFamily: 'var(--tg-sans)',
-};
-
-const inputStyle: CSSProperties = {
-  padding: '6px 8px',
-  border: '1px solid var(--tg-line)',
-  borderRadius: 4,
-  background: 'var(--tg-bg0)',
-  color: 'var(--tg-fg0)',
-  fontSize: 12,
-  fontFamily: 'var(--tg-mono)',
-};
