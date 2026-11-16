@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "A calm GitHub notifications inbox in your toolbar: review requests, mentions and assignments, with desktop alerts.",
   "permissions": ["storage", "notifications", "alarms"],
-  "host_permissions": ["https://api.github.com/*"],
+  "host_permissions": ["https://api.github.com/*", "https://github.com/login/*"],
   "action": {
     "default_popup": "src/popup/index.html",
     "default_title": "OnDeck",

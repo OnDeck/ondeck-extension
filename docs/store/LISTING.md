@@ -24,9 +24,9 @@ folder are the real popup with demo data, captured from a production build.
 > • Get desktop notifications for the reasons you choose. Click one to jump straight to the pull request or issue.
 > • The popup opens instantly with your last synced inbox, then refreshes in place.
 >
-> Privacy: OnDeck only talks to GitHub. Your personal access token stays encrypted in your browser and is only ever sent to api.github.com. There's no OnDeck server, no analytics and no tracking.
+> Privacy: OnDeck only talks to GitHub. Your token stays encrypted in your browser and is only ever sent to api.github.com. There's no OnDeck server, no analytics and no tracking.
 >
-> Setup takes a minute: create a classic GitHub token with the notifications and repo scopes from the link in the popup, paste it in, done.
+> Setup takes a minute: click Sign in with GitHub and enter the one-time code, or paste a classic token with the notifications and repo scopes.
 
 **Images:**
 
@@ -53,7 +53,8 @@ folder are the real popup with demo data, captured from a production build.
 | `storage` | Stores the user's encrypted GitHub token, a cache of their unread notifications so the popup opens instantly, and their settings (sync interval, alert preferences). |
 | `notifications` | Shows desktop alerts for new GitHub notifications the user has opted into. |
 | `alarms` | Runs the background sync at the interval the user picks (5–60 minutes) to update the badge and detect new notifications. |
-| Host `https://api.github.com/*` | The only server the extension contacts: it reads the user's notifications and marks them as read through the GitHub REST API. |
+| Host `https://api.github.com/*` | Reads the user's notifications and marks them as read through the GitHub REST API. |
+| Host `https://github.com/login/*` | Sign in with GitHub: requests a one-time device code and exchanges it for an access token through GitHub's OAuth device flow. Those endpoints don't allow cross-origin requests, so the extension needs host access to call them. Nothing else on github.com is accessed. |
 
 **Remote code:** No. All JavaScript, CSS and fonts ship in the package.
 
@@ -62,7 +63,7 @@ folder are the real popup with demo data, captured from a production build.
 - **Authentication information:** the GitHub personal access token the user pastes in.
 - **Personal communications:** notification titles and repository names returned by GitHub.
 
-Certify all three: not sold or transferred to third parties, not used for purposes unrelated to the single purpose, and not used for creditworthiness or lending. Data is stored only in the user's browser and only ever sent to api.github.com.
+Certify all three: not sold or transferred to third parties, not used for purposes unrelated to the single purpose, and not used for creditworthiness or lending. Data is stored only in the user's browser and only ever sent to GitHub (github.com/login for sign-in, api.github.com for notifications).
 
 **Privacy policy URL:** the site's `/privacy` page (OnDeck/ondeck-site#6).
 

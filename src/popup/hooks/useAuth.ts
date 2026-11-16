@@ -3,6 +3,8 @@ import {
   getStoredAuth,
   signInWithToken,
   signOut as doSignOut,
+  TOKEN_STORAGE_KEY,
+  type AuthState,
 } from '../../lib/auth';
 import type { Viewer } from '../../lib/github-api';
 
@@ -27,19 +29,29 @@ export function useAuth(): UseAuth {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const stored = await getStoredAuth();
+    const apply = (stored: AuthState) => {
       if (cancelled) return;
       if (stored.token && stored.viewer) {
         setToken(stored.token);
         setViewer(stored.viewer);
         setStatus('signed-in');
       } else {
+        setToken(null);
+        setViewer(null);
         setStatus('signed-out');
       }
-    })();
+    };
+    void getStoredAuth().then(apply);
+
+    // Device-flow sign-in finishes in the service worker, possibly while the
+    // popup is open.
+    const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+      if (area === 'local' && TOKEN_STORAGE_KEY in changes) void getStoredAuth().then(apply);
+    };
+    chrome.storage.onChanged.addListener(onChanged);
     return () => {
       cancelled = true;
+      chrome.storage.onChanged.removeListener(onChanged);
     };
   }, []);
 

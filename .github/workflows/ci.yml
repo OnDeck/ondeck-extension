@@ -40,6 +40,9 @@ jobs:
   e2e:
     name: E2E (Playwright)
     runs-on: ubuntu-latest
+    env:
+      # Fake client ID so the build includes "Sign in with GitHub"; GitHub is mocked.
+      VITE_GITHUB_CLIENT_ID: e2e-client-id
 
     steps:
       - uses: actions/checkout@v4

@@ -2,6 +2,7 @@ import { setupAlarm, registerAlarmHandler } from './schedulers/alarm';
 import { syncNotifications } from './workers/sync';
 import { registerNotificationClickHandler } from './workers/desktop-notifications';
 import { removeLegacyStorage } from './workers/legacy-storage';
+import { cancelDeviceFlow, registerDeviceFlowAlarm, resumeDeviceFlow, startDeviceFlow } from './workers/deviceFlow';
 import { getSettings } from '../lib/settings';
 import { TOKEN_STORAGE_KEY } from '../lib/auth';
 import { logger } from '../shared/logger';
@@ -31,6 +32,9 @@ chrome.runtime.onStartup.addListener(() => {
 
 registerAlarmHandler();
 registerNotificationClickHandler();
+registerDeviceFlowAlarm();
+// Chrome may have stopped the worker while a sign-in code was waiting.
+void resumeDeviceFlow();
 
 function syncSettingsChanged(prev?: UserSettings, next?: UserSettings): boolean {
   return (
@@ -68,15 +72,23 @@ chrome.storage.onChanged.addListener((changes, area) => {
   })();
 });
 
-// Popup requests a sync after marking threads read: reconcile in full so the
-// read threads drop out of the cache and the badge.
+function messageType(message: unknown): unknown {
+  return typeof message === 'object' && message !== null ? (message as Record<string, unknown>).type : undefined;
+}
+
 chrome.runtime.onMessage.addListener((message: unknown) => {
-  if (
-    typeof message === 'object' &&
-    message !== null &&
-    (message as Record<string, unknown>)['type'] === 'REQUEST_SYNC'
-  ) {
-    void syncNotifications({ full: true });
+  switch (messageType(message)) {
+    // After marking threads read: reconcile in full so they drop out of the
+    // cache and the badge.
+    case 'REQUEST_SYNC':
+      void syncNotifications({ full: true });
+      break;
+    case 'START_DEVICE_FLOW':
+      void startDeviceFlow();
+      break;
+    case 'CANCEL_DEVICE_FLOW':
+      void cancelDeviceFlow();
+      break;
   }
 });
 
