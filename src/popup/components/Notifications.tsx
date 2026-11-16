@@ -271,17 +271,14 @@ export function Notifications({
     }
   };
 
+  const barButton =
+    'flex shrink-0 cursor-pointer items-center rounded border border-tg-line font-sans';
+  const confirmButton = 'cursor-pointer rounded px-2.5 py-1 font-sans text-[11.5px]';
+
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          borderBottom: '1px solid var(--tg-line)',
-          background: 'var(--tg-bg1)',
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 0 }}>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex items-center border-b border-tg-line bg-tg-bg1">
+        <div className="min-w-0 flex-1">
           <ChipRail active={chip} counts={counts} onChange={setChip} />
         </div>
         <button
@@ -290,19 +287,7 @@ export function Notifications({
           disabled={markReadPlan.kind === 'none' || markAllState === 'working'}
           title={markReadPlan.kind === 'all' ? 'Mark all as read' : 'Mark these as read'}
           aria-label={markReadPlan.kind === 'all' ? 'Mark all as read' : 'Mark these as read'}
-          className="enabled:hover:border-[var(--tg-accent-border)] enabled:hover:text-[var(--tg-accent)] disabled:opacity-40"
-          style={{
-            padding: '6px 8px',
-            margin: '6px 0 6px 8px',
-            border: '1px solid var(--tg-line)',
-            borderRadius: 4,
-            background: 'transparent',
-            color: 'var(--tg-fg2)',
-            cursor: markReadPlan.kind === 'none' ? 'default' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            flexShrink: 0,
-          }}
+          className={`${barButton} my-1.5 ml-2 bg-transparent px-2 py-1.5 text-tg-fg2 enabled:hover:border-tg-accent-border enabled:hover:text-tg-accent disabled:cursor-default disabled:opacity-40`}
         >
           <svg
             width="14"
@@ -323,22 +308,9 @@ export function Notifications({
           onClick={() => setFilterPanelOpen(true)}
           title="Advanced filters"
           aria-label="Advanced filters"
-          style={{
-            padding: '6px 12px',
-            margin: '6px 8px',
-            border: '1px solid var(--tg-line)',
-            borderRadius: 4,
-            background: activeFilterCount > 0 ? 'var(--tg-accent-soft)' : 'transparent',
-            color: activeFilterCount > 0 ? 'var(--tg-accent)' : 'var(--tg-fg2)',
-            fontSize: 11,
-            fontFamily: 'var(--tg-sans)',
-            cursor: 'pointer',
-            fontWeight: 500,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            flexShrink: 0,
-          }}
+          className={`${barButton} mx-2 my-1.5 gap-1 px-3 py-1.5 text-[11px] font-medium ${
+            activeFilterCount > 0 ? 'bg-tg-accent-soft text-tg-accent' : 'bg-transparent text-tg-fg2'
+          }`}
         >
           <svg
             width="12"
@@ -361,19 +333,11 @@ export function Notifications({
           onKeyDown={(e) => {
             if (e.key === 'Escape') setMarkAllState('idle');
           }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '7px 10px',
-            borderBottom: '1px solid var(--tg-line)',
-            background: markAllState === 'error' ? 'var(--tg-critical-soft)' : 'var(--tg-accent-soft)',
-            fontSize: 12,
-            fontFamily: 'var(--tg-sans)',
-            color: 'var(--tg-fg0)',
-          }}
+          className={`flex items-center gap-2 border-b border-tg-line px-2.5 py-[7px] font-sans text-[12px] text-tg-fg0 ${
+            markAllState === 'error' ? 'bg-tg-critical-soft' : 'bg-tg-accent-soft'
+          }`}
         >
-          <span style={{ flex: 1, minWidth: 0 }}>
+          <span className="min-w-0 flex-1">
             {markAllState === 'working'
               ? 'Marking as read…'
               : markAllState === 'error'
@@ -386,33 +350,14 @@ export function Notifications({
                 type="button"
                 autoFocus
                 onClick={() => void handleMarkAll()}
-                style={{
-                  padding: '4px 10px',
-                  border: 'none',
-                  borderRadius: 4,
-                  background: 'var(--tg-accent)',
-                  color: '#fff',
-                  fontSize: 11.5,
-                  fontWeight: 600,
-                  fontFamily: 'var(--tg-sans)',
-                  cursor: 'pointer',
-                }}
+                className={`${confirmButton} border-none bg-tg-accent font-semibold text-white`}
               >
                 {markAllState === 'error' ? 'Retry' : 'Mark read'}
               </button>
               <button
                 type="button"
                 onClick={() => setMarkAllState('idle')}
-                style={{
-                  padding: '4px 10px',
-                  border: '1px solid var(--tg-line-strong)',
-                  borderRadius: 4,
-                  background: 'transparent',
-                  color: 'var(--tg-fg1)',
-                  fontSize: 11.5,
-                  fontFamily: 'var(--tg-sans)',
-                  cursor: 'pointer',
-                }}
+                className={`${confirmButton} border border-tg-line-strong bg-transparent text-tg-fg1`}
               >
                 {markAllState === 'error' ? 'Dismiss' : 'Cancel'}
               </button>
@@ -422,16 +367,7 @@ export function Notifications({
       )}
 
       {searchOpen && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '8px 10px',
-            borderBottom: '1px solid var(--tg-line)',
-            background: 'var(--tg-bg1)',
-          }}
-        >
+        <div className="flex items-center gap-2 border-b border-tg-line bg-tg-bg1 px-2.5 py-2">
           <input
             ref={searchInputRef}
             type="text"
@@ -441,39 +377,20 @@ export function Notifications({
               if (e.key === 'Escape') onSearchClose?.();
             }}
             placeholder="Search notifications…"
-            style={{
-              flex: 1,
-              padding: '6px 10px',
-              fontSize: 13,
-              fontFamily: 'var(--tg-sans)',
-              color: 'var(--tg-fg0)',
-              background: 'var(--tg-bg0)',
-              border: '1px solid var(--tg-line)',
-              borderRadius: 4,
-              outline: 'none',
-            }}
+            className="flex-1 rounded border border-tg-line bg-tg-bg0 px-2.5 py-1.5 font-sans text-[13px] text-tg-fg0 outline-none"
           />
           <button
             type="button"
             onClick={() => onSearchClose?.()}
             title="Close search · Esc"
-            style={{
-              padding: '6px 10px',
-              border: '1px solid var(--tg-line)',
-              borderRadius: 4,
-              background: 'transparent',
-              color: 'var(--tg-fg2)',
-              fontSize: 11,
-              fontFamily: 'var(--tg-sans)',
-              cursor: 'pointer',
-            }}
+            className="cursor-pointer rounded border border-tg-line bg-transparent px-2.5 py-1.5 font-sans text-[11px] text-tg-fg2"
           >
             Esc
           </button>
         </div>
       )}
 
-      <div className="tg-scroll" style={{ flex: 1, overflowY: 'auto', background: 'var(--tg-bg1)' }}>
+      <div className="tg-scroll flex-1 overflow-y-auto bg-tg-bg1">
         {feed.status === 'loading' || feed.status === 'idle' ? (
           <Spinner />
         ) : feed.status === 'error' && feed.error ? (
@@ -489,9 +406,7 @@ export function Notifications({
             {filtered.map((item, i) => (
               <div
                 key={item.id}
-                style={{
-                  borderBottom: i === filtered.length - 1 ? 'none' : '1px solid var(--tg-line)',
-                }}
+                className={i === filtered.length - 1 ? undefined : 'border-b border-tg-line'}
               >
                 <NotifRow
                   item={item}
@@ -505,17 +420,7 @@ export function Notifications({
                 type="button"
                 onClick={() => void feed.loadMore()}
                 disabled={feed.loadingMore}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  border: 'none',
-                  borderTop: '1px solid var(--tg-line)',
-                  background: 'transparent',
-                  color: 'var(--tg-fg2)',
-                  fontSize: 12,
-                  fontFamily: 'var(--tg-sans)',
-                  cursor: feed.loadingMore ? 'default' : 'pointer',
-                }}
+                className="w-full cursor-pointer border-x-0 border-b-0 border-t border-tg-line bg-transparent p-2.5 font-sans text-[12px] text-tg-fg2 disabled:cursor-default"
               >
                 {feed.loadingMore ? 'Loading…' : 'Load more'}
               </button>

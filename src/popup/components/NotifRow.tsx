@@ -31,8 +31,7 @@ function MarkReadBtn({ marking, onMark }: MarkReadBtnProps) {
       onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMark(); }}
       disabled={marking}
       title="Mark as read"
-      className={`shrink-0 px-[7px] py-[3px] rounded border border-[var(--tg-line)] bg-transparent text-[var(--tg-fg3)] text-[10px] self-center transition-[border-color,color] duration-[80ms] hover:border-[var(--tg-accent-border)] hover:text-[var(--tg-accent)] ${marking ? 'cursor-default opacity-50' : 'cursor-pointer opacity-100'}`}
-      style={{ fontFamily: 'var(--tg-mono)' }}
+      className={`shrink-0 px-[7px] py-[3px] rounded border border-tg-line bg-transparent text-tg-fg3 text-[10px] self-center transition-[border-color,color] duration-[80ms] hover:border-tg-accent-border hover:text-tg-accent ${marking ? 'cursor-default opacity-50' : 'cursor-pointer opacity-100'} font-mono`}
     >
       {marking ? '…' : '✓'}
     </button>
@@ -64,17 +63,17 @@ export function NotifRow({ item, marking, onMark }: Props) {
       href={url}
       target="_blank"
       rel="noreferrer"
-      className="flex py-2.5 pr-2.5 cursor-pointer bg-transparent relative no-underline transition-colors duration-[80ms] hover:bg-[var(--tg-bg2)]"
+      className="flex py-2.5 pr-2.5 cursor-pointer bg-transparent relative no-underline transition-colors duration-[80ms] hover:bg-tg-bg2"
     >
       {/* Priority bar */}
       <div
-        className={`w-0.5 self-stretch mr-2.5 mt-[3px] mb-[3px] rounded-sm shrink-0 ${needsYou(item) ? 'bg-[var(--tg-accent)]' : 'bg-transparent'}`}
+        className={`w-0.5 self-stretch mr-2.5 mt-[3px] mb-[3px] rounded-sm shrink-0 ${needsYou(item) ? 'bg-tg-accent' : 'bg-transparent'}`}
       />
 
       {/* Unread dot */}
       <div className="w-2 flex items-start justify-center pt-[5px] shrink-0">
         {item.unread && (
-          <div className="w-[5px] h-[5px] rounded-full bg-[var(--tg-accent)]" />
+          <div className="w-[5px] h-[5px] rounded-full bg-tg-accent" />
         )}
       </div>
 
@@ -86,8 +85,8 @@ export function NotifRow({ item, marking, onMark }: Props) {
           </span>
         ) : (
           <span
-            className="text-[9.5px] font-semibold tracking-[0.4px] px-[5px] py-[2px] rounded border border-[var(--tg-line)] leading-none inline-flex items-center h-[14px]"
-            style={{ color: display.typeColor, background: 'rgba(255,255,255,0.04)' }}
+            className="text-[9.5px] font-semibold tracking-[0.4px] px-[5px] py-[2px] rounded border border-tg-line bg-white/[0.04] leading-none inline-flex items-center h-[14px]"
+            style={{ color: display.typeColor }}
           >
             {display.typeCode}
           </span>
@@ -97,29 +96,29 @@ export function NotifRow({ item, marking, onMark }: Props) {
       {/* Content */}
       <div className="flex-1 min-w-0 ml-[9px]">
         {/* Meta line: repo · #pr · ago */}
-        <div className="flex items-center gap-[5px] text-[11px] text-[var(--tg-fg2)] mb-[3px] leading-none" style={{ fontFamily: 'var(--tg-mono)' }}>
-          <span className="text-[var(--tg-fg1)] overflow-hidden text-ellipsis whitespace-nowrap min-w-0 max-w-[140px]">
+        <div className="flex items-center gap-[5px] text-[11px] text-tg-fg2 mb-[3px] leading-none font-mono">
+          <span className="text-tg-fg1 overflow-hidden text-ellipsis whitespace-nowrap min-w-0 max-w-[140px]">
             {item.repository.full_name}
           </span>
 
           {prNum && (
-            <span className="text-[var(--tg-fg3)] shrink-0">#{prNum}</span>
+            <span className="text-tg-fg3 shrink-0">#{prNum}</span>
           )}
 
-          <span className="ml-auto text-[var(--tg-fg3)] shrink-0">
+          <span className="ml-auto text-tg-fg3 shrink-0">
             {ago}
           </span>
         </div>
 
         {/* Title */}
         <div
-          className={`text-[12.5px] leading-[1.35] overflow-hidden tracking-[-0.1px] line-clamp-2 ${item.unread ? 'text-[var(--tg-fg0)] font-medium' : 'text-[var(--tg-fg1)] font-normal'}`}
+          className={`text-[12.5px] leading-[1.35] overflow-hidden tracking-[-0.1px] line-clamp-2 ${item.unread ? 'text-tg-fg0 font-medium' : 'text-tg-fg1 font-normal'}`}
         >
           {item.subject.title}
         </div>
 
         {/* Tertiary: why you got it */}
-        <div className="mt-[3px] text-[11px] text-[var(--tg-fg3)] leading-none whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontFamily: 'var(--tg-mono)' }}>
+        <div className="mt-[3px] text-[11px] text-tg-fg3 leading-none whitespace-nowrap overflow-hidden text-ellipsis font-mono">
           {item.priority.reason}
         </div>
       </div>
