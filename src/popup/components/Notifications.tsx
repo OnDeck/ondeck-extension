@@ -7,6 +7,7 @@ import {
 } from '../../lib/github-api';
 import { applyFilter, extractRepositories } from '../../shared/filters/engine';
 import type { NotificationFilter } from '../../shared/filters/types';
+import { isEmptySearch, matchesSearch, parseSearch } from '../../shared/filters/search';
 import { planMarkRead, type MarkReadPlan } from '../../shared/notifications/markRead';
 import { prioritizeAll } from '../../shared/notifications/prioritizer';
 import { useNotificationsFeed } from '../hooks/useNotificationsFeed';
@@ -196,19 +197,13 @@ export function Notifications({
 
   const allRepositories = useMemo(() => extractRepositories(prioritized), [prioritized]);
 
+  const search = useMemo(() => parseSearch(searchQuery), [searchQuery]);
+  const searchActive = !isEmptySearch(search);
+
   const filtered = useMemo(() => {
     const filterResult = applyFilter(prioritized, buildFilter(chip, selectedRepos, dateFrom, dateTo));
-
-    if (!searchQuery.trim()) {
-      return filterResult;
-    }
-
-    const lowerQuery = searchQuery.toLowerCase();
-    return filterResult.filter((n) =>
-      n.subject.title.toLowerCase().includes(lowerQuery) ||
-      n.repository.full_name.toLowerCase().includes(lowerQuery)
-    );
-  }, [prioritized, chip, selectedRepos, dateFrom, dateTo, searchQuery]);
+    return searchActive ? filterResult.filter((n) => matchesSearch(n, search)) : filterResult;
+  }, [prioritized, chip, selectedRepos, dateFrom, dateTo, search, searchActive]);
 
   const handleResetFilters = () => {
     setSelectedRepos([]);
@@ -223,10 +218,10 @@ export function Notifications({
     () =>
       planMarkRead({
         visible: filtered,
-        unscoped: (chip === 'all' || chip === 'unread') && !searchQuery.trim() && !dateFrom && !dateTo,
+        unscoped: (chip === 'all' || chip === 'unread') && !searchActive && !dateFrom && !dateTo,
         selectedRepos,
       }),
-    [filtered, chip, searchQuery, dateFrom, dateTo, selectedRepos],
+    [filtered, chip, searchActive, dateFrom, dateTo, selectedRepos],
   );
 
   const handleMarkAll = async () => {
@@ -417,7 +412,9 @@ export function Notifications({
             onKeyDown={(e) => {
               if (e.key === 'Escape') onSearchClose?.();
             }}
-            placeholder="Search notifications…"
+            placeholder="Search, or try repo: type:pr is:unread"
+            aria-label="Search notifications"
+            title="Operators: repo:name · is:unread / is:read · type:pr|issue|release|discussion|commit|ci · reason:review|mention|assign|author|comment"
             className="flex-1 rounded border border-tg-line bg-tg-bg0 px-2.5 py-1.5 font-sans text-[13px] text-tg-fg0 outline-none"
           />
           <button
@@ -437,8 +434,13 @@ export function Notifications({
         ) : feed.status === 'error' && feed.error ? (
           <ErrorState error={feed.error} onRetry={feed.refetch} onReconnect={onReconnect} />
         ) : filtered.length === 0 ? (
-          chip === 'all' && activeFilterCount === 0 && !searchQuery.trim() ? (
+          chip === 'all' && activeFilterCount === 0 && !searchActive ? (
             <EmptyState />
+          ) : searchActive ? (
+            <EmptyState
+              title="Nothing matches."
+              hint="Combine operators like repo:web type:pr reason:review is:unread, or clear your search."
+            />
           ) : (
             <EmptyState title="Nothing matches." hint="Try another filter or clear your search." />
           )

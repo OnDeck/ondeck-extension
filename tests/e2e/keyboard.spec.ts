@@ -56,7 +56,7 @@ test('Enter and o open the focused row on GitHub', async () => {
 
 test('/ opens search, and shortcuts are ignored while typing', async () => {
   await h.popup.keyboard.press('/');
-  const search = h.popup.getByPlaceholder('Search notifications…');
+  const search = h.popup.getByRole('textbox', { name: 'Search notifications' });
   await expect(search).toBeFocused();
   await h.popup.keyboard.type('jk');
   await expect(search).toHaveValue('jk');

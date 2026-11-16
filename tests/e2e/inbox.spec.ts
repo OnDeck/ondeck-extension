@@ -48,6 +48,26 @@ test('filters by chip and shows an empty state for searches with no match', asyn
   await expect(h.popup.getByText('Checkout: retry payment intents on 409')).toBeHidden();
 });
 
+test('search operators narrow by repo, type, reason and read state', async () => {
+  const search = h.popup.getByRole('textbox', { name: 'Search notifications' });
+  await h.popup.keyboard.press('/');
+
+  await search.fill('repo:api type:issue');
+  await expect(h.popup.getByText('Rate limiter drops requests during deploys')).toBeVisible();
+  await expect(h.popup.getByText('CI failed on main')).toBeHidden();
+
+  await search.fill('reason:mention');
+  await expect(h.popup.getByText('RFC: feature flag naming conventions')).toBeVisible();
+  await expect(h.popup.getByText('Checkout: retry payment intents on 409')).toBeHidden();
+
+  await search.fill('type:pr checkout');
+  await expect(h.popup.getByText('Checkout: retry payment intents on 409')).toBeVisible();
+  await expect(h.popup.getByText('Add Combobox keyboard navigation')).toBeHidden();
+
+  await search.fill('type:pr is:read');
+  await expect(h.popup.getByText(/repo:web type:pr/)).toBeVisible();
+});
+
 test('reopens instantly from the cache while the API is slow', async () => {
   await expect.poll(() => badgeText(h.worker)).toBe('5');
   await h.context.route('https://api.github.com/notifications**', async (route) => {
