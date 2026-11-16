@@ -19,8 +19,9 @@
 
   --tg-fg0: #e8eaee;
   --tg-fg1: #b3b9c4;
-  --tg-fg2: #7a818c;
-  --tg-fg3: #525864;
+  /* fg2 and fg3 hold 4.5:1 or better on bg0–bg2, where text sits. */
+  --tg-fg2: #8e95a0;
+  --tg-fg3: #7f8693;
 
   --tg-accent: #3b82f6;
   --tg-accent-soft: rgba(59, 130, 246, 0.12);
@@ -48,8 +49,8 @@
   --tg-type-discussion: #a855f7;
 }
 
-/* Text tokens hold at least 4.5:1 on bg1 (fg3 is 4.6:1); type codes are
-   darker than their dark-theme hues for the same reason. */
+/* Text tokens hold at least 4.5:1 on bg0–bg2; type codes are darker than
+   their dark-theme hues for the same reason. */
 @media (prefers-color-scheme: light) {
   :root {
     color-scheme: light;
@@ -65,7 +66,7 @@
     --tg-fg0: #1f2328;
     --tg-fg1: #32383f;
     --tg-fg2: #57606a;
-    --tg-fg3: #6e7681;
+    --tg-fg3: #68707a;
 
     --tg-accent: #0969da;
     --tg-accent-soft: rgba(9, 105, 218, 0.08);
