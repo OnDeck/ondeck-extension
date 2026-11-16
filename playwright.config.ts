@@ -1,5 +1,4 @@
 import { defineConfig, devices } from '@playwright/test';
-import path from 'path';
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -7,18 +6,16 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'html',
   use: {
     trace: 'on-first-retry',
   },
   projects: [
     {
       name: 'chromium',
-      use: {
-        ...devices['Desktop Chrome'],
-        // Extension testing requires headful mode
-        headless: false,
-      },
+      // Browser options live in tests/e2e/helpers/extension.ts, which
+      // launches a persistent context with the extension loaded.
+      use: { ...devices['Desktop Chrome'] },
     },
   ],
 });
