@@ -1,5 +1,5 @@
 import { getStoredAuth } from '../../lib/auth';
-import { listNotifications, type NotificationItem } from '../../lib/github-api';
+import { pollNotifications, type NotificationItem } from '../../lib/github-api';
 import { prioritizeAll } from '../../shared/notifications/prioritizer';
 import {
   mergeNotificationsById,
@@ -66,7 +66,33 @@ export async function syncNotifications(options: SyncNotificationsOptions = {}):
     const since = cursor === null ? undefined : sinceFrom(cursor);
     const incremental = since !== undefined;
 
-    const fetched = await listNotifications(auth.token, { all: false, since });
+    // GitHub's X-Poll-Interval asks clients not to poll faster than this.
+    // Reconciliations (sign-in, mark-as-read) still go through.
+    const waitMs = (cached?.pollIntervalSeconds ?? 0) * 1000;
+    if (incremental && cached && Date.now() - cached.fetchedAt < waitMs) return;
+
+    // Only incremental syncs are conditional: marking a thread read elsewhere
+    // doesn't necessarily change Last-Modified, so a full reconcile must not
+    // be short-circuited by a 304.
+    const poll = await pollNotifications(auth.token, {
+      since,
+      ifModifiedSince: incremental ? cached?.lastModified : undefined,
+    });
+
+    if (poll.notModified) {
+      if (cached) {
+        await writeNotificationCache({
+          ...cached,
+          fetchedAt: Date.now(),
+          pollIntervalSeconds: poll.pollIntervalSeconds ?? cached.pollIntervalSeconds,
+        });
+        await setUnreadBadge(cachedItems.filter((n) => n.unread).length);
+      }
+      logger.info({ module: MODULE, message: 'No changes since last sync (304)' });
+      return;
+    }
+
+    const fetched = poll.items;
     const merged = incremental ? mergeNotificationsById(cachedItems, fetched) : fetched;
     const prioritized = prioritizeAll(merged);
 
@@ -74,6 +100,8 @@ export async function syncNotifications(options: SyncNotificationsOptions = {}):
       items: prioritized,
       fetchedAt: Date.now(),
       lastFullSyncAt: incremental ? cached?.lastFullSyncAt : Date.now(),
+      lastModified: poll.lastModified ?? undefined,
+      pollIntervalSeconds: poll.pollIntervalSeconds ?? undefined,
     };
     await writeNotificationCache(cache);
 

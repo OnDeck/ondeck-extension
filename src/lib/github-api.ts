@@ -1,4 +1,3 @@
-import { logger } from '../shared/logger';
 
 export const GITHUB_API_BASE = 'https://api.github.com';
 
@@ -25,6 +24,7 @@ async function githubFetch(
   path: string,
   token: string,
   init: RequestInit = {},
+  { allowNotModified = false }: { allowNotModified?: boolean } = {},
 ): Promise<Response> {
   let response: Response;
   try {
@@ -34,10 +34,10 @@ async function githubFetch(
         Accept: 'application/vnd.github+json',
         Authorization: `Bearer ${token}`,
         'X-GitHub-Api-Version': '2022-11-28',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        Pragma: 'no-cache',
         ...(init.headers ?? {}),
       },
+      // Bypass the browser's HTTP cache so a conditional request's 304 reaches
+      // us as-is instead of being swapped for a stale cached 200.
       cache: 'no-store',
     });
   } catch (err) {
@@ -64,6 +64,7 @@ async function githubFetch(
   if (response.status === 403) {
     throw new GitHubApiError('Forbidden — check token scopes', 403, 'forbidden');
   }
+  if (response.status === 304 && allowNotModified) return response;
   if (!response.ok) {
     throw new GitHubApiError(
       `GitHub API error (${response.status})`,
@@ -147,67 +148,54 @@ export interface NotificationItem {
   repository: NotificationRepository;
 }
 
-export async function listNotifications(
+export type NotificationPoll =
+  | { notModified: true; pollIntervalSeconds: number | null }
+  | {
+      notModified: false;
+      items: NotificationItem[];
+      lastModified: string | null;
+      pollIntervalSeconds: number | null;
+    };
+
+const MAX_NOTIFICATION_PAGES = 10;
+
+function nextPagePath(res: Response): string | null {
+  const nextMatch = res.headers.get('link')?.match(/<([^>]+)>;\s*rel="next"/);
+  return nextMatch ? nextMatch[1].replace(GITHUB_API_BASE, '') : null;
+}
+
+/**
+ * Fetch the unread notifications (up to 10 pages). With `ifModifiedSince`
+ * (a previous response's Last-Modified), GitHub answers 304 when nothing has
+ * changed; those responses don't count against the rate limit.
+ * `pollIntervalSeconds` is GitHub's X-Poll-Interval: don't poll more often.
+ */
+export async function pollNotifications(
   token: string,
-  options: { all?: boolean; since?: string } = {},
-): Promise<NotificationItem[]> {
-  const params = new URLSearchParams({
-    all: options.all ? 'true' : 'false',
-    per_page: '100',
-  });
+  options: { since?: string; ifModifiedSince?: string } = {},
+): Promise<NotificationPoll> {
+  const params = new URLSearchParams({ all: 'false', per_page: '100' });
+  if (options.since) params.append('since', options.since);
 
-  // Add 'since' parameter to fetch notifications updated after a specific date
-  if (options.since) {
-    params.append('since', options.since);
+  const first = await githubFetch(
+    `/notifications?${params.toString()}`,
+    token,
+    options.ifModifiedSince ? { headers: { 'If-Modified-Since': options.ifModifiedSince } } : {},
+    { allowNotModified: true },
+  );
+  const pollHeader = Number(first.headers.get('x-poll-interval'));
+  const pollIntervalSeconds = pollHeader > 0 ? pollHeader : null;
+  if (first.status === 304) return { notModified: true, pollIntervalSeconds };
+
+  const items = (await first.json()) as NotificationItem[];
+  let path = nextPagePath(first);
+  for (let page = 1; path && page < MAX_NOTIFICATION_PAGES; page++) {
+    const res = await githubFetch(path, token);
+    items.push(...((await res.json()) as NotificationItem[]));
+    path = nextPagePath(res);
   }
 
-  const allNotifications: NotificationItem[] = [];
-  let url: string | null = `/notifications?${params.toString()}`;
-  let pageCount = 0;
-  const maxPages = 10; // Safety limit to prevent infinite loops
-
-  while (url && pageCount < maxPages) {
-    pageCount++;
-    const res = await githubFetch(url, token);
-    const notifications = (await res.json()) as NotificationItem[];
-    allNotifications.push(...notifications);
-
-    logger.debug({
-      module: 'github-api',
-      message: `Fetched notifications page ${pageCount}`,
-      context: {
-        count: notifications.length,
-        newest: notifications[0]?.updated_at,
-        oldest: notifications[notifications.length - 1]?.updated_at,
-      },
-    });
-
-    // Check for next page in Link header
-    const linkHeader = res.headers.get('link');
-    if (linkHeader) {
-      const nextMatch = linkHeader.match(/<([^>]+)>;\s*rel="next"/);
-      if (nextMatch) {
-        // Extract path from full URL (remove base URL)
-        const nextUrl = nextMatch[1];
-        url = nextUrl.replace(GITHUB_API_BASE, '');
-      } else {
-        url = null;
-      }
-    } else {
-      url = null;
-    }
-  }
-
-  logger.debug({
-    module: 'github-api',
-    message: `Total notifications fetched: ${allNotifications.length}`,
-    context: {
-      newest: allNotifications[0]?.updated_at,
-      oldest: allNotifications[allNotifications.length - 1]?.updated_at,
-    },
-  });
-
-  return allNotifications;
+  return { notModified: false, items, lastModified: first.headers.get('last-modified'), pollIntervalSeconds };
 }
 
 export interface NotificationsPage {
