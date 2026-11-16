@@ -1,5 +1,14 @@
-import { useEffect, useRef } from 'react';
+import { Fragment, useEffect, useRef } from 'react';
 import type { NotificationReasonFilter, UserSettings } from '../../shared/settings/types';
+
+const SHORTCUTS: Array<[string, string]> = [
+  ['⌘⇧L', 'Open OnDeck'],
+  ['j / k', 'Next / previous notification'],
+  ['Enter or o', 'Open on GitHub'],
+  ['e', 'Mark as read'],
+  ['/ or ⌘K', 'Search'],
+  ['Esc', 'Close search or panel'],
+];
 
 const REASON_LABELS: Record<NotificationReasonFilter, string> = {
   assign: 'Assigned to you',
@@ -137,6 +146,16 @@ export function SettingsPanel({
               </select>
             </div>
           )}
+
+          <Section title="Keyboard shortcuts" className="mt-6" />
+          <dl className="m-0 mb-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 py-1 text-[12.5px]">
+            {SHORTCUTS.map(([keys, action]) => (
+              <Fragment key={keys}>
+                <dt className="font-mono text-[11.5px] text-tg-fg1">{keys}</dt>
+                <dd className="m-0 font-sans text-tg-fg2">{action}</dd>
+              </Fragment>
+            ))}
+          </dl>
 
           <Section title="Account" className="mt-6" />
           <button

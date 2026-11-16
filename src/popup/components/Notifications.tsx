@@ -15,6 +15,7 @@ import { ChipRail } from './ChipRail';
 import { FilterPanel } from './FilterPanel';
 import { NotifRow } from './NotifRow';
 import { PopupFooter } from './PopupFooter';
+import { ROW_ATTRIBUTE, listRows, shouldIgnoreShortcut, stepIndex } from '../lib/keyboard';
 import { EmptyState, ErrorState, Spinner } from './States';
 
 interface Props {
@@ -274,6 +275,46 @@ export function Notifications({
   const barButton =
     'flex shrink-0 cursor-pointer items-center rounded border border-tg-line font-sans';
   const confirmButton = 'cursor-pointer rounded px-2.5 py-1 font-sans text-[11.5px]';
+
+  // j/k (or ↓/↑) move focus between rows, so Enter opens the focused row
+  // natively; o opens it too, e marks it read.
+  const filteredRef = useRef(filtered);
+  filteredRef.current = filtered;
+  const handleMarkRef = useRef(handleMark);
+  handleMarkRef.current = handleMark;
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (shouldIgnoreShortcut(e)) return;
+      const rows = listRows();
+      const current = rows.findIndex((row) => row === document.activeElement);
+
+      if (e.key === 'j' || e.key === 'ArrowDown' || e.key === 'k' || e.key === 'ArrowUp') {
+        const next = stepIndex(current, rows.length, e.key === 'j' || e.key === 'ArrowDown' ? 1 : -1);
+        if (next < 0) return;
+        e.preventDefault();
+        rows[next].focus();
+        rows[next].scrollIntoView({ block: 'nearest' });
+      } else if (e.key === 'o' && current >= 0) {
+        e.preventDefault();
+        rows[current].click();
+      } else if (e.key === 'e' && current >= 0) {
+        const id = rows[current].getAttribute(ROW_ATTRIBUTE);
+        const item = filteredRef.current.find((n) => n.id === id);
+        if (!item?.unread) return;
+        e.preventDefault();
+        void handleMarkRef.current(item);
+        // On the Unread chip the row disappears; keep focus at the same position.
+        requestAnimationFrame(() => {
+          if (listRows().includes(document.activeElement as HTMLElement)) return;
+          const remaining = listRows();
+          remaining[Math.min(current, remaining.length - 1)]?.focus();
+        });
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
