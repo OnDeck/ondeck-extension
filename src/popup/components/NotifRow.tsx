@@ -47,9 +47,9 @@ interface Props {
 
 // Notifications don't say whether a PR or issue is still open, so the icon
 // shows the subject type only. Other types fall back to a short type code.
-const TYPE_ICONS: Record<string, { icon: typeof GitPullRequestIcon; color: string }> = {
-  PullRequest: { icon: GitPullRequestIcon, color: '#1a7f37' },
-  Issue: { icon: IssueOpenedIcon, color: '#1a7f37' },
+const TYPE_ICONS: Record<string, typeof GitPullRequestIcon> = {
+  PullRequest: GitPullRequestIcon,
+  Issue: IssueOpenedIcon,
 };
 
 export function NotifRow({ item, marking, onMark }: Props) {
@@ -57,7 +57,7 @@ export function NotifRow({ item, marking, onMark }: Props) {
   const ago = compactRelativeTime(item.updated_at);
   const url = notificationHtmlUrl(item);
   const prNum = item.subject.url?.match(/\/(\d+)$/)?.[1];
-  const statusIcon = TYPE_ICONS[item.subject.type] ?? null;
+  const TypeIcon = TYPE_ICONS[item.subject.type] ?? null;
 
   return (
     <a
@@ -81,13 +81,13 @@ export function NotifRow({ item, marking, onMark }: Props) {
 
       {/* Type Icon */}
       <div className="w-[22px] h-[22px] flex items-center justify-center shrink-0 ml-[6px] mt-[1px]">
-        {statusIcon ? (
-          <span className="flex items-center justify-center" style={{ color: statusIcon.color }}>
-            <statusIcon.icon size={16} />
+        {TypeIcon ? (
+          <span className="flex items-center justify-center text-tg-open">
+            <TypeIcon size={16} />
           </span>
         ) : (
           <span
-            className="text-[9.5px] font-semibold tracking-[0.4px] px-[5px] py-[2px] rounded border border-tg-line bg-white/[0.04] leading-none inline-flex items-center h-[14px]"
+            className="text-[9.5px] font-semibold tracking-[0.4px] px-[5px] py-[2px] rounded border border-tg-line bg-tg-tint leading-none inline-flex items-center h-[14px]"
             style={{ color: display.typeColor }}
           >
             {display.typeCode}

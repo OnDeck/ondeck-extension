@@ -27,7 +27,11 @@ export default {
         'tg-important-soft': 'var(--tg-important-soft)',
         'tg-success': 'var(--tg-success)',
         'tg-success-soft': 'var(--tg-success-soft)',
+        'tg-success-border': 'var(--tg-success-border)',
+        'tg-critical-border': 'var(--tg-critical-border)',
         'tg-muted': 'var(--tg-muted)',
+        'tg-tint': 'var(--tg-tint)',
+        'tg-open': 'var(--tg-open)',
       },
       fontFamily: {
         sans: ['Geist Variable', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],

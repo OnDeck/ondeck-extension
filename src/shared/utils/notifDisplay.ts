@@ -19,14 +19,14 @@ export interface NotifDisplayMeta {
 }
 
 const TYPE_META: Record<NotifDisplayType, { code: string; color: string }> = {
-  pr:         { code: 'PR',  color: '#8b5cf6' },
-  review:     { code: 'RV',  color: '#3b82f6' },
-  mention:    { code: '@',   color: '#f59e0b' },
-  issue:      { code: 'IS',  color: '#22c55e' },
-  ci:         { code: 'CI',  color: '#06b6d4' },
-  security:   { code: 'SEC', color: '#ef6b6b' },
-  release:    { code: 'REL', color: '#64748b' },
-  discussion: { code: 'DIS', color: '#a855f7' },
+  pr:         { code: 'PR',  color: 'var(--tg-type-pr)' },
+  review:     { code: 'RV',  color: 'var(--tg-type-review)' },
+  mention:    { code: '@',   color: 'var(--tg-type-mention)' },
+  issue:      { code: 'IS',  color: 'var(--tg-type-issue)' },
+  ci:         { code: 'CI',  color: 'var(--tg-type-ci)' },
+  security:   { code: 'SEC', color: 'var(--tg-type-security)' },
+  release:    { code: 'REL', color: 'var(--tg-type-release)' },
+  discussion: { code: 'DIS', color: 'var(--tg-type-discussion)' },
 };
 
 const AVATAR_PALETTE = [

@@ -37,7 +37,7 @@ export function EmptyState({ title, hint }: { title?: string; hint?: string } = 
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-6 py-10 text-center">
       {/* Check icon */}
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-[rgba(52,211,153,0.25)] bg-[rgba(52,211,153,0.12)]">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-tg-success-border bg-tg-success-soft">
         <svg
           width="18"
           height="18"
@@ -80,7 +80,7 @@ export function ErrorState({
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-5 py-10 text-center">
       {/* ! badge */}
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-[rgba(239,107,107,0.3)] bg-[rgba(239,107,107,0.12)]">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-tg-critical-border bg-tg-critical-soft">
         <span className="font-mono text-[16px] font-bold leading-none text-tg-critical">!</span>
       </div>
 
