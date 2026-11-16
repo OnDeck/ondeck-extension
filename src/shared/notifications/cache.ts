@@ -1,5 +1,5 @@
 import { NOTIFICATIONS_CACHE_KEY } from '../constants';
-import type { PrioritizedNotification } from './grouper';
+import type { PrioritizedNotification } from './prioritizer';
 
 /** Unread inbox maintained by the background worker in chrome.storage.local. */
 export interface NotificationCache {

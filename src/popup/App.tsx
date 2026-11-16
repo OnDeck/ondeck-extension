@@ -5,7 +5,7 @@ import { SettingsPanel } from './components/SettingsPanel';
 import { SignIn } from './components/SignIn';
 import { useAuth } from './hooks/useAuth';
 import { useDesktopNotificationSettings } from './hooks/useDesktopNotificationSettings';
-import { useFilterSettings } from './hooks/useFilterSettings';
+import { useSyncSettings } from './hooks/useSyncSettings';
 
 export default function App() {
   const auth = useAuth();
@@ -15,7 +15,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshSignal, setRefreshSignal] = useState(0);
   const desktopNotifications = useDesktopNotificationSettings();
-  const filterSettings = useFilterSettings();
+  const syncSettings = useSyncSettings();
 
   // Keyboard shortcut for search (Cmd+K / Ctrl+K)
   useEffect(() => {
@@ -113,7 +113,7 @@ export default function App() {
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         onSignOut={handleSettingsSignOut}
-        filterSettings={filterSettings}
+        syncSettings={syncSettings}
         desktopNotifications={desktopNotifications}
       />
     </div>

@@ -11,7 +11,7 @@ export async function getSettings(): Promise<UserSettings> {
   const stored = result[SETTINGS_KEY];
 
   if (!stored) {
-    return DEFAULT_SETTINGS;
+    return structuredClone(DEFAULT_SETTINGS);
   }
 
   // Deep merge with defaults to handle missing keys from schema updates
@@ -20,23 +20,24 @@ export async function getSettings(): Promise<UserSettings> {
       ...DEFAULT_SETTINGS.sync,
       ...stored.sync,
     },
-    badge: {
-      ...DEFAULT_SETTINGS.badge,
-      ...stored.badge,
-    },
-    display: {
-      ...DEFAULT_SETTINGS.display,
-      ...stored.display,
-    },
-    filters: {
-      ...DEFAULT_SETTINGS.filters,
-      ...stored.filters,
-    },
     notifications: {
       ...DEFAULT_SETTINGS.notifications,
       ...stored.notifications,
     },
   };
+}
+
+const LEGACY_SETTINGS_BLOCKS = ['badge', 'display', 'filters'];
+
+/**
+ * Rewrite stored settings without blocks from removed features. getSettings
+ * already ignores them; this just stops them riding along in sync storage.
+ */
+export async function pruneLegacySettings(): Promise<void> {
+  const result = await chrome.storage.sync.get(SETTINGS_KEY);
+  const stored = result[SETTINGS_KEY] as Record<string, unknown> | undefined;
+  if (!stored || !LEGACY_SETTINGS_BLOCKS.some((key) => key in stored)) return;
+  await saveSettings(await getSettings());
 }
 
 /**

@@ -29,9 +29,9 @@ export function prioritizeNotification(item: NotificationItem): NotificationPrio
   return { level: 'normal', reason, score: 0 };
 }
 
-export function prioritizeAll(
-  items: NotificationItem[],
-): Array<NotificationItem & { priority: NotificationPriorityResult }> {
+export type PrioritizedNotification = NotificationItem & { priority: NotificationPriorityResult };
+
+export function prioritizeAll(items: NotificationItem[]): PrioritizedNotification[] {
   return items
     .map((item) => ({ ...item, priority: prioritizeNotification(item) }))
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());

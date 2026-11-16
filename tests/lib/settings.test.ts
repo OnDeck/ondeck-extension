@@ -41,7 +41,8 @@ describe('getSettings migration', () => {
     expect(result.notifications).toEqual(DEFAULT_SETTINGS.notifications);
     // Existing values are preserved through the merge.
     expect(result.sync.intervalMinutes).toBe(30);
-    expect(result.filters.hideClosed).toBe(true);
+    // Blocks from removed features are dropped.
+    expect(result).not.toHaveProperty('filters');
   });
 
   it('preserves a stored notifications block over defaults', async () => {

@@ -7,14 +7,12 @@ import {
 } from '../../lib/github-api';
 import { applyFilter, extractRepositories } from '../../shared/filters/engine';
 import type { NotificationFilter } from '../../shared/filters/types';
-import { groupNotifications, type GroupBy } from '../../shared/notifications/grouper';
 import { planMarkRead, type MarkReadPlan } from '../../shared/notifications/markRead';
 import { prioritizeAll } from '../../shared/notifications/prioritizer';
 import { useNotificationsFeed } from '../hooks/useNotificationsFeed';
 import type { ChipId } from './ChipRail';
 import { ChipRail } from './ChipRail';
 import { FilterPanel } from './FilterPanel';
-import { GroupHeader } from './GroupHeader';
 import { NotifRow } from './NotifRow';
 import { PopupFooter } from './PopupFooter';
 import { EmptyState, ErrorState, Spinner } from './States';
@@ -30,8 +28,6 @@ interface Props {
   onSearchChange?: (query: string) => void;
   onSearchClose?: () => void;
 }
-
-type GroupByMode = GroupBy | 'none';
 
 type MarkAllState = 'idle' | 'confirm' | 'working' | 'error';
 
@@ -183,24 +179,13 @@ export function Notifications({
   }, [refreshSignal, refresh]);
 
   const [chip, setChip] = useState<ChipId>('all');
-  const [groupBy] = useState<GroupByMode>('none');
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [markingIds, setMarkingIds] = useState<Set<string>>(new Set());
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  const notifications = feed.items;
-
-  // DISABLED: These hooks make hundreds of API calls and are very slow
-  // TODO: Make these optional via settings or fetch only for visible notifications
-  // const { statusMap } = usePRStatus(token, notifications);
-  // const { contextMap } = useNotificationContext(token, notifications);
-  const statusMap = { merged: new Set(), closed: new Set(), closedIssues: new Set() };
-  const contextMap = new Map();
-
-  const prioritized = useMemo(() => prioritizeAll(notifications), [notifications]);
+  const prioritized = useMemo(() => prioritizeAll(feed.items), [feed.items]);
 
   useEffect(() => {
     onUnreadCountChange(prioritized.filter((n) => n.unread).length);
@@ -223,17 +208,6 @@ export function Notifications({
       n.repository.full_name.toLowerCase().includes(lowerQuery)
     );
   }, [prioritized, chip, selectedRepos, dateFrom, dateTo, searchQuery]);
-
-  const groups = useMemo(
-    () =>
-      groupBy === 'none'
-        ? [{ key: 'all', label: null as string | null, items: filtered }]
-        : groupNotifications(filtered, groupBy as GroupBy),
-    [filtered, groupBy],
-  );
-
-  const toggle = (key: string) =>
-    setCollapsed((c) => ({ ...c, [key]: !c[key] }));
 
   const handleResetFilters = () => {
     setSelectedRepos([]);
@@ -512,38 +486,18 @@ export function Notifications({
           )
         ) : (
           <>
-            {groups.map((group) => (
-              <div key={group.key}>
-                {group.label !== null && (
-                  <GroupHeader
-                    label={group.label ?? ''}
-                    count={group.items.length}
-                    collapsed={!!collapsed[group.key]}
-                    onToggle={() => toggle(group.key)}
-                  />
-                )}
-                {!collapsed[group.key] &&
-                  group.items.map((item, i) => (
-                    <div
-                      key={item.id}
-                      style={{
-                        borderBottom:
-                          i === group.items.length - 1
-                            ? 'none'
-                            : '1px solid var(--tg-line)',
-                      }}
-                    >
-                      <NotifRow
-                        item={item}
-                        marking={markingIds.has(item.id)}
-                        onMark={(n) => void handleMark(n)}
-                        isMerged={statusMap.merged.has(item.id)}
-                        isClosed={statusMap.closed.has(item.id)}
-                        isIssueClosed={statusMap.closedIssues.has(item.id)}
-                        context={contextMap.get(item.id)}
-                      />
-                    </div>
-                  ))}
+            {filtered.map((item, i) => (
+              <div
+                key={item.id}
+                style={{
+                  borderBottom: i === filtered.length - 1 ? 'none' : '1px solid var(--tg-line)',
+                }}
+              >
+                <NotifRow
+                  item={item}
+                  marking={markingIds.has(item.id)}
+                  onMark={(n) => void handleMark(n)}
+                />
               </div>
             ))}
             {feed.hasMore && (

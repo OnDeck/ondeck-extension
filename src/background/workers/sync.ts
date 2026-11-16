@@ -15,7 +15,6 @@ import {
 import { NOTIFICATION_SEEN_CACHE_KEY, BADGE_COLOR_DEFAULT } from '../../shared/constants';
 import { logger } from '../../shared/logger';
 import type { NewNotificationMessage } from '../../shared/types/notifications';
-import type { CountsCache, UserSettings } from '../../shared/settings/types';
 import { getSettings } from '../../lib/settings';
 
 const MODULE = 'sync-worker';
@@ -124,36 +123,4 @@ async function setUnreadBadge(unread: number): Promise<void> {
   const text = unread === 0 ? '' : unread > 99 ? '99+' : String(unread);
   await chrome.action.setBadgeText({ text });
   await chrome.action.setBadgeBackgroundColor({ color: BADGE_COLOR_DEFAULT });
-}
-
-/**
- * Calculate badge count based on user settings formula
- */
-export function calculateBadgeCount(
-  counts: CountsCache,
-  badgeSettings: UserSettings['badge']
-): number {
-  switch (badgeSettings.formula) {
-    case 'all':
-      return counts.prs + counts.reviews + counts.mentions + counts.notifications;
-    case 'actionable':
-      return counts.prs + counts.reviews;
-    case 'reviews-only':
-      return counts.reviews;
-    case 'custom':
-      if (!badgeSettings.customTabs || badgeSettings.customTabs.length === 0) {
-        return 0;
-      }
-      return badgeSettings.customTabs.reduce((sum, tab) => {
-        const tabCounts: Record<string, number> = {
-          prs: counts.prs,
-          reviews: counts.reviews,
-          mentions: counts.mentions,
-          notifications: counts.notifications,
-        };
-        return sum + (tabCounts[tab] || 0);
-      }, 0);
-    default:
-      return 0;
-  }
 }
