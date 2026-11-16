@@ -5,3 +5,5 @@ export const MAX_NOTIFICATIONS = 100;
 export const BADGE_COLOR_DEFAULT = '#0969da'; // GitHub blue
 export const BADGE_COLOR_CRITICAL = '#cf222e'; // GitHub danger red
 export const NOTIFICATION_SEEN_CACHE_KEY = 'last_notification_keys_v2';
+export const DEVICE_FLOW_ALARM_NAME = 'github-device-flow';
+export const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID?.trim() || null;

@@ -23,8 +23,9 @@ The landing page lives at [OnDeck/ondeck-site](https://github.com/OnDeck/ondeck-
 - **Instant open**: the popup renders the last synced inbox immediately and
   refreshes in place.
 
-OnDeck only talks to GitHub. Your personal access token stays in your browser
-and is only ever sent to `api.github.com`. There's no OnDeck server.
+OnDeck only talks to GitHub. Your token stays in your browser and is only ever
+sent to `api.github.com`; sign-in itself goes through `github.com/login`.
+There's no OnDeck server.
 
 ## Getting started
 
@@ -55,14 +56,37 @@ a rebuild, click the refresh icon on the extension's card in
 
 ### Sign in
 
+**Sign in with GitHub** (builds with `VITE_GITHUB_CLIENT_ID` set): click the
+button, then **Copy code and open GitHub** and enter the one-time code. The
+popup can close while you do this. The service worker keeps polling and
+signs you in once you approve.
+
+**Personal access token** (always available):
+
 1. Click **Create token on GitHub** in the popup. It opens GitHub's
    classic-token page with the `notifications` and `repo` scopes selected.
    Fine-grained tokens can't call the notifications API yet.
 2. Generate the token, paste it into the popup and press Enter.
 
-The token is checked against `/user`, encrypted with AES-GCM and stored in
-`chrome.storage.local`. Sign out from **Settings**. That removes the token, the
-cached inbox and the local key.
+Either way the token is checked against `/user`, encrypted with AES-GCM and
+stored in `chrome.storage.local`. Sign out from **Settings**. That removes the
+token, the cached inbox and the local key. An OAuth token stays authorised on
+GitHub until you revoke it under
+[Settings → Applications](https://github.com/settings/applications).
+
+#### Enabling Sign in with GitHub
+
+1. Register an OAuth app under your account or org settings → Developer
+   settings → OAuth Apps. Any homepage and callback URL will do; the device
+   flow doesn't use the callback.
+2. Tick **Enable Device Flow**.
+3. Copy the client ID (it's public, not a secret) into `.env.local`:
+
+   ```bash
+   VITE_GITHUB_CLIENT_ID=Ov23li...
+   ```
+
+4. Rebuild. Without the variable the popup shows only the token sign-in.
 
 ### Troubleshooting
 
