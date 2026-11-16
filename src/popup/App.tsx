@@ -6,6 +6,7 @@ import { SignIn } from './components/SignIn';
 import { useAuth } from './hooks/useAuth';
 import { useDesktopNotificationSettings } from './hooks/useDesktopNotificationSettings';
 import { useSyncSettings } from './hooks/useSyncSettings';
+import { shouldIgnoreShortcut } from './lib/keyboard';
 
 export default function App() {
   const auth = useAuth();
@@ -17,10 +18,13 @@ export default function App() {
   const desktopNotifications = useDesktopNotificationSettings();
   const syncSettings = useSyncSettings();
 
-  // Keyboard shortcut for search (Cmd+K / Ctrl+K)
+  // ⌘K / Ctrl+K and / open search; row shortcuts live in Notifications.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      } else if (e.key === '/' && !shouldIgnoreShortcut(e)) {
         e.preventDefault();
         setSearchOpen(true);
       }

@@ -4,6 +4,7 @@ import { compactRelativeTime } from '../../shared/utils/compactRelativeTime';
 import { notifDisplayMeta } from '../../shared/utils/notifDisplay';
 import { notificationHtmlUrl } from '../../lib/github-api';
 import { GitPullRequestIcon, IssueOpenedIcon } from './GitHubIcons';
+import { ROW_ATTRIBUTE } from '../lib/keyboard';
 
 // Threads that ask something of you directly get the accent bar; watcher
 // noise (subscribed, ci_activity, comment on something you follow) doesn't.
@@ -63,7 +64,8 @@ export function NotifRow({ item, marking, onMark }: Props) {
       href={url}
       target="_blank"
       rel="noreferrer"
-      className="flex py-2.5 pr-2.5 cursor-pointer bg-transparent relative no-underline transition-colors duration-[80ms] hover:bg-tg-bg2"
+      {...{ [ROW_ATTRIBUTE]: item.id }}
+      className="flex py-2.5 pr-2.5 cursor-pointer bg-transparent relative no-underline outline-none transition-colors duration-[80ms] hover:bg-tg-bg2 focus-visible:bg-tg-bg2 focus-visible:shadow-[inset_0_0_0_1px_var(--tg-accent-border)]"
     >
       {/* Priority bar */}
       <div
