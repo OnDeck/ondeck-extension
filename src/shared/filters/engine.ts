@@ -1,4 +1,4 @@
-import type { PrioritizedNotification } from '../notifications/grouper';
+import type { PrioritizedNotification } from '../notifications/prioritizer';
 import type { NotificationFilter } from './types';
 
 export function applyFilter(

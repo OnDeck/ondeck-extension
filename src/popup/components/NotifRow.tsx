@@ -1,16 +1,9 @@
 import type { NotificationItem } from '../../lib/github-api';
-import type { PrioritizedNotification } from '../../shared/notifications/grouper';
-import type { NotificationContext } from '../../lib/notification-context';
+import type { PrioritizedNotification } from '../../shared/notifications/prioritizer';
 import { compactRelativeTime } from '../../shared/utils/compactRelativeTime';
 import { notifDisplayMeta } from '../../shared/utils/notifDisplay';
 import { notificationHtmlUrl } from '../../lib/github-api';
-import {
-  GitPullRequestIcon,
-  GitPullRequestClosedIcon,
-  GitMergeIcon,
-  IssueOpenedIcon,
-  IssueClosedIcon,
-} from './GitHubIcons';
+import { GitPullRequestIcon, IssueOpenedIcon } from './GitHubIcons';
 
 // Threads that ask something of you directly get the accent bar; watcher
 // noise (subscribed, ci_activity, comment on something you follow) doesn't.
@@ -50,66 +43,28 @@ interface Props {
   item: PrioritizedNotification;
   marking: boolean;
   onMark: (item: NotificationItem) => void;
-  showRepo?: boolean;
-  isMerged?: boolean;
-  isClosed?: boolean;
-  isIssueClosed?: boolean;
-  context?: NotificationContext;
 }
 
-function getStatusIcon(
-  subjectType: string,
-  isMerged: boolean,
-  isClosed: boolean,
-  isIssueClosed: boolean,
-) {
-  if (subjectType === 'PullRequest') {
-    if (isMerged) {
-      return { icon: GitMergeIcon, color: '#8250df' }; // Purple for merged
-    }
-    if (isClosed) {
-      return { icon: GitPullRequestClosedIcon, color: '#d1242f' }; // Red for closed
-    }
-    return { icon: GitPullRequestIcon, color: '#1a7f37' }; // Green for open
-  }
+// Notifications don't say whether a PR or issue is still open, so the icon
+// shows the subject type only. Other types fall back to a short type code.
+const TYPE_ICONS: Record<string, { icon: typeof GitPullRequestIcon; color: string }> = {
+  PullRequest: { icon: GitPullRequestIcon, color: '#1a7f37' },
+  Issue: { icon: IssueOpenedIcon, color: '#1a7f37' },
+};
 
-  if (subjectType === 'Issue') {
-    if (isIssueClosed) {
-      return { icon: IssueClosedIcon, color: '#8250df' }; // Purple for closed
-    }
-    return { icon: IssueOpenedIcon, color: '#1a7f37' }; // Green for open
-  }
-
-  return null;
-}
-
-export function NotifRow({
-  item,
-  marking,
-  onMark,
-  showRepo = true,
-  isMerged = false,
-  isClosed = false,
-  isIssueClosed = false,
-  context,
-}: Props) {
+export function NotifRow({ item, marking, onMark }: Props) {
   const display = notifDisplayMeta(item);
   const ago = compactRelativeTime(item.updated_at);
-  const dim = false;
   const url = notificationHtmlUrl(item);
   const prNum = item.subject.url?.match(/\/(\d+)$/)?.[1];
-  const statusIcon = getStatusIcon(item.subject.type, isMerged, isClosed, isIssueClosed);
-
-  // Use enhanced context if available, otherwise fall back to priority reason
-  const reasonText = context?.primaryReason ?? item.priority.reason;
-  const actor = context?.actor;
+  const statusIcon = TYPE_ICONS[item.subject.type] ?? null;
 
   return (
     <a
       href={url}
       target="_blank"
       rel="noreferrer"
-      className={`flex py-2.5 pr-2.5 cursor-pointer bg-transparent relative no-underline transition-colors duration-[80ms] hover:bg-[var(--tg-bg2)] ${dim ? 'opacity-55' : 'opacity-100'}`}
+      className="flex py-2.5 pr-2.5 cursor-pointer bg-transparent relative no-underline transition-colors duration-[80ms] hover:bg-[var(--tg-bg2)]"
     >
       {/* Priority bar */}
       <div
@@ -143,23 +98,12 @@ export function NotifRow({
       <div className="flex-1 min-w-0 ml-[9px]">
         {/* Meta line: repo · #pr · ago */}
         <div className="flex items-center gap-[5px] text-[11px] text-[var(--tg-fg2)] mb-[3px] leading-none" style={{ fontFamily: 'var(--tg-mono)' }}>
-          {showRepo && (
-            <span className="text-[var(--tg-fg1)] overflow-hidden text-ellipsis whitespace-nowrap min-w-0 max-w-[140px]">
-              {item.repository.full_name}
-            </span>
-          )}
+          <span className="text-[var(--tg-fg1)] overflow-hidden text-ellipsis whitespace-nowrap min-w-0 max-w-[140px]">
+            {item.repository.full_name}
+          </span>
 
           {prNum && (
             <span className="text-[var(--tg-fg3)] shrink-0">#{prNum}</span>
-          )}
-
-          {isClosed && (
-            <span
-              className="text-[9px] px-1 py-[2px] rounded font-semibold tracking-[0.3px]"
-              style={{ fontFamily: 'var(--tg-mono)', background: 'rgba(248, 81, 73, 0.15)', color: '#f85149' }}
-            >
-              CLOSED
-            </span>
           )}
 
           <span className="ml-auto text-[var(--tg-fg3)] shrink-0">
@@ -174,40 +118,9 @@ export function NotifRow({
           {item.subject.title}
         </div>
 
-        {/* Tertiary: enhanced reason with actor */}
-        <div className="mt-[3px] text-[11px] text-[var(--tg-fg3)] leading-none whitespace-nowrap overflow-hidden text-ellipsis flex gap-1 items-center" style={{ fontFamily: 'var(--tg-mono)' }}>
-          <span>{reasonText}</span>
-          {actor && (
-            <>
-              <span className="text-[var(--tg-line)]">·</span>
-              <span className="text-[var(--tg-fg2)] font-medium">@{actor}</span>
-            </>
-          )}
-          {context?.reviewState && (
-            <span
-              className="ml-[2px] px-1 py-[1px] rounded text-[9px] font-semibold tracking-[0.3px]"
-              style={{
-                background:
-                  context.reviewState === 'APPROVED'
-                    ? 'rgba(26, 127, 55, 0.15)'
-                    : context.reviewState === 'CHANGES_REQUESTED'
-                    ? 'rgba(209, 36, 47, 0.15)'
-                    : 'rgba(101, 109, 118, 0.15)',
-                color:
-                  context.reviewState === 'APPROVED'
-                    ? '#1a7f37'
-                    : context.reviewState === 'CHANGES_REQUESTED'
-                    ? '#d1242f'
-                    : '#656d76',
-              }}
-            >
-              {context.reviewState === 'APPROVED'
-                ? '✓'
-                : context.reviewState === 'CHANGES_REQUESTED'
-                ? '✗'
-                : '💬'}
-            </span>
-          )}
+        {/* Tertiary: why you got it */}
+        <div className="mt-[3px] text-[11px] text-[var(--tg-fg3)] leading-none whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontFamily: 'var(--tg-mono)' }}>
+          {item.priority.reason}
         </div>
       </div>
 

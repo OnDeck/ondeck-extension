@@ -1,6 +1,7 @@
 import { setupAlarm, registerAlarmHandler } from './schedulers/alarm';
 import { syncNotifications } from './workers/sync';
 import { registerNotificationClickHandler } from './workers/desktop-notifications';
+import { removeLegacyStorage } from './workers/legacy-storage';
 import { getSettings } from '../lib/settings';
 import { TOKEN_STORAGE_KEY } from '../lib/auth';
 import { logger } from '../shared/logger';
@@ -14,8 +15,13 @@ async function scheduleAndSync(): Promise<void> {
   await syncNotifications({ full: true });
 }
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
   logger.info({ module: 'service-worker', message: 'Extension installed/updated' });
+  if (details.reason === 'update') {
+    removeLegacyStorage().catch((error) => {
+      logger.error({ module: 'service-worker', message: 'Legacy storage cleanup failed', error });
+    });
+  }
   void scheduleAndSync();
 });
 

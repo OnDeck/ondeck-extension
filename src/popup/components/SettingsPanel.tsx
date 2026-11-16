@@ -13,7 +13,7 @@ interface SettingsPanelProps {
   open: boolean;
   onClose: () => void;
   onSignOut: () => void;
-  filterSettings: {
+  syncSettings: {
     syncInterval: 5 | 15 | 30 | 60;
     loading: boolean;
     updateSyncInterval: (interval: 5 | 15 | 30 | 60) => void;
@@ -31,7 +31,7 @@ export function SettingsPanel({
   open,
   onClose,
   onSignOut,
-  filterSettings,
+  syncSettings,
   desktopNotifications,
 }: SettingsPanelProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -213,7 +213,7 @@ export function SettingsPanel({
 
           {/* Sync Section */}
           <Section title="Sync" style={{ marginTop: 24 }} />
-          {filterSettings.loading ? (
+          {syncSettings.loading ? (
             <div style={{ color: 'var(--tg-fg3)', fontSize: 12 }}>Loading...</div>
           ) : (
             <div style={{ padding: '8px 0' }}>
@@ -226,8 +226,8 @@ export function SettingsPanel({
                 Refresh interval
               </div>
               <select
-                value={filterSettings.syncInterval}
-                onChange={(e) => filterSettings.updateSyncInterval(Number(e.target.value) as 5 | 15 | 30 | 60)}
+                value={syncSettings.syncInterval}
+                onChange={(e) => syncSettings.updateSyncInterval(Number(e.target.value) as 5 | 15 | 30 | 60)}
                 style={{
                   width: '100%',
                   padding: '8px 12px',

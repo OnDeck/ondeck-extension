@@ -6,7 +6,8 @@ import {
 } from '../../lib/github-api';
 import { readNotificationCache } from '../../shared/notifications/cache';
 import { latestUpdatedAt, mergeNotificationsById, sinceFrom } from '../../shared/notifications/merge';
-import type { QueryStatus } from './useGitHubQuery';
+
+export type QueryStatus = 'idle' | 'loading' | 'success' | 'error';
 
 export interface NotificationsFeed {
   items: NotificationItem[];
