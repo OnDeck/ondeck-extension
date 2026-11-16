@@ -6,6 +6,10 @@ export interface NotificationCache {
   items: PrioritizedNotification[];
   fetchedAt: number;
   lastFullSyncAt?: number;
+  /** Last-Modified of the latest 200 from /notifications, for If-Modified-Since. */
+  lastModified?: string;
+  /** GitHub's X-Poll-Interval, in seconds. */
+  pollIntervalSeconds?: number;
 }
 
 function isNotificationCache(value: unknown): value is NotificationCache {
