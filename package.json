@@ -32,7 +32,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
-    "@playwright/test": "^1.60.0",
+    "@playwright/test": "^1.65.1",
     "@types/chrome": "^0.0.268",
     "@types/node": "^20.14.2",
     "@types/react": "^18.3.3",
@@ -48,7 +48,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "lint-staged": "^17.0.4",
-    "playwright-chromium": "^1.60.0",
+    "playwright-chromium": "^1.65.1",
     "postcss": "^8.4.38",
     "prettier": "^3.8.3",
     "semver": "^7.8.1",
